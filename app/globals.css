@@ -1,0 +1,419 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* Configure Tailwind dark mode to use .dark class */
+@theme {
+  --color-scheme: light dark;
+}
+
+@variant dark (.dark &);
+
+/* ============================================
+   CSS Custom Properties
+   ============================================ */
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --sidebar-bg: #f9fafb;
+  --sidebar-border: #e5e7eb;
+  --text-muted: #6b7280;
+  --link-color: #2563eb;
+  --link-hover: #1d4ed8;
+  --active-bg: #3b82f6;
+  --active-text: #ffffff;
+  --hover-bg: #f3f4f6;
+  --code-bg: #f6f8fa;
+  --code-text: #d73a49;
+  --pre-bg: #ffffff;
+  --pre-border: #d0d7de;
+
+  /* Syntax highlighting colors - Light mode */
+  --syntax-base: #24292f;
+  --syntax-keyword: #cf222e;
+  --syntax-string: #0a3069;
+  --syntax-function: #8250df;
+  --syntax-number: #0550ae;
+  --syntax-comment: #6e7781;
+  --syntax-variable: #953800;
+  --syntax-tag: #116329;
+}
+
+html[data-theme="dark"] {
+  --background: #0d0d0d;
+  --foreground: #ffffff;
+  --sidebar-bg: #161b22;
+  --sidebar-border: #30363d;
+  --text-muted: #a8b3c1;
+  --link-color: #70b8ff;
+  --link-hover: #90d0ff;
+  --active-bg: #1f6feb;
+  --active-text: #ffffff;
+  --hover-bg: #21262d;
+  --code-bg: #1c1c1c;
+  --code-text: #ffffff;
+  --pre-bg: #0d1117;
+  --pre-border: #30363d;
+
+  /* Syntax highlighting colors - Dark mode */
+  --syntax-base: #e6edf3;
+  --syntax-keyword: #ff7b72;
+  --syntax-string: #a5d6ff;
+  --syntax-function: #d2a8ff;
+  --syntax-number: #79c0ff;
+  --syntax-comment: #8b949e;
+  --syntax-variable: #ffa657;
+  --syntax-tag: #7ee787;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ============================================
+   Prose Typography Styles
+   ============================================ */
+
+.prose {
+  color: var(--foreground);
+}
+
+.prose p,
+.prose li {
+  color: var(--foreground);
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  color: var(--foreground);
+}
+
+.prose a {
+  color: var(--link-color);
+}
+
+.prose a:hover {
+  color: var(--link-hover);
+}
+
+.prose strong {
+  color: var(--foreground);
+}
+
+.prose blockquote {
+  color: var(--text-muted);
+  border-left-color: var(--sidebar-border);
+}
+
+.prose hr {
+  border-color: var(--sidebar-border);
+}
+
+.prose table {
+  color: var(--foreground);
+}
+
+.prose thead {
+  color: var(--foreground);
+  border-bottom-color: var(--sidebar-border);
+}
+
+.prose tbody tr {
+  border-bottom-color: var(--sidebar-border);
+}
+
+/* ============================================
+   Code Blocks
+   ============================================ */
+
+.prose :not(pre) > code {
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+  font-size: 0.875em;
+  font-weight: 600;
+}
+
+.prose pre {
+  background: var(--pre-bg);
+  border: 1px solid var(--pre-border);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  border-radius: 8px;
+  overflow-x: auto;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.prose pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+/* Syntax highlighting using CSS custom properties */
+.hljs {
+  background: var(--pre-bg);
+  color: var(--syntax-base);
+}
+
+.prose pre code {
+  color: var(--syntax-base);
+}
+
+/* Keywords, types, built-ins, commands */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-type,
+.hljs-doctag,
+.hljs-template-tag,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-section,
+.hljs-meta-keyword {
+  color: var(--syntax-keyword);
+}
+
+/* Strings, template strings */
+.hljs-string,
+.hljs-regexp,
+.hljs-meta .hljs-string,
+.hljs-template-string {
+  color: var(--syntax-string);
+}
+
+/* Functions, classes, titles */
+.hljs-title,
+.hljs-title.class_,
+.hljs-title.function_,
+.hljs-title.function.invoke__,
+.hljs-name {
+  color: var(--syntax-function);
+}
+
+/* Numbers, literals, booleans, constants */
+.hljs-number,
+.hljs-literal,
+.hljs-boolean,
+.hljs-link,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-meta {
+  color: var(--syntax-number);
+}
+
+/* Comments */
+.hljs-comment,
+.hljs-code,
+.hljs-formula,
+.hljs-quote {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+
+/* Variables, parameters, attributes, properties */
+.hljs-variable,
+.hljs-attr,
+.hljs-attribute,
+.hljs-params,
+.hljs-property {
+  color: var(--syntax-variable);
+}
+
+/* Operators, punctuation - keep default color */
+.hljs-operator,
+.hljs-punctuation {
+  color: var(--syntax-base);
+}
+
+/* Tags, selectors in markup/CSS */
+.hljs-tag,
+.hljs-selector-class,
+.hljs-selector-id,
+.hljs-selector-pseudo {
+  color: var(--syntax-tag);
+}
+
+/* Additions/deletions in diffs */
+.hljs-addition {
+  color: var(--syntax-tag);
+  background-color: rgba(34, 134, 58, 0.15);
+}
+
+.hljs-deletion {
+  color: var(--syntax-keyword);
+  background-color: rgba(207, 34, 46, 0.15);
+}
+
+/* ============================================
+   Heading Anchors
+   ============================================ */
+
+.prose h2[id],
+.prose h3[id],
+.prose h4[id] {
+  scroll-margin-top: 2rem;
+}
+
+.prose h2[id]:hover::before,
+.prose h3[id]:hover::before,
+.prose h4[id]:hover::before {
+  content: "#";
+  position: absolute;
+  margin-left: -1.5rem;
+  padding-right: 0.5rem;
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+/* ============================================
+   Admonitions
+   ============================================ */
+
+.admonition {
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  border-left: 4px solid;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+.admonition-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admonition > *:last-child {
+  margin-bottom: 0;
+}
+
+.admonition p {
+  margin: 0.5rem 0;
+}
+
+/* Light mode admonitions */
+.admonition {
+  background: white;
+}
+
+.admonition-note {
+  border-left-color: #0969da;
+  background: #ddf4ff;
+}
+
+.admonition-note .admonition-title {
+  color: #0969da;
+}
+
+.admonition-tip {
+  border-left-color: #1a7f37;
+  background: #dafbe1;
+}
+
+.admonition-tip .admonition-title {
+  color: #1a7f37;
+}
+
+.admonition-warning,
+.admonition-caution {
+  border-left-color: #bf8700;
+  background: #fff8c5;
+}
+
+.admonition-warning .admonition-title,
+.admonition-caution .admonition-title {
+  color: #bf8700;
+}
+
+.admonition-danger {
+  border-left-color: #cf222e;
+  background: #ffebe9;
+}
+
+.admonition-danger .admonition-title {
+  color: #cf222e;
+}
+
+.admonition-info {
+  border-left-color: #8250df;
+  background: #fbefff;
+}
+
+.admonition-info .admonition-title {
+  color: #8250df;
+}
+
+/* Dark mode admonitions */
+html[data-theme="dark"] .admonition {
+  background: #161b22;
+  color: #f0f0f0;
+}
+
+html[data-theme="dark"] .admonition-note {
+  background: #0d1117;
+  border-left-color: #70b8ff;
+}
+
+html[data-theme="dark"] .admonition-note .admonition-title {
+  color: #70b8ff;
+}
+
+html[data-theme="dark"] .admonition-tip {
+  background: #0d1117;
+  border-left-color: #3fb950;
+}
+
+html[data-theme="dark"] .admonition-tip .admonition-title {
+  color: #3fb950;
+}
+
+html[data-theme="dark"] .admonition-warning,
+html[data-theme="dark"] .admonition-caution {
+  background: #0d1117;
+  border-left-color: #e8b339;
+}
+
+html[data-theme="dark"] .admonition-warning .admonition-title,
+html[data-theme="dark"] .admonition-caution .admonition-title {
+  color: #e8b339;
+}
+
+html[data-theme="dark"] .admonition-danger {
+  background: #0d1117;
+  border-left-color: #ff6b6b;
+}
+
+html[data-theme="dark"] .admonition-danger .admonition-title {
+  color: #ff6b6b;
+}
+
+html[data-theme="dark"] .admonition-info {
+  background: #0d1117;
+  border-left-color: #bc8cff;
+}
+
+html[data-theme="dark"] .admonition-info .admonition-title {
+  color: #bc8cff;
+}
