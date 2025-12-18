@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import ApiKeyInjector from "./ApiKeyInjector";
 
 export default function PageEnhancer() {
   useEffect(() => {
@@ -158,5 +159,5 @@ export default function PageEnhancer() {
     };
   }, []);
 
-  return null;
+  return <ApiKeyInjector />;
 }

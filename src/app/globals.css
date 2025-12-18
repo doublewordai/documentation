@@ -28,6 +28,8 @@
   --code-text: #000000;
   --pre-bg: #fafafa;
   --pre-border: #e5e5e5;
+  --button-bg: #0070f3;
+  --button-text: #ffffff;
 
   /* Typography */
   --font-family: var(--font-ibm-plex-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -49,6 +51,8 @@ html[data-theme="dark"] {
   --code-text: #ffffff;
   --pre-bg: #0a0a0a;
   --pre-border: #1a1a1a;
+  --button-bg: #0070f3;
+  --button-text: #ffffff;
 }
 
 @theme inline {
