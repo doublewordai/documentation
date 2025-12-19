@@ -105,101 +105,111 @@ export default function PageEnhancer() {
       }
     };
 
-    // Enhance footnotes
-    const footnoteRefs = document.querySelectorAll(".footnote-ref");
+    // Enhance footnotes - use event delegation to handle dynamically loaded content
     let hoverTimeout: NodeJS.Timeout | null = null;
     let currentSidenote: HTMLElement | null = null;
 
-    footnoteRefs.forEach((ref) => {
-      ref.addEventListener("mouseenter", (e) => {
-        const target = e.target as HTMLElement;
+    const handleFootnoteMouseEnter = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (!target.classList?.contains("footnote-ref")) return;
 
-        // Clear any existing timeout
-        if (hoverTimeout) {
-          clearTimeout(hoverTimeout);
+      // Clear any existing timeout
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+
+      // Add delay before showing sidenote
+      hoverTimeout = setTimeout(() => {
+        const href = target.getAttribute("href");
+        if (!href) return;
+
+        const footnoteId = href.replace("#user-content-fn-", "");
+        const footnoteDef = document.querySelector(
+          `.footnote-definition[data-footnote-id="${footnoteId}"]`
+        );
+
+        if (!footnoteDef || window.innerWidth < 1280) return;
+
+        // Remove any existing sidenote
+        if (currentSidenote) {
+          currentSidenote.remove();
+          currentSidenote = null;
         }
 
-        // Add delay before showing sidenote
-        hoverTimeout = setTimeout(() => {
-          const href = target.getAttribute("href");
-          if (!href) return;
+        const rect = target.getBoundingClientRect();
+        const sidenote = document.createElement("div");
+        sidenote.className = "sidenote sidenote-active";
 
-          const footnoteId = href.replace("#user-content-fn-", "");
-          const footnoteDef = document.querySelector(
-            `.footnote-definition[data-footnote-id="${footnoteId}"]`
-          );
+        // Clone the content but remove the back-reference link
+        const content = footnoteDef.cloneNode(true) as HTMLElement;
+        const backRef = content.querySelector('a[href^="#user-content-fnref-"]');
+        if (backRef) {
+          backRef.remove();
+        }
+        sidenote.innerHTML = content.innerHTML;
 
-          if (!footnoteDef || window.innerWidth < 1280) return;
+        sidenote.style.left = `${rect.right + 16}px`;
+        sidenote.style.top = `${rect.top}px`;
 
-          // Remove any existing sidenote
+        document.body.appendChild(sidenote);
+        currentSidenote = sidenote;
+        target.setAttribute("data-sidenote-active", "true");
+
+        // Keep sidenote open when hovering over it
+        sidenote.addEventListener("mouseenter", () => {
+          if (hoverTimeout) {
+            clearTimeout(hoverTimeout);
+          }
+        });
+
+        sidenote.addEventListener("mouseleave", () => {
           if (currentSidenote) {
             currentSidenote.remove();
             currentSidenote = null;
           }
+          target.removeAttribute("data-sidenote-active");
+        });
+      }, 150); // 150ms delay before showing
+    };
 
-          const rect = target.getBoundingClientRect();
-          const sidenote = document.createElement("div");
-          sidenote.className = "sidenote sidenote-active";
+    const handleFootnoteMouseLeave = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (!target.classList?.contains("footnote-ref")) return;
 
-          // Clone the content but remove the back-reference link
-          const content = footnoteDef.cloneNode(true) as HTMLElement;
-          const backRef = content.querySelector('a[href^="#user-content-fnref-"]');
-          if (backRef) {
-            backRef.remove();
-          }
-          sidenote.innerHTML = content.innerHTML;
+      // Clear the timeout if mouse leaves before delay completes
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+      }
 
-          sidenote.style.left = `${rect.right + 16}px`;
-          sidenote.style.top = `${rect.top}px`;
+      // Delay removing sidenote to allow moving mouse to it
+      setTimeout(() => {
+        if (!target.getAttribute("data-sidenote-active")) return;
 
-          document.body.appendChild(sidenote);
-          currentSidenote = sidenote;
-          target.setAttribute("data-sidenote-active", "true");
-
-          // Keep sidenote open when hovering over it
-          sidenote.addEventListener("mouseenter", () => {
-            if (hoverTimeout) {
-              clearTimeout(hoverTimeout);
-            }
-          });
-
-          sidenote.addEventListener("mouseleave", () => {
-            if (currentSidenote) {
-              currentSidenote.remove();
-              currentSidenote = null;
-            }
-            target.removeAttribute("data-sidenote-active");
-          });
-        }, 150); // 150ms delay before showing
-      });
-
-      ref.addEventListener("mouseleave", (e) => {
-        const target = e.target as HTMLElement;
-
-        // Clear the timeout if mouse leaves before delay completes
-        if (hoverTimeout) {
-          clearTimeout(hoverTimeout);
-          hoverTimeout = null;
+        const sidenote = document.querySelector(".sidenote:hover");
+        if (!sidenote && currentSidenote) {
+          currentSidenote.remove();
+          currentSidenote = null;
+          target.removeAttribute("data-sidenote-active");
         }
+      }, 100);
+    };
 
-        // Delay removing sidenote to allow moving mouse to it
-        setTimeout(() => {
-          if (!target.getAttribute("data-sidenote-active")) return;
-
-          const sidenote = document.querySelector(".sidenote:hover");
-          if (!sidenote && currentSidenote) {
-            currentSidenote.remove();
-            currentSidenote = null;
-            target.removeAttribute("data-sidenote-active");
-          }
-        }, 100);
-      });
-    });
-
+    // Use event delegation on document instead of individual elements
+    document.addEventListener("mouseenter", handleFootnoteMouseEnter, true);
+    document.addEventListener("mouseleave", handleFootnoteMouseLeave, true);
     document.addEventListener("change", handleTabChange);
 
     return () => {
       clearTimeout(timeoutId);
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+      if (currentSidenote) {
+        currentSidenote.remove();
+      }
+      document.removeEventListener("mouseenter", handleFootnoteMouseEnter, true);
+      document.removeEventListener("mouseleave", handleFootnoteMouseLeave, true);
       document.removeEventListener("change", handleTabChange);
     };
   }, []);

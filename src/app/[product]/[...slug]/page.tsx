@@ -96,7 +96,7 @@ export default async function DocPage({params}: Props) {
           <aside className="hidden xl:block sticky top-8 h-fit pt-8 z-10 toc-aside ml-auto flex-shrink-0 w-[280px] 2xl:w-[360px]" style={{ background: 'var(--background)' }}>
             <TableOfContents />
 
-            <div className="mt-8">
+            <div className="mt-4">
               <p
                 className="text-xs 2xl:text-sm font-semibold tracking-wide mb-3"
                 style={{ color: 'var(--text-muted)' }}

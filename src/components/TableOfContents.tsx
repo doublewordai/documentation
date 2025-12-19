@@ -67,7 +67,7 @@ export default function TableOfContents() {
             >
               <a
                 href={`#${heading.id}`}
-                className="block py-1 transition-all duration-200 hover:translate-x-0.5"
+                className="block py-1 transition-all duration-200 hover:translate-x-0.5 cursor-default"
                 style={{
                   color: isActive ? "var(--foreground)" : "var(--text-muted)",
                   textShadow: isActive ? "0 0 0.5px currentColor" : "none",
