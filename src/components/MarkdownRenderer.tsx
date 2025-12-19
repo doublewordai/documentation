@@ -86,7 +86,7 @@ export async function MarkdownRenderer({
     return (
       <div className="code-block-wrapper">
         <pre {...props}>{children}</pre>
-        {codeString && <CopyButton code={codeString} />}
+        {codeString && <CopyButton />}
       </div>
     );
   };

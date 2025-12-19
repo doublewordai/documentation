@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
-interface CopyButtonProps {
-  code: string;
-}
-
-export default function CopyButton({ code }: CopyButtonProps) {
+export default function CopyButton() {
   const [copied, setCopied] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handleCopy = async () => {
+    // Get the current DOM content (which may have been modified by ApiKeyInjector)
+    const wrapper = buttonRef.current?.closest('.code-block-wrapper');
+    const codeElement = wrapper?.querySelector('pre code') || wrapper?.querySelector('pre');
+    const code = codeElement?.textContent || '';
+
     await navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -17,6 +19,7 @@ export default function CopyButton({ code }: CopyButtonProps) {
 
   return (
     <button
+      ref={buttonRef}
       onClick={handleCopy}
       className="copy-button"
       aria-label="Copy code to clipboard"
