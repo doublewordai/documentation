@@ -1,24 +1,12 @@
 'use client'
 
 import { useAuth } from './AuthProvider'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 export default function AuthButton() {
   const { user, apiKey, isLoading, signIn, signOut, generateApiKey } = useAuth()
   const [showMenu, setShowMenu] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [enableAuth, setEnableAuth] = useState(false)
-
-  useEffect(() => {
-    // Check for ?auth=true query parameter
-    const params = new URLSearchParams(window.location.search)
-    setEnableAuth(params.get('auth') === 'true')
-  }, [])
-
-  // Don't render anything if auth is not enabled via query param
-  if (!enableAuth) {
-    return null
-  }
 
   const handleGenerateKey = async () => {
     setIsGenerating(true)

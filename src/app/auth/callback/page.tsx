@@ -10,6 +10,15 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const verifyAuth = async () => {
       try {
+        // Dev mode: simulate successful auth and redirect immediately
+        if (process.env.NODE_ENV === 'development') {
+          sessionStorage.setItem('dev_auth', 'true')
+          const returnTo = sessionStorage.getItem('auth_return_to') || '/'
+          sessionStorage.removeItem('auth_return_to')
+          router.push(returnTo)
+          return
+        }
+
         // Check if authentication was successful
         const response = await fetch('https://app.doubleword.ai/admin/api/v1/users/current/api-keys', {
           method: 'GET',
@@ -20,13 +29,10 @@ export default function AuthCallbackPage() {
         })
 
         if (response.ok) {
-          setStatus('success')
-          // Wait a moment to show success, then redirect to home or stored URL
-          setTimeout(() => {
-            const returnTo = sessionStorage.getItem('auth_return_to') || '/'
-            sessionStorage.removeItem('auth_return_to')
-            router.push(returnTo)
-          }, 1000)
+          // Redirect immediately
+          const returnTo = sessionStorage.getItem('auth_return_to') || '/'
+          sessionStorage.removeItem('auth_return_to')
+          router.push(returnTo)
         } else {
           setStatus('error')
         }

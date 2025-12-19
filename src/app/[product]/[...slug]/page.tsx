@@ -6,6 +6,8 @@ import type {DocPage} from '@/sanity/types'
 import {MarkdownRenderer} from '@/components/MarkdownRenderer'
 import TableOfContents from '@/components/TableOfContents'
 import CopyMarkdownButton from '@/components/CopyMarkdownButton'
+import ApiKeyBanner from '@/components/ApiKeyBanner'
+import ApiKeyIndicator from '@/components/ApiKeyIndicator'
 
 /**
  * Generate static params for all documentation pages
@@ -72,7 +74,7 @@ export default async function DocPage({params}: Props) {
 
             <article>
               {!doc.hideTitle && (
-                <header className="mb-8">
+                <header className="mb-6">
                   <h1
                     className="text-3xl sm:text-4xl font-bold tracking-tight"
                     style={{color: 'var(--foreground)'}}
@@ -82,14 +84,7 @@ export default async function DocPage({params}: Props) {
                 </header>
               )}
 
-              {doc.description && (
-                <p
-                  className="text-xl mb-8"
-                  style={{color: 'var(--text-muted)'}}
-                >
-                  {doc.description}
-                </p>
-              )}
+              <ApiKeyBanner />
 
               <div className="prose max-w-none" data-enhance-footnotes data-enhance-code-tabs>
                 {content && <MarkdownRenderer content={content} images={images} />}
@@ -99,10 +94,24 @@ export default async function DocPage({params}: Props) {
 
           {/* Table of Contents - Pushed to right gutter */}
           <aside className="hidden xl:block sticky top-8 h-fit pt-8 z-10 toc-aside ml-auto flex-shrink-0 w-[280px] 2xl:w-[360px]" style={{ background: 'var(--background)' }}>
-            <div className="mb-4">
-              <CopyMarkdownButton docId={doc._id} />
-            </div>
             <TableOfContents />
+
+            <div className="mt-8">
+              <p
+                className="text-xs 2xl:text-sm font-semibold tracking-wide mb-3"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Actions
+              </p>
+              <ul className="space-y-2 text-sm 2xl:text-base">
+                <li>
+                  <ApiKeyIndicator />
+                </li>
+                <li>
+                  <CopyMarkdownButton docId={doc._id} />
+                </li>
+              </ul>
+            </div>
           </aside>
         </div>
       </div>

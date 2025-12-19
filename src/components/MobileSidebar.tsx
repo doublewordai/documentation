@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SidebarNav from "./SidebarNav";
 import ThemeToggle from "./ThemeToggle";
-import AuthButton from "./AuthButton";
 import type {DocPageForNav} from '@/sanity/types';
 
 type GroupedDocs = Record<string, {
@@ -30,13 +29,6 @@ export default function MobileSidebar({
   groupedDocs,
 }: MobileSidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [enableAuth, setEnableAuth] = useState(false);
-
-  useEffect(() => {
-    // Check for ?auth=true query parameter
-    const params = new URLSearchParams(window.location.search);
-    setEnableAuth(params.get('auth') === 'true');
-  }, []);
 
   return (
     <>
@@ -133,12 +125,6 @@ export default function MobileSidebar({
           <div onClick={() => setIsMobileMenuOpen(false)}>
             <SidebarNav productSlug={productSlug} groupedDocs={groupedDocs} />
           </div>
-
-          {enableAuth && (
-            <div className="mt-6 pt-6" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
-              <AuthButton />
-            </div>
-          )}
         </div>
       </aside>
     </>

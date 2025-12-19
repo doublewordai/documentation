@@ -29,19 +29,9 @@ export default function CopyMarkdownButton({ docId }: CopyMarkdownButtonProps) {
     <button
       onClick={handleCopy}
       disabled={loading}
-      className="flex items-center justify-center gap-2 text-xs transition-all duration-200 w-full px-3 py-2 rounded-md border hover:bg-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex items-center gap-2 py-1 transition-all duration-200 hover:translate-x-0.5 text-sm 2xl:text-base disabled:opacity-50 w-full"
       style={{
         color: 'var(--text-muted)',
-        borderColor: 'var(--sidebar-border)',
-        backgroundColor: 'transparent',
-      }}
-      onMouseEnter={(e) => {
-        if (!loading) {
-          e.currentTarget.style.backgroundColor = 'var(--hover-bg)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'transparent';
       }}
       aria-label="Copy page as markdown"
       title="Copy page as markdown"
@@ -50,8 +40,7 @@ export default function CopyMarkdownButton({ docId }: CopyMarkdownButtonProps) {
         <>
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
+            className="w-4 h-4"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -67,8 +56,7 @@ export default function CopyMarkdownButton({ docId }: CopyMarkdownButtonProps) {
         <>
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
+            className="w-4 h-4"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

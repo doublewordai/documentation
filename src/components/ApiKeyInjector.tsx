@@ -5,48 +5,30 @@ import { useEffect, useRef } from 'react'
 
 export default function ApiKeyInjector() {
   const { apiKey } = useAuth()
-  const hasInjected = useRef(false)
+  const originalContent = useRef<Map<Element, string>>(new Map())
+  const placeholder = 'YOUR_API_KEY'
 
   useEffect(() => {
-    if (!apiKey || hasInjected.current) return
-
-    // Find all code blocks and replace placeholder with actual API key
     const codeBlocks = document.querySelectorAll('pre code, pre')
 
     codeBlocks.forEach((block) => {
-      const content = block.textContent || ''
+      // Store original content on first visit
+      if (!originalContent.current.has(block)) {
+        originalContent.current.set(block, block.innerHTML)
+      }
 
-      // Common API key placeholders to replace
-      const placeholders = [
-        'YOUR_API_KEY',
-        'your-api-key',
-        'YOUR-API-KEY',
-        '<your-api-key>',
-        '{YOUR_API_KEY}',
-        '${YOUR_API_KEY}',
-      ]
+      const original = originalContent.current.get(block)
+      if (!original) return
 
-      let newContent = content
-      let hasReplacement = false
-
-      placeholders.forEach((placeholder) => {
-        if (content.includes(placeholder)) {
-          newContent = newContent.replace(new RegExp(placeholder, 'g'), apiKey)
-          hasReplacement = true
-        }
-      })
-
-      if (hasReplacement && block.innerHTML) {
-        // Replace in HTML to preserve syntax highlighting
-        let newHtml = block.innerHTML
-        placeholders.forEach((placeholder) => {
-          newHtml = newHtml.replace(new RegExp(placeholder, 'g'), apiKey)
-        })
+      if (apiKey) {
+        // Replace placeholder with API key
+        const newHtml = original.replace(new RegExp(placeholder, 'g'), apiKey)
         block.innerHTML = newHtml
+      } else {
+        // Restore original content when disconnected
+        block.innerHTML = original
       }
     })
-
-    hasInjected.current = true
   }, [apiKey])
 
   return null
