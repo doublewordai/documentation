@@ -128,15 +128,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setApiKey(null)
     localStorage.removeItem('doubleword_api_key')
 
-    // Dev mode: just clear dev auth flag
+    // Dev mode: clear dev auth flag
     if (process.env.NODE_ENV === 'development') {
       sessionStorage.removeItem('dev_auth')
-      return
     }
 
-    // Redirect to OAuth2 proxy sign-out
-    const returnUrl = encodeURIComponent(window.location.origin)
-    window.location.href = `${API_BASE_URL}/authentication/logout?rd=${returnUrl}`
+    // No redirect - just clear local state
   }
 
   const generateApiKey = async () => {
