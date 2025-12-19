@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           name: 'Docs API Key',
           description: 'Generated from documentation site',
-          purpose: 'inference',
+          purpose: 'realtime',
         }),
       })
 
