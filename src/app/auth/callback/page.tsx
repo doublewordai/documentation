@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import posthog from 'posthog-js'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -29,15 +30,35 @@ export default function AuthCallbackPage() {
         })
 
         if (response.ok) {
+          // Identify user and capture sign-in event with PostHog
+          posthog.identify('current', {
+            auth_method: 'oauth_callback',
+          })
+          posthog.capture('user_signed_in', {
+            auth_method: 'oauth_callback',
+            source: 'docs',
+          })
+
           // Redirect immediately
           const returnTo = sessionStorage.getItem('auth_return_to') || '/'
           sessionStorage.removeItem('auth_return_to')
           router.push(returnTo)
         } else {
+          // Capture auth callback error with PostHog
+          posthog.capture('auth_callback_error', {
+            error_type: 'auth_verification_failed',
+            status_code: response.status,
+          })
           setStatus('error')
         }
       } catch (error) {
         console.error('Auth verification failed:', error)
+        // Capture auth callback error with PostHog
+        posthog.capture('auth_callback_error', {
+          error_type: 'network_error',
+          error_message: error instanceof Error ? error.message : 'Unknown error',
+        })
+        posthog.captureException(error)
         setStatus('error')
       }
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import posthog from "posthog-js";
 
 type Heading = {
   id: string;
@@ -82,6 +83,14 @@ export default function TableOfContents() {
                     });
                     // Update URL without jumping
                     window.history.pushState(null, "", `#${heading.id}`);
+
+                    // Capture TOC link clicked event with PostHog
+                    posthog.capture("toc_link_clicked", {
+                      heading_id: heading.id,
+                      heading_text: heading.text,
+                      heading_level: heading.level,
+                      page_path: window.location.pathname,
+                    });
                   }
                 }}
               >

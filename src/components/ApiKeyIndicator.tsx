@@ -2,6 +2,7 @@
 
 import { useAuth } from './AuthProvider'
 import { useState, useEffect } from 'react'
+import posthog from 'posthog-js'
 
 export default function ApiKeyIndicator() {
   const { user, apiKey, isLoading, isGeneratingKey, signIn, signOut, generateApiKey } = useAuth()
@@ -47,14 +48,29 @@ export default function ApiKeyIndicator() {
       navigator.clipboard.writeText(apiKey)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+
+      // Capture API key copied event with PostHog
+      posthog.capture('api_key_copied', {
+        source: 'api_key_indicator',
+        page_path: window.location.pathname,
+      })
     }
+  }
+
+  const handleConnectClick = () => {
+    // Capture connect API key click event with PostHog
+    posthog.capture('connect_api_key_clicked', {
+      source: 'api_key_indicator',
+      page_path: window.location.pathname,
+    })
+    signIn()
   }
 
   // If not connected, clicking triggers sign-in directly
   if (!user) {
     return (
       <button
-        onClick={signIn}
+        onClick={handleConnectClick}
         disabled={isLoading}
         className="flex items-center gap-2 py-1 transition-all duration-200 hover:translate-x-0.5 text-sm 2xl:text-base disabled:opacity-50 w-full"
         style={{

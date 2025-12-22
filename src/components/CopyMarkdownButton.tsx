@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { getMarkdown } from '@/app/actions/getMarkdown';
+import posthog from 'posthog-js';
 
 interface CopyMarkdownButtonProps {
   docId: string;
@@ -18,8 +19,16 @@ export default function CopyMarkdownButton({ docId }: CopyMarkdownButtonProps) {
       await navigator.clipboard.writeText(markdown);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+
+      // Capture markdown copied event with PostHog
+      posthog.capture('markdown_copied', {
+        doc_id: docId,
+        page_path: window.location.pathname,
+        content_length: markdown.length,
+      });
     } catch (error) {
       console.error('Failed to copy markdown:', error);
+      posthog.captureException(error);
     } finally {
       setLoading(false);
     }

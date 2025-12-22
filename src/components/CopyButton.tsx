@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import posthog from 'posthog-js';
 
 export default function CopyButton() {
   const [copied, setCopied] = useState(false);
@@ -15,6 +16,13 @@ export default function CopyButton() {
     await navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+
+    // Capture code copied event with PostHog
+    posthog.capture('code_copied', {
+      page_path: window.location.pathname,
+      code_length: code.length,
+      contains_api_key: code.includes('sk-'),
+    });
   };
 
   return (

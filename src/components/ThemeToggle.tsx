@@ -1,13 +1,26 @@
 "use client";
 
 import { useTheme } from "./ThemeProvider";
+import posthog from "posthog-js";
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
 
+  const handleToggle = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+
+    // Capture theme toggled event with PostHog
+    posthog.capture("theme_toggled", {
+      from_theme: theme,
+      to_theme: newTheme,
+    });
+
+    toggleTheme();
+  };
+
   return (
     <button
-      onClick={toggleTheme}
+      onClick={handleToggle}
       className="p-1.5 rounded-lg transition-all duration-200 hover:scale-105"
       style={{ color: 'var(--text-muted)' }}
       aria-label="Toggle theme"

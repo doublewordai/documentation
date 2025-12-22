@@ -2,6 +2,7 @@
 
 import { useAuth } from './AuthProvider'
 import { useState, useEffect } from 'react'
+import posthog from 'posthog-js'
 
 export default function ApiKeyBanner() {
   const { user, apiKey, isLoading, isGeneratingKey, signIn } = useAuth()
@@ -34,9 +35,18 @@ export default function ApiKeyBanner() {
   const handleDismiss = () => {
     setIsDismissed(true)
     localStorage.setItem('apikey_banner_dismissed', 'true')
+
+    // Capture banner dismissed event with PostHog
+    posthog.capture('api_key_banner_dismissed', {
+      page_path: window.location.pathname,
+    })
   }
 
   const handleConnect = () => {
+    // Capture banner connect clicked event with PostHog
+    posthog.capture('api_key_banner_connect_clicked', {
+      page_path: window.location.pathname,
+    })
     signIn()
   }
 
