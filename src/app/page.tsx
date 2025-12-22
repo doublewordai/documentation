@@ -1,9 +1,24 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import {sanityFetch} from '@/sanity/lib/client'
-import {PRODUCTS_QUERY} from '@/sanity/lib/queries'
+import {PRODUCTS_QUERY, HOMEPAGE_QUERY} from '@/sanity/lib/queries'
 import type {Product} from '@/sanity/types'
 import ThemeToggle from '@/components/ThemeToggle'
+
+type FeaturedGuide = {
+  _id: string
+  title: string
+  slug: string
+  productSlug: string
+  productName: string
+}
+
+type Homepage = {
+  heroTitle: string
+  heroTitleMuted: string
+  heroDescription: string
+  featuredGuides: FeaturedGuide[]
+}
 
 // Render markdown links in text
 function renderWithLinks(text: string) {
@@ -68,10 +83,16 @@ const quickLinks: Record<string, { label: string; href: string }> = {
 }
 
 export default async function HomePage() {
-  const products = await sanityFetch({
-    query: PRODUCTS_QUERY,
-    tags: ['product'],
-  }) as Product[]
+  const [products, homepage] = await Promise.all([
+    sanityFetch({
+      query: PRODUCTS_QUERY,
+      tags: ['product'],
+    }) as Promise<Product[]>,
+    sanityFetch({
+      query: HOMEPAGE_QUERY,
+      tags: ['homepage'],
+    }) as Promise<Homepage>,
+  ])
 
   return (
     <div
@@ -127,9 +148,13 @@ export default async function HomePage() {
               lineHeight: 1.1,
             }}
           >
-            Build AI infrastructure
-            <br />
-            <span style={{ color: 'var(--text-muted)' }}>that scales.</span>
+            {homepage?.heroTitle || 'Build AI infrastructure'}
+            {homepage?.heroTitleMuted && (
+              <>
+                <br />
+                <span style={{ color: 'var(--text-muted)' }}>{homepage.heroTitleMuted}</span>
+              </>
+            )}
           </h1>
 
           <p
@@ -139,8 +164,7 @@ export default async function HomePage() {
               lineHeight: 1.6,
             }}
           >
-            Explore guides and references for Doubleword&apos;s open-source tools:
-            high-throughput batch inference, model access control, and self-hosted inference stacks.
+            {homepage?.heroDescription || "Explore guides and references for Doubleword's open-source tools."}
           </p>
         </header>
 
@@ -238,62 +262,57 @@ export default async function HomePage() {
         </section>
 
         {/* Quick Links Section */}
-        <section>
-          <h2
-            className="text-xs font-semibold tracking-widest uppercase mb-6"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Popular Guides
-          </h2>
+        {homepage?.featuredGuides && homepage.featuredGuides.length > 0 && (
+          <section>
+            <h2
+              className="text-xs font-semibold tracking-widest uppercase mb-6"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Popular Guides
+            </h2>
 
-          <div
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-          >
-            {[
-              { label: 'What is a JSONL file?', href: '/batches/jsonl-files', product: 'Batched API' },
-              { label: 'Models Overview', href: '/control-layer/usage/models-and-access', product: 'Control Layer' },
-              { label: 'Playground Guide', href: '/control-layer/usage/playground', product: 'Control Layer' },
-              { label: 'Faster Model Loading', href: '/inference-stack/deployment/faster-model-loading', product: 'Inference Stack' },
-              { label: 'Health Probes', href: '/inference-stack/usage/probes', product: 'Inference Stack' },
-              { label: 'API Integration', href: '/control-layer/usage/api-integration', product: 'Control Layer' },
-            ].map((link, index) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="group flex items-center justify-between gap-4 px-4 py-3 rounded-xl transition-all duration-200"
-                style={{
-                  background: 'var(--sidebar-bg)',
-                  border: '1px solid var(--sidebar-border)',
-                }}
-              >
-                <div className="flex flex-col min-w-0">
-                  <span
-                    className="font-medium truncate transition-colors group-hover:text-[var(--link-color)]"
-                    style={{ color: 'var(--foreground)' }}
-                  >
-                    {link.label}
-                  </span>
-                  <span
-                    className="text-xs truncate"
+            <div
+              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {homepage.featuredGuides.map((guide) => (
+                <Link
+                  key={guide._id}
+                  href={`/${guide.productSlug}/${guide.slug}`}
+                  className="group flex items-center justify-between gap-4 px-4 py-3 rounded-xl transition-all duration-200"
+                  style={{
+                    background: 'var(--sidebar-bg)',
+                    border: '1px solid var(--sidebar-border)',
+                  }}
+                >
+                  <div className="flex flex-col min-w-0">
+                    <span
+                      className="font-medium truncate transition-colors group-hover:text-[var(--link-color)]"
+                      style={{ color: 'var(--foreground)' }}
+                    >
+                      {guide.title}
+                    </span>
+                    <span
+                      className="text-xs truncate"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      {guide.productName}
+                    </span>
+                  </div>
+                  <svg
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="w-4 h-4 flex-shrink-0 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200"
                     style={{ color: 'var(--text-muted)' }}
                   >
-                    {link.product}
-                  </span>
-                </div>
-                <svg
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="w-4 h-4 flex-shrink-0 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  <path d="M3 8h10M9 4l4 4-4 4" />
-                </svg>
-              </Link>
-            ))}
-          </div>
-        </section>
+                    <path d="M3 8h10M9 4l4 4-4 4" />
+                  </svg>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Footer */}
         <footer

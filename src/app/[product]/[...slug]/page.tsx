@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type {Metadata} from 'next'
 import {notFound} from 'next/navigation'
 import {sanityFetch} from '@/sanity/lib/client'
 import {DOC_PAGE_QUERY, ALL_DOC_PAGE_PATHS_QUERY} from '@/sanity/lib/queries'
@@ -8,6 +9,8 @@ import TableOfContents from '@/components/TableOfContents'
 import CopyMarkdownButton from '@/components/CopyMarkdownButton'
 import ApiKeyBanner from '@/components/ApiKeyBanner'
 import ApiKeyIndicator from '@/components/ApiKeyIndicator'
+
+const SITE_URL = 'https://docs.doubleword.ai'
 
 /**
  * Generate static params for all documentation pages
@@ -27,6 +30,50 @@ export async function generateStaticParams() {
 
 interface Props {
   params: Promise<{product: string; slug: string[]}>
+}
+
+/**
+ * Generate metadata for SEO including canonical URLs and Open Graph tags
+ */
+export async function generateMetadata({params}: Props): Promise<Metadata> {
+  const {product: productSlug, slug} = await params
+  const docSlug = slug.join('/')
+
+  const doc = await sanityFetch({
+    query: DOC_PAGE_QUERY,
+    params: {productSlug, slug: docSlug},
+    tags: ['docPage'],
+  }) as DocPage
+
+  if (!doc || !doc.product) {
+    return {
+      title: 'Not Found',
+    }
+  }
+
+  const canonicalUrl = `${SITE_URL}/${productSlug}/${docSlug}`
+  const title = `${doc.title} | ${doc.product.name} | Doubleword Docs`
+  const description = doc.description || `${doc.title} - ${doc.product.name} documentation`
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      siteName: 'Doubleword Documentation',
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+  }
 }
 
 export default async function DocPage({params}: Props) {

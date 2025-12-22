@@ -141,3 +141,19 @@ export const FIRST_DOC_QUERY = defineQuery(`*[
 ] | order(category->order asc, order asc)[0]{
   "slug": slug.current
 }`)
+
+/**
+ * Query the homepage singleton document
+ */
+export const HOMEPAGE_QUERY = defineQuery(`*[_type == "homepage"][0]{
+  heroTitle,
+  heroTitleMuted,
+  heroDescription,
+  "featuredGuides": featuredGuides[]->{
+    _id,
+    title,
+    "slug": slug.current,
+    "productSlug": product->slug.current,
+    "productName": product->name
+  }
+}`)
