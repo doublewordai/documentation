@@ -14,7 +14,7 @@ const SPEC_OVERRIDES = {
 
 Upload a JSONL file with your requests, kick off a batch, and retrieve your results when ready. Perfect for bulk content generation, data processing, evaluations, and any workload that doesn't need instant responses.
 
-[Get started →](https://app.doubleword.ai)`,
+[Generate API key →](https://app.doubleword.ai/api-keys) · [Documentation →](https://docs.doubleword.ai/batches)`,
     version: "1.0.0",
   },
   servers: [
