@@ -1,13 +1,35 @@
 'use client'
 
 import { useAuth } from './AuthProvider'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function ApiKeyIndicator() {
   const { user, apiKey, isLoading, isGeneratingKey, signIn, signOut, generateApiKey } = useAuth()
   const [showMenu, setShowMenu] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [hasPlaceholders, setHasPlaceholders] = useState(false)
+
+  useEffect(() => {
+    // Check if page has API key placeholders in code blocks
+    const codeBlocks = document.querySelectorAll('pre code, pre')
+    const placeholder = 'YOUR_API_KEY'
+
+    let foundPlaceholder = false
+    codeBlocks.forEach((block) => {
+      const content = block.textContent || ''
+      if (content.includes(placeholder)) {
+        foundPlaceholder = true
+      }
+    })
+
+    setHasPlaceholders(foundPlaceholder)
+  }, [])
+
+  // Don't show if no placeholders on page
+  if (!hasPlaceholders) {
+    return null
+  }
 
   const handleGenerateKey = async () => {
     setIsGenerating(true)

@@ -37,21 +37,21 @@
 }
 
 html[data-theme="dark"] {
-  --background: #000000;
-  --foreground: #ededed;
-  --sidebar-bg: #0a0a0a;
-  --sidebar-border: #1a1a1a;
-  --text-muted: #888888;
-  --link-color: #3291ff;
-  --link-hover: #66aaff;
-  --active-bg: #0070f3;
-  --active-text: #ffffff;
-  --hover-bg: #111111;
-  --code-bg: #111111;
-  --code-text: #ffffff;
-  --pre-bg: #0a0a0a;
-  --pre-border: #1a1a1a;
-  --button-bg: #0070f3;
+  --background: #121212;
+  --foreground: #e0e0e0;
+  --sidebar-bg: #161616;
+  --sidebar-border: #2a2a2a;
+  --text-muted: #9a9a9a;
+  --link-color: #60a5fa;
+  --link-hover: #93c5fd;
+  --active-bg: #1e3a5f;
+  --active-text: #e0e0e0;
+  --hover-bg: #1e1e1e;
+  --code-bg: #1e1e1e;
+  --code-text: #e0e0e0;
+  --pre-bg: #161616;
+  --pre-border: #2a2a2a;
+  --button-bg: #2563eb;
   --button-text: #ffffff;
 }
 
@@ -258,7 +258,7 @@ body {
 
 .admonition-title {
   font-weight: 600;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   margin-bottom: 0.5rem;
   letter-spacing: -0.01em;
 }
@@ -281,7 +281,7 @@ body {
 
 .admonition p {
   margin: 0.5rem 0;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   line-height: var(--line-height);
 }
 
@@ -588,4 +588,24 @@ html[data-theme="dark"] .admonition-info .admonition-title::before {
 
 .code-tabs-container .code-block-wrapper {
   margin: 0;
+}
+
+/* ============================================
+   Logo Theme Variants
+   ============================================ */
+
+.logo-light {
+  display: block;
+}
+
+.logo-dark {
+  display: none;
+}
+
+html[data-theme="dark"] .logo-light {
+  display: none;
+}
+
+html[data-theme="dark"] .logo-dark {
+  display: block;
 }

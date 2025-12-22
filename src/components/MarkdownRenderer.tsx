@@ -156,7 +156,7 @@ export async function MarkdownRenderer({
           rehypeShiki,
           {
             theme: 'one-dark-pro',
-            langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'jsx', 'tsx'],
+            langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'jsx', 'tsx', 'yaml', 'shell', 'go', 'rust', 'sql', 'html', 'css', 'markdown', 'toml', 'dockerfile'],
           },
         ],
         rehypeRaw,

@@ -68,15 +68,26 @@ export default function MobileSidebar({
         </button>
 
         <Link
-          href={`/${productSlug}`}
+          href="/"
           className="hover:opacity-80 transition-opacity"
         >
           <Image
-            src="/doubleword.svg"
+            src="/logo-full-black.png"
             alt="Doubleword"
             width={120}
             height={28}
             priority
+            className="logo-light"
+            style={{ height: 'auto' }}
+          />
+          <Image
+            src="/logo-full-white.png"
+            alt="Doubleword"
+            width={120}
+            height={28}
+            priority
+            className="logo-dark"
+            style={{ height: 'auto' }}
           />
         </Link>
 
@@ -108,15 +119,26 @@ export default function MobileSidebar({
         <div className="p-6">
           <div className="hidden lg:flex items-center justify-between mb-8">
             <Link
-              href={`/${productSlug}`}
+              href="/"
               className="hover:opacity-80 transition-opacity"
             >
               <Image
-                src="/doubleword.svg"
+                src="/logo-full-black.png"
                 alt="Doubleword"
                 width={140}
                 height={32}
                 priority
+                className="logo-light"
+                style={{ height: 'auto' }}
+              />
+              <Image
+                src="/logo-full-white.png"
+                alt="Doubleword"
+                width={140}
+                height={32}
+                priority
+                className="logo-dark"
+                style={{ height: 'auto' }}
               />
             </Link>
             <ThemeToggle />

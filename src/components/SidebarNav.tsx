@@ -28,10 +28,13 @@ export default function SidebarNav({ productSlug, groupedDocs }: SidebarNavProps
   );
 
   return (
-    <nav className="space-y-8">
+    <nav className="space-y-6">
       {sortedCategories.map(({ category, docs }) => (
         <div key={category._id}>
-          <h3 className="text-xs 2xl:text-sm font-semibold tracking-wide mb-3 px-2" style={{ color: 'var(--text-muted)' }}>
+          <h3
+            className="text-xs font-semibold tracking-widest uppercase mb-2 px-2"
+            style={{ color: 'var(--text-muted)' }}
+          >
             {category.name}
           </h3>
           <ul className="space-y-0.5">
@@ -43,7 +46,7 @@ export default function SidebarNav({ productSlug, groupedDocs }: SidebarNavProps
                 <li key={doc._id}>
                   <Link
                     href={href}
-                    className={`block px-2 py-1.5 text-sm 2xl:text-base rounded-lg transition-all duration-200 ${
+                    className={`block px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
                       isActive
                         ? ""
                         : "hover:translate-x-0.5"

@@ -50,7 +50,7 @@ export default function TableOfContents() {
   return (
     <nav className="sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto scrollbar-hide">
       <p
-        className="text-xs 2xl:text-sm font-semibold tracking-wide mb-3"
+        className="text-xs font-semibold tracking-widest uppercase mb-3"
         style={{ color: "var(--text-muted)" }}
       >
         On this page
