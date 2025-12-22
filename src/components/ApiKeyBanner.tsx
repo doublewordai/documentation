@@ -5,10 +5,11 @@ import { useState, useEffect } from 'react'
 import posthog from 'posthog-js'
 
 export default function ApiKeyBanner() {
-  const { user, apiKey, isLoading, isGeneratingKey, signIn } = useAuth()
+  const { user, apiKey, isLoading, isGeneratingKey, signIn, generateApiKey } = useAuth()
   const [isDismissed, setIsDismissed] = useState(true)
   const [hasPlaceholders, setHasPlaceholders] = useState(false)
   const [isCheckingBanner, setIsCheckingBanner] = useState(true)
+  const [isSigningIn, setIsSigningIn] = useState(false)
 
   useEffect(() => {
     // Check if page has API key placeholders in code blocks
@@ -32,34 +33,53 @@ export default function ApiKeyBanner() {
     setIsCheckingBanner(false)
   }, [])
 
+  // Reset signing in state when user changes
+  useEffect(() => {
+    if (user) {
+      setIsSigningIn(false)
+    }
+  }, [user])
+
   const handleDismiss = () => {
     setIsDismissed(true)
     localStorage.setItem('apikey_banner_dismissed', 'true')
 
-    // Capture banner dismissed event with PostHog
     posthog.capture('api_key_banner_dismissed', {
       page_path: window.location.pathname,
     })
   }
 
-  const handleConnect = () => {
-    // Capture banner connect clicked event with PostHog
-    posthog.capture('api_key_banner_connect_clicked', {
+  const handleSignIn = () => {
+    setIsSigningIn(true)
+    posthog.capture('api_key_banner_sign_in_clicked', {
       page_path: window.location.pathname,
     })
     signIn()
   }
 
+  const handleGenerateKey = async () => {
+    posthog.capture('api_key_banner_generate_clicked', {
+      page_path: window.location.pathname,
+    })
+    try {
+      await generateApiKey()
+    } catch (error) {
+      console.error('Failed to generate API key:', error)
+    }
+  }
+
   // Don't show if:
   // - Banner is checking its state
   // - Auth is still loading
-  // - API key is being auto-generated
-  // - Already connected (has API key)
+  // - Already has API key
   // - User dismissed it
   // - No placeholders on page
-  if (isCheckingBanner || isLoading || isGeneratingKey || apiKey || isDismissed || !hasPlaceholders) {
+  if (isCheckingBanner || isLoading || apiKey || isDismissed || !hasPlaceholders) {
     return null
   }
+
+  const isSignedIn = !!user
+  const isWorking = isSigningIn || isGeneratingKey
 
   return (
     <div
@@ -71,19 +91,43 @@ export default function ApiKeyBanner() {
     >
       <div className="flex-1 min-w-0">
         <span style={{ color: 'var(--text-muted)' }}>
-          Connect your API key to autofill code examples
+          {isSignedIn
+            ? 'Generate an API key to populate code examples'
+            : 'Connect your account to populate code examples'}
         </span>
       </div>
 
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
-          onClick={handleConnect}
-          className="text-sm font-medium transition-opacity hover:opacity-70"
+          onClick={isSignedIn ? handleGenerateKey : handleSignIn}
+          disabled={isWorking}
+          className="text-sm font-medium transition-opacity hover:opacity-70 disabled:opacity-50 flex items-center gap-1.5"
           style={{
             color: 'var(--link-color)',
           }}
         >
-          Connect
+          {isWorking && (
+            <svg
+              className="w-3.5 h-3.5 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+          )}
+          {isSignedIn ? 'Generate' : 'Sign in'}
         </button>
         <button
           onClick={handleDismiss}

@@ -32,17 +32,6 @@ export default function ApiKeyIndicator() {
     return null
   }
 
-  const handleGenerateKey = async () => {
-    setIsGenerating(true)
-    try {
-      await generateApiKey()
-    } catch (error) {
-      alert('Failed to generate API key. Please try again.')
-    } finally {
-      setIsGenerating(false)
-    }
-  }
-
   const handleCopyKey = () => {
     if (apiKey) {
       navigator.clipboard.writeText(apiKey)
@@ -57,27 +46,40 @@ export default function ApiKeyIndicator() {
     }
   }
 
-  const handleConnectClick = () => {
-    // Capture connect API key click event with PostHog
-    posthog.capture('connect_api_key_clicked', {
+  const handleSignInClick = () => {
+    posthog.capture('sign_in_clicked', {
       source: 'api_key_indicator',
       page_path: window.location.pathname,
     })
     signIn()
   }
 
-  // If not connected, clicking triggers sign-in directly
+  const handleGenerateClick = async () => {
+    posthog.capture('generate_api_key_clicked', {
+      source: 'api_key_indicator',
+      page_path: window.location.pathname,
+    })
+    setIsGenerating(true)
+    try {
+      await generateApiKey()
+    } catch (error) {
+      alert('Failed to generate API key. Please try again.')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  // State 1: Not signed in - show "Sign in"
   if (!user) {
     return (
       <button
-        onClick={handleConnectClick}
+        onClick={handleSignInClick}
         disabled={isLoading}
         className="flex items-center gap-2 py-1 transition-all duration-200 hover:translate-x-0.5 text-sm 2xl:text-base disabled:opacity-50 w-full"
         style={{
           color: 'var(--text-muted)',
         }}
       >
-        {/* Key icon */}
         <svg
           className="w-4 h-4"
           fill="none"
@@ -91,14 +93,41 @@ export default function ApiKeyIndicator() {
             d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
           />
         </svg>
-        <span>
-          Connect API Key
-        </span>
+        <span>Connect account</span>
       </button>
     )
   }
 
-  // If connected, show dropdown with key management
+  // State 2: Signed in but no API key - show "Generate API Key"
+  if (!apiKey) {
+    return (
+      <button
+        onClick={handleGenerateClick}
+        disabled={isGenerating || isGeneratingKey}
+        className="flex items-center gap-2 py-1 transition-all duration-200 hover:translate-x-0.5 text-sm 2xl:text-base disabled:opacity-50 w-full"
+        style={{
+          color: 'var(--text-muted)',
+        }}
+      >
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+          />
+        </svg>
+        <span>{isGenerating || isGeneratingKey ? 'Generating...' : 'Generate API Key'}</span>
+      </button>
+    )
+  }
+
+  // State 3: Has API key - show dropdown with key management
   return (
     <div className="relative">
       <button
