@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import {sanityFetch} from '@/sanity/lib/client'
+import {sanityFetch} from '@/sanity/lib/live'
 import {PRODUCTS_QUERY, HOMEPAGE_QUERY} from '@/sanity/lib/queries'
 import type {Product} from '@/sanity/types'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -83,15 +83,13 @@ const quickLinks: Record<string, { label: string; href: string }> = {
 }
 
 export default async function HomePage() {
-  const [products, homepage] = await Promise.all([
+  const [{ data: products }, { data: homepage }] = await Promise.all([
     sanityFetch({
       query: PRODUCTS_QUERY,
-      tags: ['product'],
-    }) as Promise<Product[]>,
+    }) as Promise<{ data: Product[] }>,
     sanityFetch({
       query: HOMEPAGE_QUERY,
-      tags: ['homepage'],
-    }) as Promise<Homepage>,
+    }) as Promise<{ data: Homepage }>,
   ])
 
   return (

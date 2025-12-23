@@ -1,5 +1,5 @@
 import type {MetadataRoute} from 'next'
-import {sanityFetch} from '@/sanity/lib/client'
+import {client} from '@/sanity/lib/client'
 
 const SITE_URL = 'https://docs.doubleword.ai'
 
@@ -28,10 +28,10 @@ type ProductResult = {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Fetch all docs and products from Sanity
+  // Fetch all docs and products from Sanity (no live needed for sitemap)
   const [docs, products] = await Promise.all([
-    sanityFetch({query: ALL_DOCS_QUERY, tags: ['docPage']}) as Promise<DocPageResult[]>,
-    sanityFetch({query: ALL_PRODUCTS_QUERY, tags: ['product']}) as Promise<ProductResult[]>,
+    client.fetch<DocPageResult[]>(ALL_DOCS_QUERY),
+    client.fetch<ProductResult[]>(ALL_PRODUCTS_QUERY),
   ])
 
   // Homepage
