@@ -236,6 +236,15 @@ body {
   font-weight: normal;
   opacity: 0;
   transition: opacity 0.2s;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .prose h2[id] a.anchor::before,
+  .prose h3[id] a.anchor::before,
+  .prose h4[id] a.anchor::before {
+    display: block;
+  }
 }
 
 .prose h2[id]:hover a.anchor::before,
