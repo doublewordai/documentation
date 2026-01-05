@@ -1,5 +1,5 @@
 import {notFound} from 'next/navigation'
-import {sanityFetch} from '@/sanity/lib/live'
+import {sanityFetch} from '@/sanity/lib/client'
 import {PRODUCT_QUERY, DOCS_BY_PRODUCT_QUERY} from '@/sanity/lib/queries'
 import type {Product, DocPageForNav} from '@/sanity/types'
 import MobileSidebar from '@/components/MobileSidebar'
@@ -17,20 +17,22 @@ export default async function ProductLayout({
   const {product: productSlug} = await params
 
   // Fetch product details
-  const { data: product } = await sanityFetch({
+  const product = await sanityFetch({
     query: PRODUCT_QUERY,
     params: {slug: productSlug},
-  })
+    tags: ['product'],
+  }) as Product
 
   if (!product) {
     notFound()
   }
 
   // Fetch all docs for sidebar
-  const { data: docs } = await sanityFetch({
+  const docs = await sanityFetch({
     query: DOCS_BY_PRODUCT_QUERY,
     params: {productId: product._id},
-  }) as { data: DocPageForNav[] }
+    tags: ['docPage', 'category'],
+  }) as DocPageForNav[]
 
   // Group docs by category
   const groupedDocs: Record<

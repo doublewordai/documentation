@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
 import { Geist_Mono, IBM_Plex_Sans } from "next/font/google";
-import { draftMode } from "next/headers";
-import { VisualEditing } from "next-sanity/visual-editing";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import PageEnhancer from "@/components/PageEnhancer";
-import { SanityLive } from "@/sanity/lib/live";
 
 const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-ibm-plex-sans",
@@ -26,7 +23,7 @@ export const metadata: Metadata = {
   description: "Documentation for Doubleword Control Layer, Inference Stack, and Batched API",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -62,8 +59,6 @@ export default async function RootLayout({
             <PageEnhancer />
           </AuthProvider>
         </ThemeProvider>
-        <SanityLive />
-        {(await draftMode()).isEnabled && <VisualEditing />}
       </body>
     </html>
   );

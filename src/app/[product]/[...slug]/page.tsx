@@ -1,8 +1,7 @@
 import Link from 'next/link'
 import type {Metadata} from 'next'
 import {notFound} from 'next/navigation'
-import {sanityFetch} from '@/sanity/lib/live'
-import {client} from '@/sanity/lib/client'
+import {sanityFetch} from '@/sanity/lib/client'
 import {DOC_PAGE_QUERY, ALL_DOC_PAGE_PATHS_QUERY} from '@/sanity/lib/queries'
 import type {DocPage} from '@/sanity/types'
 import {MarkdownRenderer} from '@/components/MarkdownRenderer'
@@ -18,8 +17,10 @@ const SITE_URL = 'https://docs.doubleword.ai'
  * This enables full static site generation (SSG)
  */
 export async function generateStaticParams() {
-  // Use client directly for static generation (no stega, no live)
-  const paths = await client.fetch<Array<{productSlug: string; slug: string}>>(ALL_DOC_PAGE_PATHS_QUERY)
+  const paths = await sanityFetch({
+    query: ALL_DOC_PAGE_PATHS_QUERY,
+    tags: [],
+  }) as Array<{productSlug: string; slug: string}>
 
   return paths.map((path) => ({
     product: path.productSlug,
@@ -38,12 +39,11 @@ export async function generateMetadata({params}: Props): Promise<Metadata> {
   const {product: productSlug, slug} = await params
   const docSlug = slug.join('/')
 
-  // Use stega: false for metadata to avoid invisible characters in SEO
-  const { data: doc } = await sanityFetch({
+  const doc = await sanityFetch({
     query: DOC_PAGE_QUERY,
     params: {productSlug, slug: docSlug},
-    stega: false,
-  })
+    tags: ['docPage'],
+  }) as DocPage
 
   if (!doc || !doc.product) {
     return {
@@ -81,10 +81,11 @@ export default async function DocPage({params}: Props) {
   const docSlug = slug.join('/')
 
   // Fetch the documentation page
-  const { data: doc } = await sanityFetch({
+  const doc = await sanityFetch({
     query: DOC_PAGE_QUERY,
     params: {productSlug, slug: docSlug},
-  })
+    tags: ['docPage'],
+  }) as DocPage
 
   if (!doc || !doc.product) {
     notFound()
