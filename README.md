@@ -77,11 +77,13 @@ Sanity CMS (edit)
 
 Content goes through two stages of processing:
 
-**Server-side (Handlebars)** - Processed at build/request time:
+**Server-side (Handlebars)** - Processed on each request (cached 5 minutes):
 - `{{#each models}}` - Loop through all models
 - `{{this.name}}`, `{{this.id}}` - Model properties
 - `{{formatPricePer1M this.pricing.batch24h.input}}` - Price formatting
 - `{{urlEncode this.id}}` - URL encoding
+
+Model data is fetched from the Doubleword API and cached for 5 minutes (`revalidate: 300`). Changes to models/pricing propagate automatically without redeploy.
 
 **Client-side (ContentInjector)** - Processed in browser:
 - `{{apiKey}}` - User's API key (after login/generation)
@@ -150,6 +152,32 @@ Handlebars.registerHelper('myHelper', function(value: string) {
 **New client-side placeholder:**
 1. Add pattern to `ContentInjector.tsx`
 2. Add to `clientPlaceholders` array in `handlebars.ts` (to preserve during server templating)
+
+### Authentication Flow
+
+Users can generate API keys directly from the docs site. The auth flow uses SSO cookies shared with the main Doubleword app:
+
+```
+User clicks "Generate API Key"
+    → Check if already authenticated (GET /admin/api/v1/users/current/api-keys)
+    → If authenticated: generate key directly
+    → If not: redirect to app.doubleword.ai/authentication/sign_in
+        → User logs in via Google/GitHub OAuth
+        → Redirect back to /auth/callback
+        → SSO cookie now set, can generate keys
+```
+
+**Key files:**
+- `src/components/AuthProvider.tsx` - Auth context and API key generation
+- `src/app/auth/callback/page.tsx` - OAuth callback handler
+- `src/components/ApiKeyIndicator.tsx` - UI button in code blocks
+- `src/components/ApiKeyBanner.tsx` - Banner prompting key generation
+
+**Security notes:**
+- Auth only works on `*.doubleword.ai` domains (enforced in `signIn()`)
+- API keys are generated via `POST /admin/api/v1/users/current/api-keys`
+- Keys are stored in React state only (not persisted to localStorage)
+- In development mode, mock auth is available via `sessionStorage.dev_auth`
 
 ---
 
@@ -303,7 +331,35 @@ Content here.
 
 #### Server-side (Handlebars) - For Model Data
 
-These are processed at build time and work without JavaScript:
+These are processed on page load (cached 5 minutes) and work without JavaScript.
+
+**Model JSON structure** - Each model in `{{#each models}}` has this shape:
+
+```json
+{
+  "id": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+  "name": "Llama 4 Scout 17B 16E Instruct",
+  "description": "A lightweight model optimized for...",
+  "type": "chat",
+  "capabilities": ["chat", "function_calling"],
+  "pricing": {
+    "realtime": {
+      "input": 0.0000001,
+      "output": 0.0000002
+    },
+    "batch1h": {
+      "input": 0.00000008,
+      "output": 0.00000016
+    },
+    "batch24h": {
+      "input": 0.00000005,
+      "output": 0.0000001
+    }
+  }
+}
+```
+
+Note: `pricing.realtime`, `pricing.batch1h`, and `pricing.batch24h` may be `null` if that tier isn't available for a model.
 
 **Loop through models:**
 ```markdown
@@ -317,6 +373,10 @@ These are processed at build time and work without JavaScript:
 {{#if this.pricing.realtime}}
 Realtime available!
 {{/if}}
+
+{{#if this.description}}
+{{this.description}}
+{{/if}}
 ```
 
 **Available helpers:**
@@ -327,16 +387,26 @@ Realtime available!
 | `urlEncode` | `{{urlEncode "a/b"}}` | `a%2Fb` |
 | `eq` | `{{#if (eq this.type "chat")}}` | Boolean |
 | `json` | `{{json this}}` | JSON string |
+| `hasCapability` | `{{#if (hasCapability this "vision")}}` | Boolean |
 
-**Model properties:**
-- `{{this.id}}` - Model ID (e.g., `meta-llama/Llama-4-Scout-17B-16E-Instruct`)
-- `{{this.name}}` - Display name
-- `{{this.description}}` - Model description
-- `{{this.type}}` - Model type
-- `{{this.pricing.realtime.input}}` - Realtime input price per token
-- `{{this.pricing.batch1h.input}}` - 1hr SLA batch input price
-- `{{this.pricing.batch24h.input}}` - 24hr SLA batch input price
-- (same for `.output`)
+**Accessing model properties:**
+```markdown
+{{this.id}}                         → "meta-llama/Llama-4-Scout..."
+{{this.name}}                       → "Llama 4 Scout 17B 16E Instruct"
+{{this.description}}                → "A lightweight model..."
+{{this.type}}                       → "chat"
+{{this.pricing.realtime.input}}     → 0.0000001 (price per token)
+{{this.pricing.batch1h.input}}      → 0.00000008
+{{this.pricing.batch24h.output}}    → 0.0000001
+{{formatPricePer1M this.pricing.batch24h.input}} → "$0.05"
+```
+
+**Index in loops:**
+```markdown
+{{#each models}}
+<details id="model-{{@index}}">  <!-- @index is 0, 1, 2, ... -->
+{{/each}}
+```
 
 #### Client-side - For User-specific Data
 
