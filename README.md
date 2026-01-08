@@ -233,7 +233,7 @@ Realtime available!
 
 #### Client-side - For User-specific Data
 
-These appear in code blocks and are replaced when users interact:
+These placeholders are replaced in the browser based on user actions. Pages containing these placeholders show interactive controls in the right-hand actions area:
 
 **API Key:**
 ````markdown
@@ -241,8 +241,7 @@ These appear in code blocks and are replaced when users interact:
 curl -H "Authorization: Bearer {{apiKey}}" ...
 ```
 ````
-
-When users click "Generate API Key" or log in, `{{apiKey}}` is replaced with their actual key.
+Pages with `{{apiKey}}` show a key button. When users generate or enter an API key, all `{{apiKey}}` placeholders on the page are replaced with their actual key.
 
 **Selected Model:**
 ````markdown
@@ -250,13 +249,12 @@ When users click "Generate API Key" or log in, `{{apiKey}}` is replaced with the
 model = "{{selectedModel.id}}"
 ```
 ````
-
-A model selector dropdown appears in the code block. When users select a model, placeholders are replaced.
+Pages with `{{selectedModel.*}}` show a model selector dropdown. When users pick a model, the placeholders are replaced with the selected model's values.
 
 **Available placeholders:**
-- `{{apiKey}}` - User's API key
-- `{{selectedModel.id}}` - Selected model ID
-- `{{selectedModel.name}}` - Selected model name
+- `{{apiKey}}` - Replaced with user's API key
+- `{{selectedModel.id}}` - Replaced with selected model ID
+- `{{selectedModel.name}}` - Replaced with selected model display name
 
 ### Publishing Workflow
 
