@@ -413,20 +413,20 @@ Realtime available!
 These appear in code blocks and are replaced when users interact:
 
 **API Key:**
-```markdown
+````markdown
 ```bash
 curl -H "Authorization: Bearer {{apiKey}}" ...
 ```
-```
+````
 
 When users click "Generate API Key" or log in, `{{apiKey}}` is replaced with their actual key.
 
 **Selected Model:**
-```markdown
+````markdown
 ```python
 model = "{{selectedModel.id}}"
 ```
-```
+````
 
 A model selector dropdown appears in the code block. When users select a model, placeholders are replaced.
 
