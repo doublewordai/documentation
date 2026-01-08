@@ -438,9 +438,22 @@ A model selector dropdown appears in the code block. When users select a model, 
 ### Publishing Workflow
 
 1. **Edit** content in Sanity Studio
-2. **Save** creates a draft (visible only in Studio with preview)
+2. **Save** creates a draft
 3. **Publish** makes content live and triggers webhook
 4. **Site rebuilds** affected pages automatically (usually within seconds)
+
+### Previewing Drafts Locally
+
+To preview draft content before publishing, run the docs site locally:
+
+```bash
+git clone https://github.com/doublewordai/documentation.git
+cd documentation
+npm install
+npm run dev
+```
+
+The dev server at `http://localhost:3000` will show draft content from Sanity. See [Development Commands](#development-commands) for more details.
 
 ### Tips
 
