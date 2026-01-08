@@ -4,183 +4,6 @@ A fully static, prerendered Next.js documentation site powered by Sanity CMS wit
 
 ---
 
-## For Developers
-
-### Architecture Overview
-
-This is a Next.js 16 application using the App Router with:
-- **Static Site Generation (SSG)** - All pages prerendered at build time
-- **Sanity CMS** - Headless CMS for content management
-- **Webhook-based revalidation** - Content updates trigger automatic page rebuilds
-- **Dynamic content injection** - Server-side Handlebars templating + client-side placeholder replacement
-
-### Project Structure
-
-```
-docs/
-├── src/
-│   ├── app/
-│   │   ├── [product]/
-│   │   │   ├── [...slug]/
-│   │   │   │   └── page.tsx          # Documentation pages
-│   │   │   ├── layout.tsx            # Product layout with sidebar
-│   │   │   └── page.tsx              # Product landing (redirects to first doc)
-│   │   ├── api/
-│   │   │   ├── models/route.ts       # Proxies model data from Doubleword API
-│   │   │   ├── revalidate/route.ts   # Sanity webhook handler
-│   │   │   └── openapi/route.ts      # OpenAPI spec endpoint
-│   │   ├── auth/callback/page.tsx    # OAuth callback handler
-│   │   ├── lib/
-│   │   │   ├── remark-admonitions.ts # Custom admonition syntax
-│   │   │   └── remark-code-tabs.ts   # Tabbed code blocks
-│   │   ├── layout.tsx                # Root layout with providers
-│   │   ├── page.tsx                  # Homepage
-│   │   └── globals.css               # All styles
-│   ├── components/
-│   │   ├── AuthProvider.tsx          # Auth context (API keys, OAuth)
-│   │   ├── ConfigProvider.tsx        # App config (selected model)
-│   │   ├── ContentInjector.tsx       # Client-side placeholder replacement
-│   │   ├── MarkdownRenderer.tsx      # Markdown processing pipeline
-│   │   ├── PageEnhancer.tsx          # Code tabs, footnote hovers
-│   │   ├── ModelSelector.tsx         # Model dropdown in code blocks
-│   │   ├── ApiKeyIndicator.tsx       # API key button in code blocks
-│   │   ├── ApiKeyBanner.tsx          # "Generate API key" banner
-│   │   ├── TableOfContents.tsx       # Right sidebar TOC
-│   │   └── SidebarNav.tsx            # Left sidebar navigation
-│   ├── lib/
-│   │   ├── handlebars.ts             # Server-side templating
-│   │   └── models.ts                 # Model types and fetching
-│   └── sanity/
-│       ├── lib/
-│       │   ├── client.ts             # Sanity client configuration
-│       │   └── queries.ts            # GROQ queries
-│       ├── env.ts                    # Environment config
-│       └── types.ts                  # Generated TypeScript types
-├── .env.local                        # Environment variables
-├── next.config.ts                    # Next.js configuration
-└── package.json
-```
-
-### Key Systems
-
-#### 1. Content Flow
-
-```
-Sanity CMS (edit)
-    → Webhook fires on publish
-    → /api/revalidate called
-    → revalidateTag() purges cache
-    → Next request rebuilds page
-```
-
-#### 2. Dynamic Content Injection
-
-Content goes through two stages of processing:
-
-**Server-side (Handlebars)** - Processed on each request with ISR caching:
-- `{{#each models}}` - Loop through all models
-- `{{this.name}}`, `{{this.id}}` - Model properties
-- `{{formatPricePer1M this.pricing.batch24h.input}}` - Price formatting
-- `{{urlEncode this.id}}` - URL encoding
-
-Model data uses Next.js ISR with 5-minute revalidation (`revalidate: 300`). After the cache expires, the next request triggers a background refresh while serving stale data—no redeploy needed.
-
-**Client-side (ContentInjector)** - Processed in browser:
-- `{{apiKey}}` - User's API key (after login/generation)
-- `{{selectedModel.id}}` - Currently selected model
-- `{{selectedModel.name}}` - Model display name
-
-#### 3. Markdown Processing Pipeline
-
-```
-Raw Markdown
-    → remarkGfm (tables, strikethrough, etc.)
-    → remarkDirective (:::admonition syntax)
-    → remarkAdmonitions (custom admonition blocks)
-    → remarkCodeTabs (tabbed code blocks)
-    → rehypeSlug (heading IDs)
-    → rehypeAutolinkHeadings (clickable headings)
-    → rehypeShiki (syntax highlighting)
-    → rehypeRaw (pass through HTML)
-    → React components (custom img, pre, a, etc.)
-```
-
-### Environment Variables
-
-```bash
-# Sanity
-NEXT_PUBLIC_SANITY_PROJECT_ID=g1zo7y59
-NEXT_PUBLIC_SANITY_DATASET=production
-SANITY_REVALIDATE_SECRET=your-webhook-secret
-
-# Doubleword API (for model data)
-DOUBLEWORD_SYSTEM_API_KEY=your-api-key
-```
-
-### Setting Up Sanity Webhook
-
-1. Go to [Sanity Manage](https://www.sanity.io/manage) → Your Project → API → Webhooks
-2. Create webhook:
-   - **URL**: `https://your-domain.com/api/revalidate`
-   - **Secret**: Same as `SANITY_REVALIDATE_SECRET`
-   - **Trigger on**: Create, Update, Delete
-   - **Projection**: `{_type}`
-
-### Development Commands
-
-```bash
-npm run dev      # Start dev server
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
-```
-
-### Adding New Features
-
-**New Handlebars helper:**
-```typescript
-// src/lib/handlebars.ts
-Handlebars.registerHelper('myHelper', function(value: string) {
-  return value.toUpperCase()
-})
-```
-
-**New remark plugin:**
-1. Create plugin in `src/app/lib/remark-*.ts`
-2. Add to `remarkPlugins` array in `MarkdownRenderer.tsx`
-
-**New client-side placeholder:**
-1. Add pattern to `ContentInjector.tsx`
-2. Add to `clientPlaceholders` array in `handlebars.ts` (to preserve during server templating)
-
-### Authentication Flow
-
-Users can generate API keys directly from the docs site. The auth flow uses SSO cookies shared with the main Doubleword app:
-
-```
-User clicks "Generate API Key"
-    → Check if already authenticated (GET /admin/api/v1/users/current/api-keys)
-    → If authenticated: generate key directly
-    → If not: redirect to app.doubleword.ai/authentication/sign_in
-        → User logs in via Google/GitHub OAuth
-        → Redirect back to /auth/callback
-        → SSO cookie now set, can generate keys
-```
-
-**Key files:**
-- `src/components/AuthProvider.tsx` - Auth context and API key generation
-- `src/app/auth/callback/page.tsx` - OAuth callback handler
-- `src/components/ApiKeyIndicator.tsx` - UI button in code blocks
-- `src/components/ApiKeyBanner.tsx` - Banner prompting key generation
-
-**Security notes:**
-- Auth only works on `*.doubleword.ai` domains (enforced in `signIn()`)
-- API keys are generated via `POST /admin/api/v1/users/current/api-keys`
-- Keys are stored in React state only (not persisted to localStorage)
-- In development mode, mock auth is available via `sessionStorage.dev_auth`
-
----
-
 ## For Content Authors
 
 ### Editing Content in Sanity Studio
@@ -455,6 +278,8 @@ npm run dev
 
 The dev server at `http://localhost:3000` will show draft content from Sanity. See [Development Commands](#development-commands) for more details.
 
+*A simpler preview option (without running the dev server) is coming soon.*
+
 ### Tips
 
 - Use h2 (`##`) and h3 (`###`) for headings that should appear in the table of contents
@@ -483,3 +308,180 @@ The dev server at `http://localhost:3000` will show draft content from Sanity. S
 - Check browser console for error messages
 - Verify helper names are spelled correctly
 - Make sure conditionals have matching `{{/if}}`
+
+---
+
+## For Developers
+
+### Architecture Overview
+
+This is a Next.js 16 application using the App Router with:
+- **Static Site Generation (SSG)** - All pages prerendered at build time
+- **Sanity CMS** - Headless CMS for content management
+- **Webhook-based revalidation** - Content updates trigger automatic page rebuilds
+- **Dynamic content injection** - Server-side Handlebars templating + client-side placeholder replacement
+
+### Project Structure
+
+```
+docs/
+├── src/
+│   ├── app/
+│   │   ├── [product]/
+│   │   │   ├── [...slug]/
+│   │   │   │   └── page.tsx          # Documentation pages
+│   │   │   ├── layout.tsx            # Product layout with sidebar
+│   │   │   └── page.tsx              # Product landing (redirects to first doc)
+│   │   ├── api/
+│   │   │   ├── models/route.ts       # Proxies model data from Doubleword API
+│   │   │   ├── revalidate/route.ts   # Sanity webhook handler
+│   │   │   └── openapi/route.ts      # OpenAPI spec endpoint
+│   │   ├── auth/callback/page.tsx    # OAuth callback handler
+│   │   ├── lib/
+│   │   │   ├── remark-admonitions.ts # Custom admonition syntax
+│   │   │   └── remark-code-tabs.ts   # Tabbed code blocks
+│   │   ├── layout.tsx                # Root layout with providers
+│   │   ├── page.tsx                  # Homepage
+│   │   └── globals.css               # All styles
+│   ├── components/
+│   │   ├── AuthProvider.tsx          # Auth context (API keys, OAuth)
+│   │   ├── ConfigProvider.tsx        # App config (selected model)
+│   │   ├── ContentInjector.tsx       # Client-side placeholder replacement
+│   │   ├── MarkdownRenderer.tsx      # Markdown processing pipeline
+│   │   ├── PageEnhancer.tsx          # Code tabs, footnote hovers
+│   │   ├── ModelSelector.tsx         # Model dropdown in code blocks
+│   │   ├── ApiKeyIndicator.tsx       # API key button in code blocks
+│   │   ├── ApiKeyBanner.tsx          # "Generate API key" banner
+│   │   ├── TableOfContents.tsx       # Right sidebar TOC
+│   │   └── SidebarNav.tsx            # Left sidebar navigation
+│   ├── lib/
+│   │   ├── handlebars.ts             # Server-side templating
+│   │   └── models.ts                 # Model types and fetching
+│   └── sanity/
+│       ├── lib/
+│       │   ├── client.ts             # Sanity client configuration
+│       │   └── queries.ts            # GROQ queries
+│       ├── env.ts                    # Environment config
+│       └── types.ts                  # Generated TypeScript types
+├── .env.local                        # Environment variables
+├── next.config.ts                    # Next.js configuration
+└── package.json
+```
+
+### Key Systems
+
+#### 1. Content Flow
+
+```
+Sanity CMS (edit)
+    → Webhook fires on publish
+    → /api/revalidate called
+    → revalidateTag() purges cache
+    → Next request rebuilds page
+```
+
+#### 2. Dynamic Content Injection
+
+Content goes through two stages of processing:
+
+**Server-side (Handlebars)** - Processed on each request with ISR caching:
+- `{{#each models}}` - Loop through all models
+- `{{this.name}}`, `{{this.id}}` - Model properties
+- `{{formatPricePer1M this.pricing.batch24h.input}}` - Price formatting
+- `{{urlEncode this.id}}` - URL encoding
+
+Model data uses Next.js ISR with 5-minute revalidation (`revalidate: 300`). After the cache expires, the next request triggers a background refresh while serving stale data—no redeploy needed.
+
+**Client-side (ContentInjector)** - Processed in browser:
+- `{{apiKey}}` - User's API key (after login/generation)
+- `{{selectedModel.id}}` - Currently selected model
+- `{{selectedModel.name}}` - Model display name
+
+#### 3. Markdown Processing Pipeline
+
+```
+Raw Markdown
+    → remarkGfm (tables, strikethrough, etc.)
+    → remarkDirective (:::admonition syntax)
+    → remarkAdmonitions (custom admonition blocks)
+    → remarkCodeTabs (tabbed code blocks)
+    → rehypeSlug (heading IDs)
+    → rehypeAutolinkHeadings (clickable headings)
+    → rehypeShiki (syntax highlighting)
+    → rehypeRaw (pass through HTML)
+    → React components (custom img, pre, a, etc.)
+```
+
+### Environment Variables
+
+```bash
+# Sanity
+NEXT_PUBLIC_SANITY_PROJECT_ID=g1zo7y59
+NEXT_PUBLIC_SANITY_DATASET=production
+SANITY_REVALIDATE_SECRET=your-webhook-secret
+
+# Doubleword API (for model data)
+DOUBLEWORD_SYSTEM_API_KEY=your-api-key
+```
+
+### Setting Up Sanity Webhook
+
+1. Go to [Sanity Manage](https://www.sanity.io/manage) → Your Project → API → Webhooks
+2. Create webhook:
+   - **URL**: `https://your-domain.com/api/revalidate`
+   - **Secret**: Same as `SANITY_REVALIDATE_SECRET`
+   - **Trigger on**: Create, Update, Delete
+   - **Projection**: `{_type}`
+
+### Development Commands
+
+```bash
+npm run dev      # Start dev server
+npm run build    # Build for production
+npm run start    # Start production server
+npm run lint     # Run ESLint
+```
+
+### Adding New Features
+
+**New Handlebars helper:**
+```typescript
+// src/lib/handlebars.ts
+Handlebars.registerHelper('myHelper', function(value: string) {
+  return value.toUpperCase()
+})
+```
+
+**New remark plugin:**
+1. Create plugin in `src/app/lib/remark-*.ts`
+2. Add to `remarkPlugins` array in `MarkdownRenderer.tsx`
+
+**New client-side placeholder:**
+1. Add pattern to `ContentInjector.tsx`
+2. Add to `clientPlaceholders` array in `handlebars.ts` (to preserve during server templating)
+
+### Authentication Flow
+
+Users can generate API keys directly from the docs site. The auth flow uses SSO cookies shared with the main Doubleword app:
+
+```
+User clicks "Generate API Key"
+    → Check if already authenticated (GET /admin/api/v1/users/current/api-keys)
+    → If authenticated: generate key directly
+    → If not: redirect to app.doubleword.ai/authentication/sign_in
+        → User logs in via Google/GitHub OAuth
+        → Redirect back to /auth/callback
+        → SSO cookie now set, can generate keys
+```
+
+**Key files:**
+- `src/components/AuthProvider.tsx` - Auth context and API key generation
+- `src/app/auth/callback/page.tsx` - OAuth callback handler
+- `src/components/ApiKeyIndicator.tsx` - UI button in code blocks
+- `src/components/ApiKeyBanner.tsx` - Banner prompting key generation
+
+**Security notes:**
+- Auth only works on `*.doubleword.ai` domains (enforced in `signIn()`)
+- API keys are generated via `POST /admin/api/v1/users/current/api-keys`
+- Keys are stored in React state only (not persisted to localStorage)
+- In development mode, mock auth is available via `sessionStorage.dev_auth`
