@@ -82,37 +82,33 @@ export async function fetchModelsServer(): Promise<ModelsResponse> {
   const apiKey = process.env.DOUBLEWORD_SYSTEM_API_KEY
 
   if (!apiKey) {
+    // No API key configured - return empty (can't cache non-existent data)
     console.warn('DOUBLEWORD_SYSTEM_API_KEY not set, returning empty models')
     return { models: [], fetchedAt: new Date().toISOString() }
   }
 
-  try {
-    const response = await fetch('https://app.doubleword.ai/admin/api/v1/models?include=pricing', {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Accept': 'application/json',
-      },
-      next: {
-        revalidate: 300, // 5 minutes
-        tags: ['models'],
-      },
-    })
+  // Throw on errors so ISR keeps serving stale cached data instead of caching empty results
+  const response = await fetch('https://app.doubleword.ai/admin/api/v1/models?include=pricing', {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Accept': 'application/json',
+    },
+    next: {
+      revalidate: 300, // 5 minutes
+      tags: ['models'],
+    },
+  })
 
-    if (!response.ok) {
-      console.error('Failed to fetch models:', response.status)
-      return { models: [], fetchedAt: new Date().toISOString() }
-    }
+  if (!response.ok) {
+    throw new Error(`Failed to fetch models: ${response.status}`)
+  }
 
-    const rawData = await response.json()
-    const models = transformModels(rawData.data || [])
+  const rawData = await response.json()
+  const models = transformModels(rawData.data || [])
 
-    return {
-      models,
-      fetchedAt: new Date().toISOString(),
-    }
-  } catch (error) {
-    console.error('Error fetching models:', error)
-    return { models: [], fetchedAt: new Date().toISOString() }
+  return {
+    models,
+    fetchedAt: new Date().toISOString(),
   }
 }
 
