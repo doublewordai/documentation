@@ -77,13 +77,13 @@ Sanity CMS (edit)
 
 Content goes through two stages of processing:
 
-**Server-side (Handlebars)** - Processed on each request (cached 5 minutes):
+**Server-side (Handlebars)** - Processed on each request with ISR caching:
 - `{{#each models}}` - Loop through all models
 - `{{this.name}}`, `{{this.id}}` - Model properties
 - `{{formatPricePer1M this.pricing.batch24h.input}}` - Price formatting
 - `{{urlEncode this.id}}` - URL encoding
 
-Model data is fetched from the Doubleword API and cached for 5 minutes (`revalidate: 300`). Changes to models/pricing propagate automatically without redeploy.
+Model data uses Next.js ISR with 5-minute revalidation (`revalidate: 300`). After the cache expires, the next request triggers a background refresh while serving stale data—no redeploy needed.
 
 **Client-side (ContentInjector)** - Processed in browser:
 - `{{apiKey}}` - User's API key (after login/generation)
@@ -331,7 +331,7 @@ Content here.
 
 #### Server-side (Handlebars) - For Model Data
 
-These are processed on page load (cached 5 minutes) and work without JavaScript.
+These are processed on page load and work without JavaScript. Model data is cached for 5 minutes (ISR)—after expiry, fresh data is fetched in the background.
 
 **Model JSON structure** - Each model in `{{#each models}}` has this shape:
 
