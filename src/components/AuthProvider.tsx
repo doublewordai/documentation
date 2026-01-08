@@ -28,12 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isGeneratingKey, setIsGeneratingKey] = useState(false)
 
-  // Load API key from localStorage on mount
+  // Check auth on mount
   useEffect(() => {
-    const storedApiKey = localStorage.getItem('doubleword_api_key')
-    if (storedApiKey) {
-      setApiKey(storedApiKey)
-    }
     checkAuth()
   }, [])
 
@@ -131,10 +127,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     posthog.reset()
 
-    // Clear local state and storage
+    // Clear local state
     setUser(null)
     setApiKey(null)
-    localStorage.removeItem('doubleword_api_key')
 
     // Dev mode: clear dev auth flag
     if (process.env.NODE_ENV === 'development') {
@@ -145,13 +140,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const generateApiKey = async () => {
+    setIsGeneratingKey(true)
     try {
       // Dev mode: return mock API key
       if (process.env.NODE_ENV === 'development' && sessionStorage.getItem('dev_auth') === 'true') {
         await new Promise(resolve => setTimeout(resolve, 500)) // Simulate network delay
         const mockApiKey = 'sk-dev-mock-' + Math.random().toString(36).substring(7)
         setApiKey(mockApiKey)
-        localStorage.setItem('doubleword_api_key', mockApiKey)
 
         // Capture API key generated event with PostHog
         posthog.capture('api_key_generated', {
@@ -183,9 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json()
       const newApiKey = data.key
 
-      // Store API key
+      // Store API key in state
       setApiKey(newApiKey)
-      localStorage.setItem('doubleword_api_key', newApiKey)
 
       // Capture API key generated event with PostHog
       posthog.capture('api_key_generated', {
@@ -196,6 +190,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Failed to generate API key:', error)
       posthog.captureException(error)
       throw error
+    } finally {
+      setIsGeneratingKey(false)
     }
   }
 

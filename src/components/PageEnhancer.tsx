@@ -1,49 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import ApiKeyInjector from "./ApiKeyInjector";
+import ContentInjector from "./ContentInjector";
 
 export default function PageEnhancer() {
   useEffect(() => {
-    // Load saved tab preferences from localStorage
-    const loadSavedPreferences = () => {
-      document.querySelectorAll('.code-tabs-select[data-sync]').forEach((select) => {
-        const htmlSelect = select as HTMLSelectElement;
-        const syncGroup = htmlSelect.getAttribute('data-sync');
-        if (!syncGroup) return;
-
-        const savedPreference = localStorage.getItem(`code-tab-${syncGroup}`);
-        if (!savedPreference) return;
-
-        // Find and select the saved tab
-        for (let i = 0; i < htmlSelect.options.length; i++) {
-          if (htmlSelect.options[i].text === savedPreference) {
-            htmlSelect.value = i.toString();
-
-            // Update active panel
-            const container = htmlSelect.closest('.code-tabs-container');
-            if (container) {
-              container.querySelectorAll('.code-tab-panel').forEach((panel) => {
-                panel.classList.remove('active');
-              });
-              const activePanel = container.querySelector(
-                `.code-tab-panel[data-panel="${i}"]`
-              );
-              if (activePanel) {
-                activePanel.classList.add('active');
-              }
-            }
-            break;
-          }
-        }
-      });
-    };
-
-    // Load preferences on mount (with small delay to ensure DOM is ready)
-    loadSavedPreferences();
-    // Also try again after a short delay in case content loads async
-    const timeoutId = setTimeout(loadSavedPreferences, 100);
-
     // Enhance code tabs
     const handleTabChange = (e: Event) => {
       const select = e.target as HTMLSelectElement;
@@ -65,11 +26,6 @@ export default function PageEnhancer() {
       );
       if (activePanel) {
         activePanel.classList.add("active");
-      }
-
-      // Save preference to localStorage
-      if (syncGroup && selectedTabName) {
-        localStorage.setItem(`code-tab-${syncGroup}`, selectedTabName);
       }
 
       // Sync across other code tab containers with the same sync group
@@ -201,7 +157,6 @@ export default function PageEnhancer() {
     document.addEventListener("change", handleTabChange);
 
     return () => {
-      clearTimeout(timeoutId);
       if (hoverTimeout) {
         clearTimeout(hoverTimeout);
       }
@@ -214,5 +169,5 @@ export default function PageEnhancer() {
     };
   }, []);
 
-  return <ApiKeyInjector />;
+  return <ContentInjector />;
 }

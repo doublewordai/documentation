@@ -9,6 +9,8 @@ import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import remarkAdmonitions from "@/app/lib/remark-admonitions";
 import remarkCodeTabs from "@/app/lib/remark-code-tabs";
 import CopyButton from "./CopyButton";
+import { fetchModelsServer } from "@/lib/models";
+import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
 
 type ImageData = {
   filename: string;
@@ -27,8 +29,15 @@ export async function MarkdownRenderer({
   content: string;
   images?: ImageData[];
 }) {
+  // Fetch models data for templating
+  const modelsResponse = await fetchModelsServer();
+  const templateContext = buildTemplateContext(modelsResponse);
+
+  // Template the content with Handlebars (server-side)
+  // Client-side placeholders like {{apiKey}} and {{selectedModel.*}} are preserved
+  let processedContent = templateMarkdown(content, templateContext);
+
   // Replace image filenames with Sanity CDN URLs
-  let processedContent = content;
   if (images && images.length > 0) {
     const imageMap = new Map(images.filter(img => img.filename).map(img => [img.filename, img]));
 

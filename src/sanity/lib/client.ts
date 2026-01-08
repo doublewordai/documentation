@@ -2,12 +2,19 @@ import {createClient, type QueryParams} from 'next-sanity'
 
 import {apiVersion, dataset, projectId} from '../env'
 
+const token = process.env.SANITY_API_READ_TOKEN
+
 export const client = createClient({
   projectId,
   dataset,
   apiVersion,
   // Set to false for static site generation (SSG) and ISR
   useCdn: false,
+  // Enable draft access in development with a token
+  ...(token && {
+    token,
+    perspective: 'drafts',
+  }),
 })
 
 /**

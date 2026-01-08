@@ -266,17 +266,19 @@ body {
 }
 
 .admonition-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 600;
   font-size: 1rem;
   margin-bottom: 0.5rem;
+  margin-left: -1.625rem; /* icon (1.125rem) + gap (0.5rem) to align title text with content */
   letter-spacing: -0.01em;
 }
 
 .admonition-title::before {
   content: "";
-  position: absolute;
-  left: 1rem;
-  top: 1.125rem;
+  flex-shrink: 0;
   width: 1.125rem;
   height: 1.125rem;
   background-size: contain;
@@ -296,11 +298,11 @@ body {
 
 /* Light mode admonitions */
 .admonition-note {
-  background: #f0f7ff;
+  background: #e8f4fd;
 }
 
 .admonition-note .admonition-title {
-  color: #0070f3;
+  color: #0059c1;
 }
 
 .admonition-note .admonition-title::before {
@@ -308,11 +310,11 @@ body {
 }
 
 .admonition-tip {
-  background: #f0fdf4;
+  background: #e6f7ed;
 }
 
 .admonition-tip .admonition-title {
-  color: #16a34a;
+  color: #118540;
 }
 
 .admonition-tip .admonition-title::before {
@@ -321,58 +323,58 @@ body {
 
 .admonition-warning,
 .admonition-caution {
-  background: #fffbeb;
+  background: #fef6e0;
 }
 
 .admonition-warning .admonition-title,
 .admonition-caution .admonition-title {
-  color: #f59e0b;
+  color: #b45309;
 }
 
 .admonition-warning .admonition-title::before,
 .admonition-caution .admonition-title::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d97706' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E");
 }
 
 .admonition-danger {
-  background: #fef2f2;
+  background: #fee2e2;
 }
 
 .admonition-danger .admonition-title {
-  color: #dc2626;
+  color: #b91c1c;
 }
 
 .admonition-danger .admonition-title::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23dc2626' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m15 9-6 6'/%3E%3Cpath d='m9 9 6 6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23b91c1c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m15 9-6 6'/%3E%3Cpath d='m9 9 6 6'/%3E%3C/svg%3E");
 }
 
 .admonition-info {
-  background: #faf5ff;
+  background: #ede9fe;
 }
 
 .admonition-info .admonition-title {
-  color: #8b5cf6;
+  color: #6d28d9;
 }
 
 .admonition-info .admonition-title::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236d28d9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
 }
 
 /* Dark mode admonitions */
 html[data-theme="dark"] .admonition-note {
-  background: rgba(0, 112, 243, 0.1);
+  background: rgba(0, 112, 243, 0.15);
 }
 
 html[data-theme="dark"] .admonition-note .admonition-title {
-  color: #3291ff;
+  color: #60a5fa;
 }
 
 html[data-theme="dark"] .admonition-note .admonition-title::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233291ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
 }
 
 html[data-theme="dark"] .admonition-tip {
-  background: rgba(22, 163, 74, 0.1);
+  background: rgba(22, 163, 74, 0.15);
 }
 
 html[data-theme="dark"] .admonition-tip .admonition-title {
@@ -385,7 +387,7 @@ html[data-theme="dark"] .admonition-tip .admonition-title::before {
 
 html[data-theme="dark"] .admonition-warning,
 html[data-theme="dark"] .admonition-caution {
-  background: rgba(245, 158, 11, 0.1);
+  background: rgba(245, 158, 11, 0.15);
 }
 
 html[data-theme="dark"] .admonition-warning .admonition-title,
@@ -399,7 +401,7 @@ html[data-theme="dark"] .admonition-caution .admonition-title::before {
 }
 
 html[data-theme="dark"] .admonition-danger {
-  background: rgba(220, 38, 38, 0.1);
+  background: rgba(220, 38, 38, 0.15);
 }
 
 html[data-theme="dark"] .admonition-danger .admonition-title {
@@ -411,7 +413,7 @@ html[data-theme="dark"] .admonition-danger .admonition-title::before {
 }
 
 html[data-theme="dark"] .admonition-info {
-  background: rgba(139, 92, 246, 0.1);
+  background: rgba(139, 92, 246, 0.15);
 }
 
 html[data-theme="dark"] .admonition-info .admonition-title {

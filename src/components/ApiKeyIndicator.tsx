@@ -13,19 +13,47 @@ export default function ApiKeyIndicator() {
 
   useEffect(() => {
     // Check if page has API key placeholders in code blocks
-    const codeBlocks = document.querySelectorAll('pre code, pre')
-    const placeholder = 'YOUR_API_KEY'
+    const checkForPlaceholders = () => {
+      const codeBlocks = document.querySelectorAll('pre code, pre')
 
-    let foundPlaceholder = false
-    codeBlocks.forEach((block) => {
-      const content = block.textContent || ''
-      if (content.includes(placeholder)) {
-        foundPlaceholder = true
+      let foundPlaceholder = false
+      codeBlocks.forEach((block) => {
+        // Check both textContent and data-original-content (preserved by ContentInjector)
+        const content = block.textContent || ''
+        const originalContent = (block as HTMLElement).dataset?.originalContent || ''
+        if (content.includes('{{apiKey}}') || originalContent.includes('{{apiKey}}')) {
+          foundPlaceholder = true
+        }
+      })
+
+      if (foundPlaceholder && !hasPlaceholders) {
+        setHasPlaceholders(true)
+      }
+    }
+
+    // Check immediately
+    checkForPlaceholders()
+
+    // Also observe for dynamically added code blocks (client-side navigation)
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          for (const node of mutation.addedNodes) {
+            if (node instanceof HTMLElement) {
+              if (node.matches('pre, pre code') || node.querySelector('pre, pre code')) {
+                checkForPlaceholders()
+                return
+              }
+            }
+          }
+        }
       }
     })
 
-    setHasPlaceholders(foundPlaceholder)
-  }, [])
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    return () => observer.disconnect()
+  }, [hasPlaceholders])
 
   // Don't show if no placeholders on page
   if (!hasPlaceholders) {

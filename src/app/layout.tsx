@@ -3,6 +3,7 @@ import { Geist_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
+import { ConfigProvider } from "@/components/ConfigProvider";
 import PageEnhancer from "@/components/PageEnhancer";
 
 const ibmPlexSans = IBM_Plex_Sans({
@@ -55,8 +56,10 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
-            {children}
-            <PageEnhancer />
+            <ConfigProvider>
+              {children}
+              <PageEnhancer />
+            </ConfigProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

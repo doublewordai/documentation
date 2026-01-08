@@ -9,6 +9,7 @@ import TableOfContents from '@/components/TableOfContents'
 import CopyMarkdownButton from '@/components/CopyMarkdownButton'
 import ApiKeyBanner from '@/components/ApiKeyBanner'
 import ApiKeyIndicator from '@/components/ApiKeyIndicator'
+import ModelSelector from '@/components/ModelSelector'
 
 const SITE_URL = 'https://docs.doubleword.ai'
 
@@ -179,6 +180,9 @@ export default async function DocPage({params}: Props) {
               <ul className="space-y-2 text-sm 2xl:text-base">
                 <li>
                   <ApiKeyIndicator />
+                </li>
+                <li>
+                  <ModelSelector />
                 </li>
                 <li>
                   <CopyMarkdownButton docId={doc._id} />

@@ -8,7 +8,7 @@ export default function CopyButton() {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handleCopy = async () => {
-    // Get the current DOM content (which may have been modified by ApiKeyInjector)
+    // Get the current DOM content (which may have been modified by ContentInjector)
     const wrapper = buttonRef.current?.closest('.code-block-wrapper');
     const codeElement = wrapper?.querySelector('pre code') || wrapper?.querySelector('pre');
     const code = codeElement?.textContent || '';
