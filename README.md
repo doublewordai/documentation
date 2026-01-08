@@ -1,253 +1,406 @@
 # Doubleword Documentation Site
 
-A fully static, prerendered Next.js documentation site powered by Sanity CMS with webhook-based on-demand revalidation.
+A fully static, prerendered Next.js documentation site powered by Sanity CMS with webhook-based on-demand revalidation and dynamic content injection.
 
-## Features
+---
 
-✅ **Fully Static Generation (SSG)** - All pages are prerendered at build time
-✅ **Webhook-based Revalidation** - Content updates trigger automatic page revalidation
-✅ **Tag-based Cache Invalidation** - Granular control over which pages to revalidate
-✅ **Markdown Rendering** - Full support for GitHub-flavored markdown
-✅ **Optimized Performance** - Lightning-fast page loads with Next.js 16
-✅ **Type-safe** - TypeScript types for all Sanity queries
+## For Developers
 
-## Architecture
+### Architecture Overview
 
-### Static Generation Strategy
+This is a Next.js 16 application using the App Router with:
+- **Static Site Generation (SSG)** - All pages prerendered at build time
+- **Sanity CMS** - Headless CMS for content management
+- **Webhook-based revalidation** - Content updates trigger automatic page rebuilds
+- **Dynamic content injection** - Server-side Handlebars templating + client-side placeholder replacement
 
-All pages are generated at build time using Next.js `generateStaticParams`:
-
-- **Homepage** (`/`) - Lists all products
-- **Product Pages** (`/[product]`) - Product overview with documentation index
-- **Documentation Pages** (`/[product]/[...slug]`) - Individual documentation pages
-
-### Caching & Revalidation
-
-The site uses Next.js's tag-based caching with `force-cache` strategy:
-
-```typescript
-// All pages are cached indefinitely until revalidated by webhook
-cache: 'force-cache'
-next: {
-  revalidate: false,  // Cache indefinitely
-  tags: ['product', 'docPage', 'category']  // Tags for invalidation
-}
-```
-
-When content changes in Sanity:
-1. Sanity sends a webhook to `/api/revalidate`
-2. The API validates the request signature
-3. `revalidateTag()` is called with the document type
-4. All pages with that tag are purged from cache
-5. Next request rebuilds the page with fresh content
-
-## Setup
-
-### 1. Environment Variables
-
-Update `.env.local` with your values:
-
-```bash
-NEXT_PUBLIC_SANITY_PROJECT_ID=g1zo7y59
-NEXT_PUBLIC_SANITY_DATASET=production
-SANITY_REVALIDATE_SECRET=your-secret-here-change-me
-```
-
-⚠️ **Important**: Generate a secure random string for `SANITY_REVALIDATE_SECRET`
-
-### 2. Install Dependencies
-
-```bash
-npm install
-```
-
-### 3. Configure Sanity Webhook
-
-To enable automatic revalidation when content changes:
-
-1. Go to [Sanity Manage](https://www.sanity.io/manage)
-2. Select your project
-3. Go to **API** → **Webhooks**
-4. Click **Create webhook**
-5. Configure:
-   - **Name**: Next.js Revalidation
-   - **URL**: `https://your-domain.com/api/revalidate`
-   - **Method**: POST
-   - **Secret**: Use the same value as `SANITY_REVALIDATE_SECRET`
-   - **Trigger on**: Create, Update, Delete
-   - **Dataset**: production
-   - **Projection**: `{_type}`
-
-Example projection:
-```groq
-{
-  _type
-}
-```
-
-This sends the document type to your API route, which revalidates all pages with that tag.
-
-### 4. Deploy
-
-The site works with any hosting provider that supports Next.js:
-
-#### Vercel (Recommended)
-```bash
-vercel deploy
-```
-
-Add environment variables in Vercel dashboard.
-
-#### Other Platforms
-```bash
-npm run build
-npm start
-```
-
-Ensure your hosting provider:
-- Supports Next.js 16+
-- Has environment variables configured
-- Can receive webhook requests
-
-## Development
-
-### Run Dev Server
-```bash
-npm run dev
-```
-
-Visit [http://localhost:3000](http://localhost:3000)
-
-### Build for Production
-```bash
-npm run build
-```
-
-This generates all static pages. Check the build output:
-```
-Route (app)
-├ ○ /                          (Static)
-├ ● /[product]                 (SSG) - 3 routes
-├ ● /[product]/[...slug]       (SSG) - 20 routes
-└ ƒ /api/revalidate            (Dynamic)
-```
-
-- `○` = Static prerendered content
-- `●` = SSG with `generateStaticParams`
-- `ƒ` = Dynamic API route
-
-## Project Structure
+### Project Structure
 
 ```
-docs-new/
+docs/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                    # Homepage
 │   │   ├── [product]/
-│   │   │   ├── page.tsx               # Product landing page
-│   │   │   └── [...slug]/
-│   │   │       └── page.tsx           # Documentation pages
-│   │   └── api/
-│   │       └── revalidate/
-│   │           └── route.ts           # Webhook handler
+│   │   │   ├── [...slug]/
+│   │   │   │   └── page.tsx          # Documentation pages
+│   │   │   ├── layout.tsx            # Product layout with sidebar
+│   │   │   └── page.tsx              # Product landing (redirects to first doc)
+│   │   ├── api/
+│   │   │   ├── models/route.ts       # Proxies model data from Doubleword API
+│   │   │   ├── revalidate/route.ts   # Sanity webhook handler
+│   │   │   └── openapi/route.ts      # OpenAPI spec endpoint
+│   │   ├── auth/callback/page.tsx    # OAuth callback handler
+│   │   ├── lib/
+│   │   │   ├── remark-admonitions.ts # Custom admonition syntax
+│   │   │   └── remark-code-tabs.ts   # Tabbed code blocks
+│   │   ├── layout.tsx                # Root layout with providers
+│   │   ├── page.tsx                  # Homepage
+│   │   └── globals.css               # All styles
 │   ├── components/
-│   │   └── MarkdownRenderer.tsx       # Markdown rendering
+│   │   ├── AuthProvider.tsx          # Auth context (API keys, OAuth)
+│   │   ├── ConfigProvider.tsx        # App config (selected model)
+│   │   ├── ContentInjector.tsx       # Client-side placeholder replacement
+│   │   ├── MarkdownRenderer.tsx      # Markdown processing pipeline
+│   │   ├── PageEnhancer.tsx          # Code tabs, footnote hovers
+│   │   ├── ModelSelector.tsx         # Model dropdown in code blocks
+│   │   ├── ApiKeyIndicator.tsx       # API key button in code blocks
+│   │   ├── ApiKeyBanner.tsx          # "Generate API key" banner
+│   │   ├── TableOfContents.tsx       # Right sidebar TOC
+│   │   └── SidebarNav.tsx            # Left sidebar navigation
+│   ├── lib/
+│   │   ├── handlebars.ts             # Server-side templating
+│   │   └── models.ts                 # Model types and fetching
 │   └── sanity/
-│       ├── env.ts                      # Environment config
-│       ├── types.ts                    # TypeScript types
-│       └── lib/
-│           ├── client.ts               # Sanity client
-│           └── queries.ts              # GROQ queries
-├── .env.local                          # Environment variables
-├── next.config.ts                      # Next.js config
+│       ├── lib/
+│       │   ├── client.ts             # Sanity client configuration
+│       │   └── queries.ts            # GROQ queries
+│       ├── env.ts                    # Environment config
+│       └── types.ts                  # Generated TypeScript types
+├── .env.local                        # Environment variables
+├── next.config.ts                    # Next.js configuration
 └── package.json
 ```
 
-## Sanity Schema
+### Key Systems
 
-The site expects these document types in your Sanity schema:
+#### 1. Content Flow
 
-### `product`
-- `name` (string)
-- `slug` (slug)
-- `description` (text)
-- `githubUrl` (url)
-- `icon` (image)
+```
+Sanity CMS (edit)
+    → Webhook fires on publish
+    → /api/revalidate called
+    → revalidateTag() purges cache
+    → Next request rebuilds page
+```
 
-### `docPage`
-- `title` (string)
-- `slug` (slug)
-- `product` (reference → product)
-- `category` (reference → category)
-- `body` (markdown)
-- `order` (number)
-- `parent` (reference → docPage)
-- `description` (text)
-- `sidebarLabel` (string)
-- `hideTitle` (boolean)
+#### 2. Dynamic Content Injection
 
-### `category`
-- `name` (string)
-- `slug` (slug)
-- `product` (reference → product)
-- `order` (number)
-- `parent` (reference → category)
-- `description` (text)
+Content goes through two stages of processing:
 
-## Best Practices
+**Server-side (Handlebars)** - Processed at build/request time:
+- `{{#each models}}` - Loop through all models
+- `{{this.name}}`, `{{this.id}}` - Model properties
+- `{{formatPricePer1M this.pricing.batch24h.input}}` - Price formatting
+- `{{urlEncode this.id}}` - URL encoding
 
-### Static Site Generation
-- `useCdn: false` in Sanity client (for consistent builds)
-- `cache: 'force-cache'` for all data fetches
-- Tags on every query for granular revalidation
+**Client-side (ContentInjector)** - Processed in browser:
+- `{{apiKey}}` - User's API key (after login/generation)
+- `{{selectedModel.id}}` - Currently selected model
+- `{{selectedModel.name}}` - Model display name
 
-### Performance
-- All pages prerendered at build time
-- Optimized markdown rendering
-- Image optimization via Next.js Image component
+#### 3. Markdown Processing Pipeline
 
-### Debugging Cache
-The `logging.fetches.fullUrl` config in `next.config.ts` shows detailed cache information:
+```
+Raw Markdown
+    → remarkGfm (tables, strikethrough, etc.)
+    → remarkDirective (:::admonition syntax)
+    → remarkAdmonitions (custom admonition blocks)
+    → remarkCodeTabs (tabbed code blocks)
+    → rehypeSlug (heading IDs)
+    → rehypeAutolinkHeadings (clickable headings)
+    → rehypeShiki (syntax highlighting)
+    → rehypeRaw (pass through HTML)
+    → React components (custom img, pre, a, etc.)
+```
+
+### Environment Variables
 
 ```bash
-npm run dev
+# Sanity
+NEXT_PUBLIC_SANITY_PROJECT_ID=g1zo7y59
+NEXT_PUBLIC_SANITY_DATASET=production
+SANITY_REVALIDATE_SECRET=your-webhook-secret
+
+# Doubleword API (for model data)
+DOUBLEWORD_SYSTEM_API_KEY=your-api-key
+
+# OAuth (optional, for user authentication)
+NEXT_PUBLIC_OAUTH_CLIENT_ID=your-client-id
+NEXT_PUBLIC_OAUTH_REDIRECT_URI=http://localhost:3000/auth/callback
 ```
 
-You'll see logs like:
-```
-GET https://g1zo7y59.api.sanity.io/v2024-07-11/data/query/production?query=...
-cache: HIT
-tags: ['product']
-```
+### Setting Up Sanity Webhook
 
-## Troubleshooting
+1. Go to [Sanity Manage](https://www.sanity.io/manage) → Your Project → API → Webhooks
+2. Create webhook:
+   - **URL**: `https://your-domain.com/api/revalidate`
+   - **Secret**: Same as `SANITY_REVALIDATE_SECRET`
+   - **Trigger on**: Create, Update, Delete
+   - **Projection**: `{_type}`
 
-### Pages not updating after content change
-1. Check webhook is configured correctly in Sanity
-2. Verify `SANITY_REVALIDATE_SECRET` matches in both places
-3. Check webhook logs in Sanity dashboard
-4. Test webhook endpoint manually:
+### Development Commands
 
 ```bash
-curl -X POST https://your-domain.com/api/revalidate \
-  -H "Content-Type: application/json" \
-  -H "Sanity-Webhook-Signature: your-signature" \
-  -d '{"_type": "docPage"}'
+npm run dev      # Start dev server
+npm run build    # Build for production
+npm run start    # Start production server
+npm run lint     # Run ESLint
 ```
 
-### Build fails with "not found"
-- Ensure all referenced documents exist in Sanity
-- Check GROQ queries return expected data
-- Verify `generateStaticParams` returns correct paths
+### Adding New Features
 
-### Slow builds
-- Reduce number of static pages with pagination
-- Use incremental static regeneration (ISR) for less critical pages
-- Consider on-demand generation for rarely accessed pages
+**New Handlebars helper:**
+```typescript
+// src/lib/handlebars.ts
+Handlebars.registerHelper('myHelper', function(value: string) {
+  return value.toUpperCase()
+})
+```
 
-## Resources
+**New remark plugin:**
+1. Create plugin in `src/app/lib/remark-*.ts`
+2. Add to `remarkPlugins` array in `MarkdownRenderer.tsx`
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Sanity Documentation](https://www.sanity.io/docs)
-- [next-sanity Toolkit](https://github.com/sanity-io/next-sanity)
-- [GROQ Query Language](https://www.sanity.io/docs/groq)
+**New client-side placeholder:**
+1. Add pattern to `ContentInjector.tsx`
+2. Add to `clientPlaceholders` array in `handlebars.ts` (to preserve during server templating)
+
+---
+
+## For Content Authors
+
+### Editing Content in Sanity Studio
+
+Access the studio at `https://doubleword.sanity.studio/` (or your studio URL).
+
+**Document Types:**
+- **docPage** - Documentation pages (what you'll edit most)
+- **category** - Sidebar sections
+- **product** - Top-level products (Batches, Admin, etc.)
+- **post** - Blog posts (can be linked to doc pages)
+
+**docPage Fields:**
+| Field | Purpose |
+|-------|---------|
+| title | Page title (shown in browser tab, TOC) |
+| slug | URL path segment |
+| product | Which product this belongs to |
+| category | Sidebar section |
+| order | Sort order within category |
+| parent | For nested pages in sidebar |
+| body | Markdown content |
+| images | Upload images, reference by filename |
+| sidebarLabel | Override title in sidebar |
+| hideTitle | Don't show title on page |
+| description | Meta description for SEO |
+
+### Markdown Features
+
+#### Basic Markdown
+
+Standard GitHub-flavored markdown is supported:
+- **Bold**, *italic*, ~~strikethrough~~
+- [Links](url), `inline code`
+- Lists, tables, blockquotes
+- Headings (h2 and h3 appear in table of contents)
+
+#### Images
+
+1. Upload image in the "Images" field with a filename (e.g., `diagram.png`)
+2. Reference in body: `![Alt text](diagram.png)`
+
+The filename is automatically replaced with the Sanity CDN URL. Alt text and captions from Sanity are used.
+
+#### Code Blocks
+
+````markdown
+```python
+print("Hello, world!")
+```
+````
+
+Supported languages: javascript, typescript, python, bash, json, jsx, tsx, yaml, shell, go, rust, sql, html, css, markdown, toml, dockerfile
+
+#### Tabbed Code Blocks
+
+Show the same example in multiple languages with synced tabs:
+
+````markdown
+```python tabs=example name=Python sync=lang
+print("Hello")
+```
+
+```javascript tabs=example name=JavaScript sync=lang
+console.log("Hello")
+```
+
+```go tabs=example name=Go sync=lang
+fmt.Println("Hello")
+```
+````
+
+- `tabs=` - Group ID (blocks with same ID become tabs)
+- `name=` - Tab label
+- `sync=` - Sync group (tabs with same sync value change together across the page)
+
+#### Admonitions
+
+Callout boxes for notes, warnings, etc.:
+
+```markdown
+:::note
+This is a note.
+:::
+
+:::tip
+This is a tip.
+:::
+
+:::warning
+This is a warning.
+:::
+
+:::danger
+This is dangerous!
+:::
+
+:::info
+This is informational.
+:::
+
+:::caution
+Be careful!
+:::
+```
+
+Custom title:
+```markdown
+:::warning[Custom Title]
+Warning content here.
+:::
+```
+
+#### Footnotes
+
+```markdown
+This has a footnote[^1].
+
+[^1]: This is the footnote content.
+```
+
+On desktop, footnotes appear as hover popups. On mobile, they appear at the bottom of the page.
+
+#### Collapsible Sections
+
+Use HTML `<details>` for collapsible content:
+
+```markdown
+<details>
+<summary>Click to expand</summary>
+
+Hidden content here. Supports **markdown**.
+
+</details>
+```
+
+To include in table of contents, put a heading inside the summary:
+```markdown
+<details id="section-id">
+<summary><h3>Section Title</h3></summary>
+
+Content here.
+
+</details>
+```
+
+### Dynamic Content
+
+#### Server-side (Handlebars) - For Model Data
+
+These are processed at build time and work without JavaScript:
+
+**Loop through models:**
+```markdown
+{{#each models}}
+- {{this.name}}: {{formatPricePer1M this.pricing.batch24h.input}} input
+{{/each}}
+```
+
+**Conditionals:**
+```markdown
+{{#if this.pricing.realtime}}
+Realtime available!
+{{/if}}
+```
+
+**Available helpers:**
+| Helper | Example | Output |
+|--------|---------|--------|
+| `formatPricePer1M` | `{{formatPricePer1M 0.0000001}}` | `$0.10` |
+| `formatPrice` | `{{formatPrice 1.5}}` | `$1.50` |
+| `urlEncode` | `{{urlEncode "a/b"}}` | `a%2Fb` |
+| `eq` | `{{#if (eq this.type "chat")}}` | Boolean |
+| `json` | `{{json this}}` | JSON string |
+
+**Model properties:**
+- `{{this.id}}` - Model ID (e.g., `meta-llama/Llama-4-Scout-17B-16E-Instruct`)
+- `{{this.name}}` - Display name
+- `{{this.description}}` - Model description
+- `{{this.type}}` - Model type
+- `{{this.pricing.realtime.input}}` - Realtime input price per token
+- `{{this.pricing.batch1h.input}}` - 1hr SLA batch input price
+- `{{this.pricing.batch24h.input}}` - 24hr SLA batch input price
+- (same for `.output`)
+
+#### Client-side - For User-specific Data
+
+These appear in code blocks and are replaced when users interact:
+
+**API Key:**
+```markdown
+```bash
+curl -H "Authorization: Bearer {{apiKey}}" ...
+```
+```
+
+When users click "Generate API Key" or log in, `{{apiKey}}` is replaced with their actual key.
+
+**Selected Model:**
+```markdown
+```python
+model = "{{selectedModel.id}}"
+```
+```
+
+A model selector dropdown appears in the code block. When users select a model, placeholders are replaced.
+
+**Available placeholders:**
+- `{{apiKey}}` - User's API key
+- `{{selectedModel.id}}` - Selected model ID
+- `{{selectedModel.name}}` - Selected model name
+
+### Publishing Workflow
+
+1. **Edit** content in Sanity Studio
+2. **Save** creates a draft (visible only in Studio with preview)
+3. **Publish** makes content live and triggers webhook
+4. **Site rebuilds** affected pages automatically (usually within seconds)
+
+### Tips
+
+- Use h2 (`##`) and h3 (`###`) for headings that should appear in the table of contents
+- Keep slugs URL-friendly (lowercase, hyphens, no special characters)
+- Use the "sidebarLabel" field for shorter navigation labels
+- Link related content using markdown links: `[See Authentication](/batches/authentication)`
+- Test dynamic content locally before publishing - Handlebars errors will show in the console
+
+### Troubleshooting
+
+**Content not updating after publish:**
+- Check that the webhook is configured in Sanity
+- Verify the revalidation secret matches
+- Wait 10-30 seconds for cache to clear
+
+**Images not showing:**
+- Make sure filename in body matches exactly (case-sensitive)
+- Verify image was uploaded in the Images field
+
+**Code blocks look broken:**
+- Check for matching opening/closing backticks
+- Ensure language is in the supported list
+- For tabs, verify all blocks have the same `tabs=` value
+
+**Handlebars errors:**
+- Check browser console for error messages
+- Verify helper names are spelled correctly
+- Make sure conditionals have matching `{{/if}}`
