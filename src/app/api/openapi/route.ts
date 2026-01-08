@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+const SYSTEM_API_KEY = process.env.DOUBLEWORD_SYSTEM_API_KEY;
+
 // Override these values in the OpenAPI spec
 const SPEC_OVERRIDES = {
   info: {
@@ -26,9 +28,22 @@ Upload a JSONL file with your requests, kick off a batch, and retrieve your resu
 };
 
 export async function GET() {
+  if (!SYSTEM_API_KEY) {
+    throw new Error("DOUBLEWORD_SYSTEM_API_KEY is not set");
+  }
+
   const response = await fetch("https://api.doubleword.ai/openapi.json", {
+    headers: {
+      Authorization: `Bearer ${SYSTEM_API_KEY}`,
+    },
     next: { revalidate: 3600 }, // Cache for 1 hour, then refetch
   });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch OpenAPI spec: ${response.status} ${response.statusText}`
+    );
+  }
 
   const spec = await response.json();
 
