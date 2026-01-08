@@ -536,6 +536,148 @@ html[data-theme="dark"] .admonition-info .admonition-title::before {
 }
 
 /* ============================================
+   Model Details (collapsible accordion)
+   Refined shadcn-inspired styling
+   ============================================ */
+
+.prose details {
+  margin: 0;
+  border-bottom: 1px solid var(--pre-border);
+  background: transparent;
+}
+
+.prose details:first-of-type {
+  border-top: 1px solid var(--pre-border);
+}
+
+.prose details summary {
+  padding: 1rem 0;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  background: transparent;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--foreground);
+  transition: color 0.15s ease;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Headings inside summary - reset to look like normal summary text */
+.prose details summary h1,
+.prose details summary h2,
+.prose details summary h3,
+.prose details summary h4,
+.prose details summary h5,
+.prose details summary h6 {
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  border: none;
+}
+
+/* Summary metadata (pricing, links) */
+.prose details summary .summary-meta {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: auto;
+  margin-right: 0.75rem;
+  white-space: nowrap;
+}
+
+.prose details summary .summary-meta a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.prose details summary .summary-meta a:hover {
+  text-decoration: underline;
+}
+
+.prose details summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Chevron icon using CSS - positioned on the right */
+.prose details summary::after {
+  content: '';
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-theme="dark"] .prose details summary::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239a9a9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.prose details[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.prose details summary:hover {
+  color: var(--link-color);
+}
+
+.prose details summary:hover::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%230070f3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+html[data-theme="dark"] .prose details summary:hover::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* Content area */
+.prose details > *:not(summary) {
+  padding: 0;
+}
+
+.prose details > p,
+.prose details > ul,
+.prose details > ol {
+  padding-bottom: 1rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.prose details > p:first-of-type {
+  margin-top: 0;
+}
+
+.prose details > p:last-child {
+  padding-bottom: 1.25rem;
+}
+
+/* Subtle animation for content reveal */
+.prose details[open] > *:not(summary) {
+  animation: accordion-slide-down 0.2s ease-out;
+}
+
+@keyframes accordion-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================
    TOC Background Extension
    ============================================ */
 

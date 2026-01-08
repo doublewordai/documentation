@@ -122,7 +122,7 @@ export default function ModelSelector() {
             </div>
             {models.map((model) => {
               const isSelected = selectedModel?.id === model.id
-              const pricing = model.pricing?.batch || model.pricing?.realtime
+              const pricing = model.pricing?.batch24h || model.pricing?.batch1h || model.pricing?.realtime
 
               return (
                 <button

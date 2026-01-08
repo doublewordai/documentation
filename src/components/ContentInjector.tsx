@@ -11,8 +11,11 @@ import { useEffect, useRef } from 'react'
  * - {{apiKey}} - User's API key
  * - {{selectedModel.id}} - Selected model ID
  * - {{selectedModel.name}} - Selected model name
- * - {{selectedModel.pricing.batch.input}} - Model batch input price per token
- * - {{selectedModel.pricing.batch.output}} - Model batch output price per token
+ * - {{selectedModel.description}} - Selected model description
+ * - {{selectedModel.pricing.batch1h.input}} - Model 1hr SLA batch input price per token
+ * - {{selectedModel.pricing.batch1h.output}} - Model 1hr SLA batch output price per token
+ * - {{selectedModel.pricing.batch24h.input}} - Model 24hr SLA batch input price per token
+ * - {{selectedModel.pricing.batch24h.output}} - Model 24hr SLA batch output price per token
  * - {{selectedModel.pricing.realtime.input}} - Model realtime input price per token
  * - {{selectedModel.pricing.realtime.output}} - Model realtime output price per token
  */
@@ -65,16 +68,29 @@ export default function ContentInjector() {
           `<span style="color:#98C379">${selectedModel.name || selectedModel.id}</span>`
         )
 
-        // Handle pricing placeholders (batch pricing)
-        const batchPricing = selectedModel.pricing?.batch
-        if (batchPricing) {
+        // Handle pricing placeholders (1hr SLA batch pricing)
+        const batch1hPricing = selectedModel.pricing?.batch1h
+        if (batch1hPricing) {
           newHtml = newHtml.replace(
-            /\{\{selectedModel\.pricing\.batch\.input\}\}/g,
-            String(batchPricing.input)
+            /\{\{selectedModel\.pricing\.batch1h\.input\}\}/g,
+            String(batch1hPricing.input)
           )
           newHtml = newHtml.replace(
-            /\{\{selectedModel\.pricing\.batch\.output\}\}/g,
-            String(batchPricing.output)
+            /\{\{selectedModel\.pricing\.batch1h\.output\}\}/g,
+            String(batch1hPricing.output)
+          )
+        }
+
+        // Handle pricing placeholders (24hr SLA batch pricing)
+        const batch24hPricing = selectedModel.pricing?.batch24h
+        if (batch24hPricing) {
+          newHtml = newHtml.replace(
+            /\{\{selectedModel\.pricing\.batch24h\.input\}\}/g,
+            String(batch24hPricing.input)
+          )
+          newHtml = newHtml.replace(
+            /\{\{selectedModel\.pricing\.batch24h\.output\}\}/g,
+            String(batch24hPricing.output)
           )
         }
 

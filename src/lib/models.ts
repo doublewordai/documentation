@@ -5,7 +5,6 @@
 export interface ModelPricing {
   input: number   // price per token
   output: number  // price per token
-  window?: string // for batch: "24h", "1h"
 }
 
 export interface Model {
@@ -15,8 +14,9 @@ export interface Model {
   type: string
   capabilities: string[]
   pricing: {
-    batch: ModelPricing | null
-    realtime: ModelPricing | null
+    batch1h: ModelPricing | null   // 1 hour SLA batch
+    batch24h: ModelPricing | null  // 24 hour SLA batch
+    realtime: ModelPricing | null  // Real-time API
   }
 }
 
@@ -46,8 +46,8 @@ interface RawModel {
 
 function transformModels(rawModels: RawModel[]): Model[] {
   return rawModels.map((m) => {
-    const batchTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window === '24h')
-      || m.tariffs?.find(t => t.api_key_purpose === 'batch')
+    const batch1hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window === '1h')
+    const batch24hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window === '24h')
     const realtimeTariff = m.tariffs?.find(t => t.api_key_purpose === 'realtime')
 
     return {
@@ -57,10 +57,13 @@ function transformModels(rawModels: RawModel[]): Model[] {
       type: m.model_type,
       capabilities: m.capabilities || [],
       pricing: {
-        batch: batchTariff ? {
-          input: parseFloat(batchTariff.input_price_per_token),
-          output: parseFloat(batchTariff.output_price_per_token),
-          window: batchTariff.completion_window,
+        batch1h: batch1hTariff ? {
+          input: parseFloat(batch1hTariff.input_price_per_token),
+          output: parseFloat(batch1hTariff.output_price_per_token),
+        } : null,
+        batch24h: batch24hTariff ? {
+          input: parseFloat(batch24hTariff.input_price_per_token),
+          output: parseFloat(batch24hTariff.output_price_per_token),
         } : null,
         realtime: realtimeTariff ? {
           input: parseFloat(realtimeTariff.input_price_per_token),

@@ -56,9 +56,8 @@ export async function GET() {
 
     // Transform to cleaner format
     const models = rawModels.map((m) => {
-      // Get batch 24h pricing (preferred) or first available
-      const batchTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window === '24h')
-        || m.tariffs?.find(t => t.api_key_purpose === 'batch')
+      const batch1hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window === '1h')
+      const batch24hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window === '24h')
       const realtimeTariff = m.tariffs?.find(t => t.api_key_purpose === 'realtime')
 
       return {
@@ -68,10 +67,13 @@ export async function GET() {
         type: m.model_type,
         capabilities: m.capabilities || [],
         pricing: {
-          batch: batchTariff ? {
-            input: parseFloat(batchTariff.input_price_per_token),
-            output: parseFloat(batchTariff.output_price_per_token),
-            window: batchTariff.completion_window,
+          batch1h: batch1hTariff ? {
+            input: parseFloat(batch1hTariff.input_price_per_token),
+            output: parseFloat(batch1hTariff.output_price_per_token),
+          } : null,
+          batch24h: batch24hTariff ? {
+            input: parseFloat(batch24hTariff.input_price_per_token),
+            output: parseFloat(batch24hTariff.output_price_per_token),
           } : null,
           realtime: realtimeTariff ? {
             input: parseFloat(realtimeTariff.input_price_per_token),

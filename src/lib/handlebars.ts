@@ -37,6 +37,12 @@ Handlebars.registerHelper('hasCapability', function(model: Model, capability: st
   return model.capabilities?.includes(capability)
 })
 
+// URL encode helper for building URLs with model IDs
+Handlebars.registerHelper('urlEncode', function(str: string) {
+  if (typeof str !== 'string') return ''
+  return encodeURIComponent(str)
+})
+
 /**
  * Template markdown content with Handlebars
  *
