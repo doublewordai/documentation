@@ -113,10 +113,6 @@ SANITY_REVALIDATE_SECRET=your-webhook-secret
 
 # Doubleword API (for model data)
 DOUBLEWORD_SYSTEM_API_KEY=your-api-key
-
-# OAuth (optional, for user authentication)
-NEXT_PUBLIC_OAUTH_CLIENT_ID=your-client-id
-NEXT_PUBLIC_OAUTH_REDIRECT_URI=http://localhost:3000/auth/callback
 ```
 
 ### Setting Up Sanity Webhook
