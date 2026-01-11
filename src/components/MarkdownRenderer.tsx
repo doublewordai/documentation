@@ -1,13 +1,16 @@
 import { MarkdownAsync } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import remarkDirective from "remark-directive";
 import remarkUnwrapImages from "remark-unwrap-images";
 import rehypeShiki from "@shikijs/rehype";
+import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import remarkAdmonitions from "@/app/lib/remark-admonitions";
 import remarkCodeTabs from "@/app/lib/remark-code-tabs";
+import { remarkSidenotesToFootnotes } from "@/plugins/remark-sidenotes-to-footnotes.mjs";
 import CopyButton from "./CopyButton";
 import { fetchModelsServer } from "@/lib/models";
 import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
@@ -151,7 +154,7 @@ export async function MarkdownRenderer({
 
   return (
     <MarkdownAsync
-      remarkPlugins={[remarkGfm, remarkDirective, remarkUnwrapImages, remarkAdmonitions, remarkCodeTabs]}
+      remarkPlugins={[remarkGfm, remarkMath, remarkDirective, remarkUnwrapImages, remarkAdmonitions, remarkCodeTabs, remarkSidenotesToFootnotes]}
       rehypePlugins={[
         rehypeSlug,
         [
@@ -161,11 +164,13 @@ export async function MarkdownRenderer({
             properties: { className: ["anchor"] },
           },
         ],
+        rehypeKatex,
         [
           rehypeShiki,
           {
             theme: 'one-dark-pro',
-            langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'jsx', 'tsx', 'yaml', 'shell', 'go', 'rust', 'sql', 'html', 'css', 'markdown', 'toml', 'dockerfile'],
+            langs: ['javascript', 'typescript', 'python', 'bash', 'json', 'jsx', 'tsx', 'yaml', 'shell', 'go', 'rust', 'sql', 'html', 'css', 'markdown', 'toml', 'dockerfile', 'text', 'plaintext'],
+            defaultLanguage: 'text',
           },
         ],
         rehypeRaw,
