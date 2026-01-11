@@ -67,6 +67,7 @@ export interface DocPage {
     slug: {current: string}
     body?: string
     externalSource?: string
+    canonicalUrl?: string
     images?: Array<{
       _key: string
       asset: {

@@ -66,7 +66,8 @@ export async function generateMetadata({params}: Props): Promise<Metadata> {
     }
   }
 
-  const canonicalUrl = `${SITE_URL}/${productSlug}/${docSlug}`
+  // Use the linkedPost's canonicalUrl if this is transcluded syndicated content
+  const canonicalUrl = doc.linkedPost?.canonicalUrl || `${SITE_URL}/${productSlug}/${docSlug}`
   const title = `${doc.title} | ${doc.product.name} | Doubleword Docs`
   const description = doc.description || `${doc.title} - ${doc.product.name} documentation`
 

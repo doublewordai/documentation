@@ -105,6 +105,7 @@ export const DOC_PAGE_QUERY = defineQuery(`*[_type == "docPage" && product->slug
     slug,
     body,
     externalSource,
+    canonicalUrl,
     images[] {
       _key,
       asset-> {
