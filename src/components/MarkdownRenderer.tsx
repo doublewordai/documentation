@@ -10,10 +10,28 @@ import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import remarkAdmonitions from "@/app/lib/remark-admonitions";
 import remarkCodeTabs from "@/app/lib/remark-code-tabs";
-import { remarkSidenotesToFootnotes } from "@/plugins/remark-sidenotes-to-footnotes.mjs";
 import CopyButton from "./CopyButton";
 import { fetchModelsServer } from "@/lib/models";
 import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
+
+/**
+ * Convert sidenote syntax to footnote syntax in raw markdown
+ * This must happen before parsing since remark-gfm parses footnotes during initial parse
+ *
+ * Converts:
+ *   [>id] -> [^id]
+ *   [>id]: content -> [^id]: content
+ *   [>_id] -> [^id] (unnumbered become regular footnotes)
+ */
+function convertSidenotesToFootnotes(markdown: string): string {
+  // Convert references: [>id] or [>_id] -> [^id]
+  let result = markdown.replace(/\[>_?([^\]]+)\]/g, '[^$1]');
+
+  // Convert definitions: [>id]: or [>_id]: -> [^id]:
+  result = result.replace(/\[\^_?([^\]]+)\]:/g, '[^$1]:');
+
+  return result;
+}
 
 type ImageData = {
   filename: string;
@@ -39,6 +57,9 @@ export async function MarkdownRenderer({
   // Template the content with Handlebars (server-side)
   // Client-side placeholders like {{apiKey}} and {{selectedModel.*}} are preserved
   let processedContent = templateMarkdown(content, templateContext);
+
+  // Convert sidenote syntax [>id] to footnote syntax [^id] before parsing
+  processedContent = convertSidenotesToFootnotes(processedContent);
 
   // Replace image filenames with Sanity CDN URLs
   if (images && images.length > 0) {
@@ -154,7 +175,7 @@ export async function MarkdownRenderer({
 
   return (
     <MarkdownAsync
-      remarkPlugins={[remarkGfm, remarkMath, remarkDirective, remarkUnwrapImages, remarkAdmonitions, remarkCodeTabs, remarkSidenotesToFootnotes]}
+      remarkPlugins={[remarkGfm, remarkMath, remarkDirective, remarkUnwrapImages, remarkAdmonitions, remarkCodeTabs]}
       rehypePlugins={[
         rehypeSlug,
         [
