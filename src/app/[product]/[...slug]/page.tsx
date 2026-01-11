@@ -14,6 +14,20 @@ import ModelSelector from '@/components/ModelSelector'
 const SITE_URL = 'https://docs.doubleword.ai'
 
 /**
+ * Fetch markdown content from an external URL
+ * Used when a linked blog post has externalSource set
+ */
+async function fetchExternalContent(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { next: { revalidate: 3600 } }) // Cache for 1 hour
+    if (!response.ok) return null
+    return await response.text()
+  } catch {
+    return null
+  }
+}
+
+/**
  * Generate static params for all documentation pages
  * This enables full static site generation (SSG)
  */
@@ -93,7 +107,17 @@ export default async function DocPage({params}: Props) {
   }
 
   // Use linked post content if available, otherwise use doc content
-  const content = doc.linkedPost?.body || doc.body;
+  // If linked post has externalSource, fetch content from there
+  let content: string | undefined;
+  if (doc.linkedPost) {
+    if (doc.linkedPost.externalSource) {
+      content = await fetchExternalContent(doc.linkedPost.externalSource) || doc.linkedPost.body;
+    } else {
+      content = doc.linkedPost.body;
+    }
+  } else {
+    content = doc.body;
+  }
   const images = doc.linkedPost?.images || doc.images;
 
   return (
