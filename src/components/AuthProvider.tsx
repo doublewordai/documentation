@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           'Accept': 'application/json',
         },
         body: JSON.stringify({
-          name: 'Docs API Key',
+          name: `Docs API Key (${new Date().toISOString()})`,
           description: 'Generated from documentation site',
           purpose: 'realtime',
         }),
