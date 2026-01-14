@@ -5,7 +5,7 @@ import type {Product, DocPageForNav} from '@/sanity/types'
 import MobileSidebar from '@/components/MobileSidebar'
 
 // Products that should show an API Reference link
-const PRODUCTS_WITH_API_REFERENCE = ['batches']
+const PRODUCTS_WITH_API_REFERENCE = ['batches', 'control-layer']
 
 export default async function ProductLayout({
   children,
