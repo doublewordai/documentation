@@ -1,24 +1,15 @@
 import type { Metadata } from "next";
-import { Geist_Mono, IBM_Plex_Sans } from "next/font/google";
+
+// Fonts via fontsource (self-hosted, full character sets)
+import "@fontsource-variable/ibm-plex-sans";
+import "@fontsource-variable/geist-mono";
+
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ConfigProvider } from "@/components/ConfigProvider";
 import PageEnhancer from "@/components/PageEnhancer";
-
-const ibmPlexSans = IBM_Plex_Sans({
-  variable: "--font-ibm-plex-sans",
-  subsets: ["latin"],
-  weight: ["400", "600"],
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Doubleword Documentation",
@@ -52,9 +43,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body
-        className={`${ibmPlexSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <ThemeProvider>
           <AuthProvider>
             <ConfigProvider>

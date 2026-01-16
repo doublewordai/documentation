@@ -117,6 +117,22 @@ Warning content here.
 :::
 ```
 
+#### Math (KaTeX)
+
+Inline math with single dollar signs, display math with double:
+```markdown
+The equation $E = mc^2$ is famous.
+
+$$
+\sum_{i=1}^n x_i
+$$
+```
+
+**Escaping currency:** Since `$` triggers math rendering, escape dollar signs used for currency with a backslash:
+```markdown
+The price is \$10.00 per month.
+```
+
 #### Footnotes
 
 ```markdown
