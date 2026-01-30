@@ -21,7 +21,12 @@ const nextConfig: NextConfig = {
         source: "/ingest/:path*",
         destination: "https://eu.i.posthog.com/:path*",
       },
-      // Markdown download: /product/slug.md → /api/markdown/product/slug
+      // Markdown: /product.md → /api/markdown/product (aggregated)
+      {
+        source: "/:product.md",
+        destination: "/api/markdown/:product",
+      },
+      // Markdown: /product/slug.md → /api/markdown/product/slug
       {
         source: "/:product/:path*.md",
         destination: "/api/markdown/:product/:path*",
