@@ -4,11 +4,18 @@ import { useAuth } from './AuthProvider'
 import { useState, useEffect } from 'react'
 import posthog from 'posthog-js'
 
-export default function ApiKeyBanner() {
+interface ApiKeyBannerProps {
+  hasApiKeyPlaceholder?: boolean
+}
+
+export default function ApiKeyBanner({ hasApiKeyPlaceholder = false }: ApiKeyBannerProps) {
   const { user, apiKey, isLoading, isGeneratingKey, signIn, generateApiKey } = useAuth()
-  const [isDismissed, setIsDismissed] = useState(true)
-  const [hasPlaceholders, setHasPlaceholders] = useState(false)
-  const [isCheckingBanner, setIsCheckingBanner] = useState(true)
+  // Start as false - will be updated from localStorage in useEffect
+  // This ensures we reserve space on first render for pages with placeholders
+  const [isDismissed, setIsDismissed] = useState(false)
+  const [isCheckingDismissed, setIsCheckingDismissed] = useState(true)
+  const [hasPlaceholders, setHasPlaceholders] = useState(hasApiKeyPlaceholder)
+  const [isCheckingBanner, setIsCheckingBanner] = useState(!hasApiKeyPlaceholder)
   const [isSigningIn, setIsSigningIn] = useState(false)
 
   useEffect(() => {
@@ -39,6 +46,7 @@ export default function ApiKeyBanner() {
     // Check if banner was dismissed
     const dismissed = localStorage.getItem('apikey_banner_dismissed')
     setIsDismissed(dismissed === 'true')
+    setIsCheckingDismissed(false)
 
     // Check immediately
     checkForPlaceholders()
@@ -99,14 +107,36 @@ export default function ApiKeyBanner() {
     }
   }
 
-  // Don't show if:
-  // - Banner is checking its state
-  // - Auth is still loading
-  // - Already has API key
-  // - User dismissed it
-  // - No placeholders on page
-  if (isCheckingBanner || isLoading || apiKey || isDismissed || !hasPlaceholders) {
+  // Don't show if no placeholders or already has API key
+  if (!hasPlaceholders || apiKey) {
     return null
+  }
+
+  // Don't show if user dismissed (but only after we've checked localStorage)
+  if (!isCheckingDismissed && isDismissed) {
+    return null
+  }
+
+  // Still checking DOM for placeholders - don't render anything yet
+  if (isCheckingBanner) {
+    return null
+  }
+
+  // Reserve space while loading (auth or localStorage check)
+  // This prevents layout shift on pages with API key placeholders
+  if (isLoading || isCheckingDismissed) {
+    return (
+      <div
+        className="mb-4 px-3 py-2.5 rounded-md flex items-center gap-3 text-sm opacity-0"
+        style={{
+          backgroundColor: 'var(--code-bg)',
+          border: '1px solid var(--pre-border)',
+        }}
+        aria-hidden="true"
+      >
+        <span>Loading...</span>
+      </div>
+    )
   }
 
   const isSignedIn = !!user

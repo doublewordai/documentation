@@ -125,6 +125,7 @@ export default async function DocPage({ params }: Props) {
   }
   const images = doc.linkedPost?.images || doc.images;
   const videoUrl = doc.linkedPost?.videoUrl;
+  const hasApiKeyPlaceholder = content?.includes('{{apiKey}}') ?? false;
 
   return (
     <div className="relative w-full min-h-screen flex flex-col">
@@ -202,7 +203,7 @@ export default async function DocPage({ params }: Props) {
                 </header>
               )}
 
-              <ApiKeyBanner />
+              <ApiKeyBanner hasApiKeyPlaceholder={hasApiKeyPlaceholder} />
 
               {/* Video Embed */}
               {videoUrl && (
