@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SidebarNav from "./SidebarNav";
@@ -31,6 +31,18 @@ export default function MobileSidebar({
   apiReferenceHref,
 }: MobileSidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
 
   return (
     <>
@@ -108,14 +120,15 @@ export default function MobileSidebar({
       {/* Sidebar */}
       <aside
         className={`
-          w-64 overflow-y-auto fixed h-screen z-40 transition-transform duration-300
-          top-14 lg:top-0
+          w-64 overflow-y-auto fixed z-40 transition-transform duration-300
+          top-14 bottom-0 lg:top-0 lg:h-screen
           lg:translate-x-0
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
         style={{
           backgroundColor: 'var(--sidebar-bg)',
           borderRight: '1px solid var(--sidebar-border)',
+          overscrollBehavior: 'contain',
         }}
       >
         <div className="p-6">
