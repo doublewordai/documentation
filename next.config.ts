@@ -21,6 +21,11 @@ const nextConfig: NextConfig = {
         source: "/ingest/:path*",
         destination: "https://eu.i.posthog.com/:path*",
       },
+      // Markdown download: /product/slug.md → /api/markdown/product/slug
+      {
+        source: "/:product/:path*.md",
+        destination: "/api/markdown/:product/:path*",
+      },
     ];
   },
   // Required to support PostHog trailing slash API requests

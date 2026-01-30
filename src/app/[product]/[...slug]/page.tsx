@@ -250,7 +250,7 @@ export default async function DocPage({ params }: Props) {
                   <ModelSelector />
                 </li>
                 <li>
-                  <CopyMarkdownButton docId={doc._id} />
+                  <CopyMarkdownButton />
                 </li>
               </ul>
             </div>

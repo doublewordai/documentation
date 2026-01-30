@@ -1,28 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import { getMarkdown } from '@/app/actions/getMarkdown';
 import posthog from 'posthog-js';
 
-interface CopyMarkdownButtonProps {
-  docId: string;
-}
-
-export default function CopyMarkdownButton({ docId }: CopyMarkdownButtonProps) {
+export default function CopyMarkdownButton() {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleCopy = async () => {
     setLoading(true);
     try {
-      const markdown = await getMarkdown(docId);
+      const mdUrl = `${window.location.pathname}.md`;
+      const response = await fetch(mdUrl);
+      if (!response.ok) throw new Error('Failed to fetch markdown');
+      const markdown = await response.text();
+
       await navigator.clipboard.writeText(markdown);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
 
-      // Capture markdown copied event with PostHog
       posthog.capture('markdown_copied', {
-        doc_id: docId,
         page_path: window.location.pathname,
         content_length: markdown.length,
       });
