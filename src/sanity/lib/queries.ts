@@ -58,6 +58,7 @@ export const DOCS_BY_PRODUCT_QUERY =
   slug,
   order,
   sidebarLabel,
+  externalLinkIcon,
   "categorySlug": category->slug.current,
   "categoryName": category->name,
   "parentSlug": parent->slug.current,
@@ -78,6 +79,7 @@ export const DOC_PAGE_QUERY =
   title,
   slug,
   body,
+  externalSource,
   description,
   hideTitle,
   sidebarLabel,
@@ -167,4 +169,17 @@ export const HOMEPAGE_QUERY = defineQuery(`*[_type == "homepage"][0]{
     "productSlug": product->slug.current,
     "productName": product->name
   }
+}`);
+
+/**
+ * Query a Claude skill by slug
+ */
+export const CLAUDE_SKILL_QUERY = defineQuery(`*[
+  _type == "claudeSkill" && slug.current == $slug
+][0]{
+  title,
+  slug,
+  description,
+  githubUrl,
+  version
 }`);

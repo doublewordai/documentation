@@ -17,10 +17,9 @@ type GroupedDocs = Record<string, {
 type SidebarNavProps = {
   productSlug: string;
   groupedDocs: GroupedDocs;
-  apiReferenceHref?: string;
 };
 
-export default function SidebarNav({ productSlug, groupedDocs, apiReferenceHref }: SidebarNavProps) {
+export default function SidebarNav({ productSlug, groupedDocs }: SidebarNavProps) {
   const pathname = usePathname();
 
   // Sort categories by order
@@ -47,7 +46,7 @@ export default function SidebarNav({ productSlug, groupedDocs, apiReferenceHref 
                 <li key={doc._id}>
                   <Link
                     href={href}
-                    className={`block px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
+                    className={`flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
                       isActive
                         ? ""
                         : "hover:translate-x-0.5"
@@ -63,6 +62,17 @@ export default function SidebarNav({ productSlug, groupedDocs, apiReferenceHref 
                     }
                   >
                     {doc.sidebarLabel || doc.title}
+                    {doc.externalLinkIcon && (
+                      <svg
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="w-3 h-3 opacity-60"
+                      >
+                        <path d="M4 12L12 4M12 4H6M12 4V10" />
+                      </svg>
+                    )}
                   </Link>
                 </li>
               );
@@ -71,37 +81,6 @@ export default function SidebarNav({ productSlug, groupedDocs, apiReferenceHref 
         </div>
       ))}
 
-      {/* API Reference Link */}
-      {apiReferenceHref && (
-        <div>
-          <h3
-            className="text-xs font-semibold tracking-widest uppercase mb-2 px-2"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Reference
-          </h3>
-          <ul className="space-y-0.5">
-            <li>
-              <Link
-                href={apiReferenceHref}
-                className="flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 hover:translate-x-0.5"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                API Reference
-                <svg
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="w-3 h-3 opacity-60"
-                >
-                  <path d="M4 12L12 4M12 4H6M12 4V10" />
-                </svg>
-              </Link>
-            </li>
-          </ul>
-        </div>
-      )}
     </nav>
   );
 }

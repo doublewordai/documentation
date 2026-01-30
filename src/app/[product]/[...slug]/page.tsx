@@ -109,10 +109,16 @@ export default async function DocPage({ params }: Props) {
     notFound();
   }
 
-  // Use linked post content if available, otherwise use doc content
-  // If linked post has externalSource, fetch content from there
+  // Determine content source: externalSource > linkedPost > body
   let content: string | undefined;
-  if (doc.linkedPost) {
+  if (doc.externalSource) {
+    let externalContent = await fetchExternalContent(doc.externalSource);
+    // Strip the first h1 heading from external content (we use Sanity's title instead)
+    if (externalContent) {
+      externalContent = externalContent.replace(/^#\s+[^\n]+\n+/, '');
+    }
+    content = externalContent || doc.body;
+  } else if (doc.linkedPost) {
     if (doc.linkedPost.externalSource) {
       content =
         (await fetchExternalContent(doc.linkedPost.externalSource)) ||

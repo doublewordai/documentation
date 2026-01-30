@@ -33,6 +33,7 @@ export interface DocPage {
   title: string;
   slug: { current: string };
   body?: string;
+  externalSource?: string;
   description?: string;
   hideTitle?: boolean;
   sidebarLabel?: string;
@@ -88,6 +89,7 @@ export interface DocPageForNav {
   slug: { current: string };
   order?: number;
   sidebarLabel?: string;
+  externalLinkIcon?: boolean;
   categorySlug: string;
   categoryName: string;
   parentSlug?: string;
@@ -97,4 +99,12 @@ export interface DocPageForNav {
     slug: { current: string };
     order: number;
   };
+}
+
+export interface ClaudeSkill {
+  title: string;
+  slug: { current: string };
+  description?: string;
+  githubUrl?: string;
+  version?: string;
 }

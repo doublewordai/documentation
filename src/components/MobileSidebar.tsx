@@ -21,14 +21,12 @@ type MobileSidebarProps = {
   productName: string;
   productSlug: string;
   groupedDocs: GroupedDocs;
-  apiReferenceHref?: string;
 };
 
 export default function MobileSidebar({
   productName,
   productSlug,
   groupedDocs,
-  apiReferenceHref,
 }: MobileSidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -160,7 +158,7 @@ export default function MobileSidebar({
           </div>
 
           <div onClick={() => setIsMobileMenuOpen(false)}>
-            <SidebarNav productSlug={productSlug} groupedDocs={groupedDocs} apiReferenceHref={apiReferenceHref} />
+            <SidebarNav productSlug={productSlug} groupedDocs={groupedDocs} />
           </div>
         </div>
       </aside>

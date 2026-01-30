@@ -4,8 +4,6 @@ import {PRODUCT_QUERY, DOCS_BY_PRODUCT_QUERY} from '@/sanity/lib/queries'
 import type {Product, DocPageForNav} from '@/sanity/types'
 import MobileSidebar from '@/components/MobileSidebar'
 
-// Products that should show an API Reference link
-const PRODUCTS_WITH_API_REFERENCE = ['batches', 'control-layer']
 
 export default async function ProductLayout({
   children,
@@ -52,15 +50,12 @@ export default async function ProductLayout({
     groupedDocs[categoryId].docs.push(doc)
   })
 
-  const showApiReference = PRODUCTS_WITH_API_REFERENCE.includes(productSlug)
-
   return (
     <div className="min-h-screen" style={{background: 'var(--background)'}}>
       <MobileSidebar
         productName={product.name}
         productSlug={productSlug}
         groupedDocs={groupedDocs}
-        apiReferenceHref={showApiReference ? `/${productSlug}/api-reference` : undefined}
       />
       <main className="pt-14 lg:pt-0 lg:ml-64">{children}</main>
     </div>
