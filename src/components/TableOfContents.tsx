@@ -214,32 +214,34 @@ export default function TableOfContents() {
               {/* H3 children with animated expand/collapse */}
               {hasChildren && (
                 <div
-                  className="overflow-hidden transition-all duration-200 ease-out"
+                  className="grid transition-[grid-template-rows,opacity] duration-200 ease-out"
                   style={{
-                    maxHeight: isExpanded ? `${section.h3s.length * 36}px` : "0px",
+                    gridTemplateRows: isExpanded ? "1fr" : "0fr",
                     opacity: isExpanded ? 1 : 0,
                   }}
                 >
-                  <ul className="ml-5 mt-1 space-y-1">
-                    {section.h3s.map((h3) => {
-                      const isH3Active = activeId === h3.id;
-                      return (
-                        <li key={h3.id}>
-                          <a
-                            href={`#${h3.id}`}
-                            className="block py-1 transition-colors duration-150 hover:translate-x-0.5"
-                            style={{
-                              color: isH3Active ? "var(--foreground)" : "var(--text-muted)",
-                              fontWeight: isH3Active ? 500 : 400,
-                            }}
-                            onClick={(e) => handleLinkClick(e, h3)}
-                          >
-                            {h3.text}
-                          </a>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <div className="overflow-hidden">
+                    <ul className="ml-5 mt-1 space-y-1">
+                      {section.h3s.map((h3) => {
+                        const isH3Active = activeId === h3.id;
+                        return (
+                          <li key={h3.id}>
+                            <a
+                              href={`#${h3.id}`}
+                              className="block py-1 transition-colors duration-150 hover:translate-x-0.5"
+                              style={{
+                                color: isH3Active ? "var(--foreground)" : "var(--text-muted)",
+                                fontWeight: isH3Active ? 500 : 400,
+                              }}
+                              onClick={(e) => handleLinkClick(e, h3)}
+                            >
+                              {h3.text}
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 </div>
               )}
             </li>
