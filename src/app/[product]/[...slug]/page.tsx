@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { sanityFetch } from "@/sanity/lib/client";
 import { DOC_PAGE_QUERY, ALL_DOC_PAGE_PATHS_QUERY } from "@/sanity/lib/queries";
 import type { DocPage } from "@/sanity/types";
@@ -125,7 +126,11 @@ export default async function DocPage({ params }: Props) {
   }
   const images = doc.linkedPost?.images || doc.images;
   const videoUrl = doc.linkedPost?.videoUrl;
-  const hasApiKeyPlaceholder = content?.includes('{{apiKey}}') ?? false;
+
+  // Check if page has API key placeholders and user hasn't dismissed the banner
+  const cookieStore = await cookies();
+  const bannerDismissed = cookieStore.get('apikey_banner_dismissed')?.value === 'true';
+  const hasApiKeyPlaceholder = !bannerDismissed && (content?.includes('{{apiKey}}') ?? false);
 
   return (
     <div className="relative w-full min-h-screen flex flex-col">

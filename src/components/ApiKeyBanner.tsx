@@ -10,10 +10,7 @@ interface ApiKeyBannerProps {
 
 export default function ApiKeyBanner({ hasApiKeyPlaceholder = false }: ApiKeyBannerProps) {
   const { user, apiKey, isLoading, isGeneratingKey, signIn, generateApiKey } = useAuth()
-  // Start as false - will be updated from localStorage in useEffect
-  // This ensures we reserve space on first render for pages with placeholders
   const [isDismissed, setIsDismissed] = useState(false)
-  const [isCheckingDismissed, setIsCheckingDismissed] = useState(true)
   const [hasPlaceholders, setHasPlaceholders] = useState(hasApiKeyPlaceholder)
   const [isCheckingBanner, setIsCheckingBanner] = useState(!hasApiKeyPlaceholder)
   const [isSigningIn, setIsSigningIn] = useState(false)
@@ -42,11 +39,6 @@ export default function ApiKeyBanner({ hasApiKeyPlaceholder = false }: ApiKeyBan
         setIsCheckingBanner(false)
       }
     }
-
-    // Check if banner was dismissed
-    const dismissed = localStorage.getItem('apikey_banner_dismissed')
-    setIsDismissed(dismissed === 'true')
-    setIsCheckingDismissed(false)
 
     // Check immediately
     checkForPlaceholders()
@@ -81,7 +73,8 @@ export default function ApiKeyBanner({ hasApiKeyPlaceholder = false }: ApiKeyBan
 
   const handleDismiss = () => {
     setIsDismissed(true)
-    localStorage.setItem('apikey_banner_dismissed', 'true')
+    // Set cookie for server-side detection (expires in 1 year)
+    document.cookie = 'apikey_banner_dismissed=true; path=/; max-age=31536000; SameSite=Lax'
 
     posthog.capture('api_key_banner_dismissed', {
       page_path: window.location.pathname,
@@ -112,8 +105,8 @@ export default function ApiKeyBanner({ hasApiKeyPlaceholder = false }: ApiKeyBan
     return null
   }
 
-  // Don't show if user dismissed (but only after we've checked localStorage)
-  if (!isCheckingDismissed && isDismissed) {
+  // Don't show if user dismissed during this session
+  if (isDismissed) {
     return null
   }
 
@@ -122,9 +115,9 @@ export default function ApiKeyBanner({ hasApiKeyPlaceholder = false }: ApiKeyBan
     return null
   }
 
-  // Reserve space while loading (auth or localStorage check)
+  // Reserve space while loading auth state
   // This prevents layout shift on pages with API key placeholders
-  if (isLoading || isCheckingDismissed) {
+  if (isLoading) {
     return (
       <div
         className="mb-4 px-3 py-2.5 rounded-md flex items-center gap-3 text-sm opacity-0"
