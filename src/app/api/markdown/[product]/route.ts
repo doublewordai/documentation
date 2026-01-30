@@ -8,28 +8,17 @@ const PRODUCT_DOCS_QUERY = defineQuery(`{
     "slug": slug.current,
     description
   },
-  "categories": *[_type == "category" && product->slug.current == $productSlug] | order(order asc) {
-    _id,
-    name,
-    "slug": slug.current,
-    order
-  },
-  "docs": *[_type == "docPage" && product->slug.current == $productSlug] | order(order asc) {
+  "docs": *[_type == "docPage" && product->slug.current == $productSlug && !(_id in path("drafts.**"))] | order(category->order asc, order asc) {
     _id,
     title,
     "slug": slug.current,
     description,
     order,
-    "categoryId": category._ref
+    "categoryId": category._ref,
+    "categoryName": category->name,
+    "categoryOrder": category->order
   }
 }`);
-
-type Category = {
-  _id: string;
-  name: string;
-  slug: string;
-  order: number;
-};
 
 type Doc = {
   _id: string;
@@ -38,6 +27,8 @@ type Doc = {
   description?: string;
   order: number;
   categoryId: string;
+  categoryName: string;
+  categoryOrder: number;
 };
 
 export async function GET(
@@ -55,7 +46,6 @@ export async function GET(
     tags: ["docPage", "product", "category"],
   })) as {
     product: { name: string; slug: string; description?: string } | null;
-    categories: Category[];
     docs: Doc[];
   };
 
@@ -63,7 +53,7 @@ export async function GET(
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
-  const { product, categories, docs } = data;
+  const { product, docs } = data;
 
   // Build index markdown
   const lines: string[] = [];
@@ -77,40 +67,26 @@ export async function GET(
     lines.push("");
   }
 
-  // Group docs by category
-  const sortedCategories = [...categories].sort((a, b) => a.order - b.order);
+  // Group docs by category while maintaining query order
+  let currentCategory: string | null = null;
 
-  for (const category of sortedCategories) {
-    const categoryDocs = docs
-      .filter((d) => d.categoryId === category._id)
-      .sort((a, b) => a.order - b.order);
-
-    if (categoryDocs.length === 0) continue;
-
-    lines.push(`## ${category.name}`);
-    lines.push("");
-
-    for (const doc of categoryDocs) {
-      const url = `/${product.slug}/${doc.slug}.md`;
-      const description = doc.description ? `: ${doc.description}` : "";
-      lines.push(`- [${doc.title}](${url})${description}`);
+  for (const doc of docs) {
+    // Start new category section if needed
+    if (doc.categoryName && doc.categoryName !== currentCategory) {
+      if (currentCategory !== null) {
+        lines.push("");
+      }
+      lines.push(`## ${doc.categoryName}`);
+      lines.push("");
+      currentCategory = doc.categoryName;
     }
-    lines.push("");
+
+    const url = `/${product.slug}/${doc.slug}.md`;
+    const description = doc.description ? `: ${doc.description}` : "";
+    lines.push(`- [${doc.title}](${url})${description}`);
   }
 
-  // Uncategorized docs
-  const uncategorizedDocs = docs
-    .filter((d) => !d.categoryId)
-    .sort((a, b) => a.order - b.order);
-
-  if (uncategorizedDocs.length > 0) {
-    for (const doc of uncategorizedDocs) {
-      const url = `/${product.slug}/${doc.slug}.md`;
-      const description = doc.description ? `: ${doc.description}` : "";
-      lines.push(`- [${doc.title}](${url})${description}`);
-    }
-    lines.push("");
-  }
+  lines.push("");
 
   const content = lines.join("\n");
 

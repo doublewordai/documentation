@@ -12,14 +12,7 @@ const ALL_DOCS_QUERY = defineQuery(`{
     "slug": slug.current,
     description
   },
-  "categories": *[_type == "category"] | order(order asc) {
-    _id,
-    name,
-    "slug": slug.current,
-    order,
-    "productId": product._ref
-  },
-  "docs": *[_type == "docPage"] | order(order asc) {
+  "docs": *[_type == "docPage" && !(_id in path("drafts.**"))] | order(product->name asc, category->order asc, order asc) {
     _id,
     title,
     "slug": slug.current,
@@ -27,8 +20,8 @@ const ALL_DOCS_QUERY = defineQuery(`{
     order,
     "productSlug": product->slug.current,
     "productId": product._ref,
-    "categorySlug": category->slug.current,
-    "categoryId": category._ref
+    "categoryName": category->name,
+    "categoryOrder": category->order
   }
 }`);
 
@@ -39,14 +32,6 @@ type Product = {
   description?: string;
 };
 
-type Category = {
-  _id: string;
-  name: string;
-  slug: string;
-  order: number;
-  productId: string;
-};
-
 type Doc = {
   _id: string;
   title: string;
@@ -55,8 +40,8 @@ type Doc = {
   order: number;
   productSlug: string;
   productId: string;
-  categorySlug: string;
-  categoryId: string;
+  categoryName: string;
+  categoryOrder: number;
 };
 
 export async function GET() {
@@ -67,11 +52,10 @@ export async function GET() {
   })) as {
     homepage: { heroDescription?: string } | null;
     products: Product[];
-    categories: Category[];
     docs: Doc[];
   };
 
-  const { homepage, products, categories, docs } = data;
+  const { homepage, products, docs } = data;
 
   // Build the llms.txt content
   const lines: string[] = [];
@@ -89,14 +73,10 @@ export async function GET() {
   lines.push("All documentation pages are available as markdown by appending `.md` to any URL.");
   lines.push("");
 
-  // Group docs by product, then by category
+  // Group docs by product, then by category (docs are pre-sorted by query)
   for (const product of products) {
     const productDocs = docs.filter((d) => d.productId === product._id);
     if (productDocs.length === 0) continue;
-
-    const productCategories = categories
-      .filter((c) => c.productId === product._id)
-      .sort((a, b) => a.order - b.order);
 
     lines.push(`## ${product.name}`);
     lines.push("");
@@ -108,38 +88,25 @@ export async function GET() {
       lines.push("");
     }
 
-    // Group by category
-    for (const category of productCategories) {
-      const categoryDocs = productDocs
-        .filter((d) => d.categoryId === category._id)
-        .sort((a, b) => a.order - b.order);
+    // Iterate through docs maintaining query order, grouping by category
+    let currentCategory: string | null = null;
 
-      if (categoryDocs.length === 0) continue;
-
-      lines.push(`### ${category.name}`);
-      lines.push("");
-
-      for (const doc of categoryDocs) {
-        const url = `/${product.slug}/${doc.slug}.md`;
-        const description = doc.description ? `: ${doc.description}` : "";
-        lines.push(`- [${doc.title}](${url})${description}`);
+    for (const doc of productDocs) {
+      // Start new category section if needed
+      if (doc.categoryName && doc.categoryName !== currentCategory) {
+        if (currentCategory !== null) {
+          lines.push("");
+        }
+        lines.push(`### ${doc.categoryName}`);
+        lines.push("");
+        currentCategory = doc.categoryName;
       }
-      lines.push("");
-    }
 
-    // Docs without a category
-    const uncategorizedDocs = productDocs
-      .filter((d) => !d.categoryId)
-      .sort((a, b) => a.order - b.order);
-
-    if (uncategorizedDocs.length > 0) {
-      for (const doc of uncategorizedDocs) {
-        const url = `/${product.slug}/${doc.slug}.md`;
-        const description = doc.description ? `: ${doc.description}` : "";
-        lines.push(`- [${doc.title}](${url})${description}`);
-      }
-      lines.push("");
+      const url = `/${product.slug}/${doc.slug}.md`;
+      const description = doc.description ? `: ${doc.description}` : "";
+      lines.push(`- [${doc.title}](${url})${description}`);
     }
+    lines.push("");
   }
 
   const content = lines.join("\n");
