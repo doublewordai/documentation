@@ -10,6 +10,8 @@ pub enum LlmError {
     Http(#[from] reqwest::Error),
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("API error ({status}): {message}")]
+    Api { status: u16, message: String },
     #[error("Batch failed: {0}")]
     BatchFailed(String),
     #[error("Batch expired")]
@@ -107,6 +109,16 @@ impl LlmClient {
         }
     }
 
+    async fn check_response(resp: reqwest::Response) -> Result<reqwest::Response, LlmError> {
+        if resp.status().is_success() {
+            Ok(resp)
+        } else {
+            let status = resp.status().as_u16();
+            let message = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            Err(LlmError::Api { status, message })
+        }
+    }
+
     /// Process multiple (content, prompt) pairs using the batch API
     pub async fn process_batch(
         &self,
@@ -170,18 +182,18 @@ impl LlmClient {
                     .unwrap(),
             );
 
-        let resp: FileUploadResponse = self
+        let resp = self
             .client
             .post(format!("{}/files", self.base_url))
             .bearer_auth(&self.api_key)
             .multipart(form)
             .send()
-            .await?
-            .error_for_status()?
-            .json()
             .await?;
 
-        Ok(resp.id)
+        let resp = Self::check_response(resp).await?;
+        let file_resp: FileUploadResponse = resp.json().await?;
+
+        Ok(file_resp.id)
     }
 
     async fn create_batch(&self, input_file_id: &str) -> Result<String, LlmError> {
@@ -191,35 +203,37 @@ impl LlmClient {
             "completion_window": "24h"
         });
 
-        let resp: BatchResponse = self
+        let resp = self
             .client
             .post(format!("{}/batches", self.base_url))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
-            .await?
-            .error_for_status()?
-            .json()
             .await?;
 
-        Ok(resp.id)
+        let resp = Self::check_response(resp).await?;
+        let batch_resp: BatchResponse = resp.json().await?;
+
+        Ok(batch_resp.id)
     }
 
     async fn poll_batch(&self, batch_id: &str) -> Result<String, LlmError> {
+        eprintln!("Polling batch {}...", batch_id);
         loop {
-            let resp: BatchResponse = self
+            let resp = self
                 .client
                 .get(format!("{}/batches/{}", self.base_url, batch_id))
                 .bearer_auth(&self.api_key)
                 .send()
-                .await?
-                .error_for_status()?
-                .json()
                 .await?;
 
-            match resp.status.as_str() {
+            let resp = Self::check_response(resp).await?;
+            let batch_resp: BatchResponse = resp.json().await?;
+
+            match batch_resp.status.as_str() {
                 "completed" => {
-                    return resp.output_file_id.ok_or(LlmError::MissingOutputFile);
+                    eprintln!("Batch completed!");
+                    return batch_resp.output_file_id.ok_or(LlmError::MissingOutputFile);
                 }
                 "failed" => {
                     return Err(LlmError::BatchFailed(
@@ -228,8 +242,8 @@ impl LlmClient {
                 }
                 "expired" => return Err(LlmError::BatchExpired),
                 "cancelled" => return Err(LlmError::BatchCancelled),
-                // in_progress, validating, finalizing, etc.
-                _ => {
+                status => {
+                    eprintln!("Batch status: {}", status);
                     tokio::time::sleep(Duration::from_secs(2)).await;
                 }
             }
@@ -241,15 +255,15 @@ impl LlmClient {
         file_id: &str,
         expected_count: usize,
     ) -> Result<Vec<String>, LlmError> {
-        let content = self
+        let resp = self
             .client
             .get(format!("{}/files/{}/content", self.base_url, file_id))
             .bearer_auth(&self.api_key)
             .send()
-            .await?
-            .error_for_status()?
-            .text()
             .await?;
+
+        let resp = Self::check_response(resp).await?;
+        let content = resp.text().await?;
 
         // Parse JSONL results into a map by custom_id
         let mut results_map: HashMap<String, String> = HashMap::new();

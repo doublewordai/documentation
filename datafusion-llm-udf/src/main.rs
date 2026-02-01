@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base_url =
         std::env::var("DOUBLEWORD_API_URL").unwrap_or_else(|_| "https://api.doubleword.ai/v1".to_string());
     let model = std::env::var("DOUBLEWORD_MODEL")
-        .unwrap_or_else(|_| "meta-llama/Llama-3.3-70B-Instruct".to_string());
+        .unwrap_or_else(|_| "Qwen/Qwen3-VL-235B-A22B-Instruct-FP8".to_string());
 
     println!("Using API: {}", base_url);
     println!("Using model: {}", model);
