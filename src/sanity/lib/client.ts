@@ -41,7 +41,13 @@ export async function sanityFetch<const QueryString extends string>({
   revalidate?: number | false
   tags?: string[]
 }) {
-  const isDraftMode = (await draftMode()).isEnabled
+  // Check draft mode, but handle build-time calls where there's no request context
+  let isDraftMode = false
+  try {
+    isDraftMode = (await draftMode()).isEnabled
+  } catch {
+    // draftMode() throws when called outside request scope (e.g., during build)
+  }
 
   // Use drafts perspective when in draft mode (Sanity Presentation preview)
   const fetchClient = isDraftMode && token
