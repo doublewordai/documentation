@@ -162,7 +162,7 @@ export const HOMEPAGE_QUERY = defineQuery(`*[_type == "homepage"][0]{
   heroTitle,
   heroTitleMuted,
   heroDescription,
-  "featuredGuides": featuredGuides[]->{
+  "featuredGuides": featuredGuides[defined(@->product->slug.current)]->{
     _id,
     title,
     "slug": slug.current,

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { draftMode } from "next/headers";
+import { VisualEditing } from "next-sanity/visual-editing";
 
 // Fonts via fontsource (self-hosted, full character sets)
 import "@fontsource-variable/ibm-plex-sans";
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
   description: "Documentation for Doubleword Control Layer, Inference Stack, and Batched API",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -52,6 +54,7 @@ export default function RootLayout({
             </ConfigProvider>
           </AuthProvider>
         </ThemeProvider>
+        {(await draftMode()).isEnabled && <VisualEditing />}
       </body>
     </html>
   );
