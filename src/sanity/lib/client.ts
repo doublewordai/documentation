@@ -10,11 +10,6 @@ export const client = createClient({
   apiVersion,
   // Set to false for static site generation (SSG) and ISR
   useCdn: false,
-  // Enable draft access in development with a token
-  ...(token && {
-    token,
-    perspective: 'drafts',
-  }),
 })
 
 /**
