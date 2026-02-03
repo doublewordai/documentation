@@ -13,3 +13,6 @@ serde_json = "1"
 arrow = "53"
 uuid = { version = "1", features = ["v4"] }
 thiserror = "2"
+clap = { version = "4", features = ["derive", "env"] }
+rustyline = "15"
+dirs = "6"
