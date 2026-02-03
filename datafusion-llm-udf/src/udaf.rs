@@ -5,7 +5,9 @@ use datafusion::logical_expr::function::{AccumulatorArgs, StateFieldsArgs};
 use datafusion::logical_expr::{
     Accumulator, AggregateUDFImpl, Signature, TypeSignature, Volatility,
 };
+use indicatif::{ProgressBar, ProgressStyle};
 use std::any::Any;
+use std::time::Duration;
 
 use crate::client::LlmClient;
 use crate::validation::{validate_fold_template, validate_map_template};
@@ -104,10 +106,24 @@ impl LlmFoldAccumulator {
 
         let client = self.client.clone();
         let template = fold_template.clone();
+        let total_items = items.len();
+
+        // Calculate total levels for progress
+        let total_levels = (total_items as f64).log2().ceil() as u64;
 
         // Tree reduce: pair up items and reduce until we have one
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
+                let progress = ProgressBar::new(total_levels);
+                progress.set_style(
+                    ProgressStyle::default_bar()
+                        .template("{spinner:.cyan} Tree-reduce [{bar:30.cyan/dim}] {pos}/{len} levels ({msg})")
+                        .unwrap()
+                        .progress_chars("█▓▒░"),
+                );
+                progress.enable_steady_tick(Duration::from_millis(80));
+
+                let mut level = 0u64;
                 while items.len() > 1 {
                     let mut prompts = Vec::new();
                     let mut new_items = Vec::new();
@@ -131,8 +147,9 @@ impl LlmFoldAccumulator {
 
                     // Process all pairs in one batch
                     if !prompts.is_empty() {
-                        eprintln!("Tree-reduce: {} pairs to process", prompts.len());
+                        progress.set_message(format!("{} pairs", prompts.len()));
                         let results = client.process_prompts(prompts).await.map_err(|e| {
+                            progress.finish_with_message("failed");
                             datafusion::error::DataFusionError::Execution(format!(
                                 "LLM API error during fold: {}",
                                 e
@@ -142,8 +159,11 @@ impl LlmFoldAccumulator {
                     }
 
                     items = new_items;
+                    level += 1;
+                    progress.set_position(level);
                 }
 
+                progress.finish_with_message("complete");
                 Ok(items.remove(0))
             })
         })
@@ -255,7 +275,16 @@ impl Accumulator for LlmFoldAccumulator {
             .map(|v| map_template.replace("{0}", v))
             .collect();
 
-        eprintln!("llm_fold: mapping {} items", prompts.len());
+        let item_count = prompts.len();
+        let map_spinner = ProgressBar::new_spinner();
+        map_spinner.set_style(
+            ProgressStyle::default_spinner()
+                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+                .template("{spinner:.cyan} {msg}")
+                .unwrap(),
+        );
+        map_spinner.set_message(format!("Mapping {} items...", item_count));
+        map_spinner.enable_steady_tick(Duration::from_millis(80));
 
         let mapped = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
@@ -263,11 +292,14 @@ impl Accumulator for LlmFoldAccumulator {
             })
         })
         .map_err(|e| {
+            map_spinner.finish_with_message(format!("✗ Map failed: {}", e));
             datafusion::error::DataFusionError::Execution(format!(
                 "LLM API error during map: {}",
                 e
             ))
         })?;
+
+        map_spinner.finish_with_message(format!("✓ Mapped {} items", item_count));
 
         // Step 2: Tree-reduce the mapped results
         let result = self.tree_reduce(mapped)?;

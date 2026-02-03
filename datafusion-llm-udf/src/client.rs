@@ -1,3 +1,4 @@
+use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -128,11 +129,24 @@ impl LlmClient {
             return Ok(vec![]);
         }
 
+        let count = prompts.len();
+
         // Build JSONL content
         let jsonl = self.build_jsonl_from_prompts(&prompts)?;
 
-        // Upload file
+        // Upload file with progress
+        let upload_spinner = ProgressBar::new_spinner();
+        upload_spinner.set_style(
+            ProgressStyle::default_spinner()
+                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+                .template("{spinner:.cyan} {msg}")
+                .unwrap(),
+        );
+        upload_spinner.set_message(format!("Uploading {} prompts...", count));
+        upload_spinner.enable_steady_tick(Duration::from_millis(80));
+
         let file_id = self.upload_file(&jsonl).await?;
+        upload_spinner.finish_with_message(format!("✓ Uploaded {} prompts", count));
 
         // Create batch
         let batch_id = self.create_batch(&file_id).await?;
@@ -141,7 +155,18 @@ impl LlmClient {
         let output_file_id = self.poll_batch(&batch_id).await?;
 
         // Download and parse results
+        let download_spinner = ProgressBar::new_spinner();
+        download_spinner.set_style(
+            ProgressStyle::default_spinner()
+                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+                .template("{spinner:.cyan} {msg}")
+                .unwrap(),
+        );
+        download_spinner.set_message("Downloading results...");
+        download_spinner.enable_steady_tick(Duration::from_millis(80));
+
         let results = self.download_results(&output_file_id, prompts.len()).await?;
+        download_spinner.finish_with_message("✓ Results downloaded");
 
         Ok(results)
     }
@@ -269,7 +294,16 @@ impl LlmClient {
     }
 
     async fn poll_batch(&self, batch_id: &str) -> Result<String, LlmError> {
-        eprintln!("Polling batch {}...", batch_id);
+        let spinner = ProgressBar::new_spinner();
+        spinner.set_style(
+            ProgressStyle::default_spinner()
+                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+                .template("{spinner:.cyan} {msg}")
+                .unwrap(),
+        );
+        spinner.set_message(format!("Processing batch {}...", &batch_id[..8.min(batch_id.len())]));
+        spinner.enable_steady_tick(Duration::from_millis(80));
+
         loop {
             let resp = self
                 .client
@@ -283,19 +317,26 @@ impl LlmClient {
 
             match batch_resp.status.as_str() {
                 "completed" => {
-                    eprintln!("Batch completed!");
+                    spinner.finish_with_message("✓ Batch completed");
                     return batch_resp.output_file_id.ok_or(LlmError::MissingOutputFile);
                 }
                 "failed" => {
+                    spinner.finish_with_message("✗ Batch failed");
                     return Err(LlmError::BatchFailed(
                         "Batch processing failed".to_string(),
                     ));
                 }
-                "expired" => return Err(LlmError::BatchExpired),
-                "cancelled" => return Err(LlmError::BatchCancelled),
+                "expired" => {
+                    spinner.finish_with_message("✗ Batch expired");
+                    return Err(LlmError::BatchExpired);
+                }
+                "cancelled" => {
+                    spinner.finish_with_message("✗ Batch cancelled");
+                    return Err(LlmError::BatchCancelled);
+                }
                 status => {
-                    eprintln!("Batch status: {}", status);
-                    tokio::time::sleep(Duration::from_secs(2)).await;
+                    spinner.set_message(format!("Processing batch {}... ({})", &batch_id[..8.min(batch_id.len())], status));
+                    tokio::time::sleep(Duration::from_millis(500)).await;
                 }
             }
         }
