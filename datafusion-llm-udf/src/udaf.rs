@@ -10,20 +10,25 @@ use std::any::Any;
 use std::time::Duration;
 
 use crate::client::LlmClient;
-use crate::validation::validate_fold_template;
+use crate::validation::{expand_template, validate_reduce_template};
 
-/// LLM Aggregate function with optional map-reduce
+/// LLM Aggregate function with optional map-reduce and K-way folding
 ///
 /// Two forms:
 ///   llm_agg(column, reduce_prompt)              -- reduce only
 ///   llm_agg(column, reduce_prompt, map_prompt)  -- map then reduce
 ///
-/// - reduce_prompt: Uses {0} and {1} for combining pairs in tree-reduce
+/// - reduce_prompt: Uses {0}, {1}, etc. for combining items in tree-reduce
+///   The arity K is automatically detected from the placeholders used.
+///   Supports range syntax: {0:3, } expands to values 0-3 joined by ", "
 /// - map_prompt: Optional, uses {0} to transform each value before reduce
 ///
 /// Examples:
-///   -- Reduce only (combine raw values)
+///   -- 2-way reduce (pairs)
 ///   SELECT llm_agg(content, 'Combine:\n{0}\n---\n{1}') FROM docs;
+///
+///   -- 4-way reduce using range syntax
+///   SELECT llm_agg(content, 'Merge these summaries:\n{0:3\n---\n}') FROM docs;
 ///
 ///   -- Map then reduce
 ///   SELECT llm_agg(
@@ -108,6 +113,7 @@ impl LlmAggAccumulator {
         &self,
         mut items: Vec<String>,
         progress: &ProgressBar,
+        k: usize,
     ) -> DFResult<String> {
         let reduce_prompt = self.reduce_prompt.as_ref().ok_or_else(|| {
             datafusion::error::DataFusionError::Execution("Missing reduce prompt".to_string())
@@ -133,13 +139,37 @@ impl LlmAggAccumulator {
 
                     let mut i = 0;
                     while i < items.len() {
-                        if i + 1 < items.len() {
-                            let prompt = template
-                                .replace("{0}", &items[i])
-                                .replace("{1}", &items[i + 1]);
+                        // How many items can we group? At least 2, up to K
+                        let remaining = items.len() - i;
+                        if remaining >= k {
+                            // Full K-way group
+                            let group: Vec<&str> = items[i..i + k].iter().map(|s| s.as_str()).collect();
+                            let prompt = expand_template(&template, &group).map_err(|e| {
+                                datafusion::error::DataFusionError::Execution(format!(
+                                    "Template expansion error: {}", e
+                                ))
+                            })?;
                             prompts.push(prompt);
-                            i += 2;
+                            i += k;
+                        } else if remaining >= 2 {
+                            // Partial group (at least 2 items) - still reduce them
+                            // Build a partial prompt using available items
+                            let group: Vec<&str> = items[i..].iter().map(|s| s.as_str()).collect();
+                            // For partial groups, we need to handle the template carefully
+                            // We'll pad with empty strings if needed (though this may not be ideal)
+                            let mut padded = group.clone();
+                            while padded.len() < k {
+                                padded.push("");
+                            }
+                            let prompt = expand_template(&template, &padded).map_err(|e| {
+                                datafusion::error::DataFusionError::Execution(format!(
+                                    "Template expansion error: {}", e
+                                ))
+                            })?;
+                            prompts.push(prompt);
+                            i = items.len();
                         } else {
+                            // Only 1 item left, carry forward
                             new_items.push(items[i].clone());
                             i += 1;
                         }
@@ -147,7 +177,8 @@ impl LlmAggAccumulator {
 
                     if !prompts.is_empty() {
                         progress.set_message(format!(
-                            "reduce level {} ({} → {})",
+                            "{}-way reduce level {} ({} → {})",
+                            k,
                             level,
                             items.len(),
                             prompts.len() + new_items.len()
@@ -238,13 +269,21 @@ impl Accumulator for LlmAggAccumulator {
             datafusion::error::DataFusionError::Execution("Missing reduce prompt".to_string())
         })?;
 
-        // Validate reduce prompt
-        if let Err(e) = validate_fold_template(reduce_prompt) {
-            return Err(datafusion::error::DataFusionError::Execution(format!(
-                "Invalid reduce prompt: {}. Must contain {{0}} and {{1}} for combining pairs.",
-                e
-            )));
-        }
+        // Validate reduce prompt and get arity K
+        let k = match validate_reduce_template(reduce_prompt) {
+            Ok((warnings, k)) => {
+                for w in warnings {
+                    eprintln!("Warning: {}", w);
+                }
+                k
+            }
+            Err(e) => {
+                return Err(datafusion::error::DataFusionError::Execution(format!(
+                    "Invalid reduce prompt: {}. Must contain at least {{0}} and {{1}}.",
+                    e
+                )));
+            }
+        };
 
         // Validate map prompt if provided
         if let Some(ref map_prompt) = self.map_prompt {
@@ -289,14 +328,14 @@ impl Accumulator for LlmAggAccumulator {
                 ))
             })?
         } else {
-            progress.set_message(format!("reducing {} items...", item_count));
+            progress.set_message(format!("{}-way reducing {} items...", k, item_count));
             self.values.clone()
         };
 
-        // Step 2: Tree-reduce
-        let result = self.tree_reduce(items, &progress)?;
+        // Step 2: Tree-reduce with K-way folding
+        let result = self.tree_reduce(items, &progress, k)?;
 
-        progress.finish_with_message(format!("✓ complete ({} items)", item_count));
+        progress.finish_with_message(format!("✓ complete ({} items, {}-way)", item_count, k));
 
         Ok(ScalarValue::Utf8(Some(result)))
     }

@@ -13,6 +13,17 @@ pub enum TemplateError {
     InvalidPlaceholder(usize),
     #[error("Placeholder {{{0}}} exceeds maximum index {1}")]
     PlaceholderOutOfRange(usize, usize),
+    #[error("Invalid range placeholder at position {0}: {1}")]
+    InvalidRange(usize, String),
+}
+
+/// Represents a range placeholder like {0:4, } which expands to {0}, {1}, {2}, {3}, {4}
+#[derive(Debug, Clone)]
+pub struct RangePlaceholder {
+    pub start: usize,
+    pub end: usize,       // inclusive
+    pub separator: String,
+    pub position: usize,  // position in template string
 }
 
 #[derive(Debug, Clone, Default)]
@@ -21,6 +32,7 @@ pub struct ValidationResult {
     pub warnings: Vec<String>,
     pub placeholders_found: HashSet<usize>,
     pub max_placeholder: Option<usize>,
+    pub ranges: Vec<RangePlaceholder>,
 }
 
 impl ValidationResult {
@@ -34,6 +46,8 @@ impl ValidationResult {
 }
 
 /// Parse a template and extract all placeholders {0}, {1}, etc.
+/// Also supports range placeholders like {0:4, } which expand to {0}, {1}, {2}, {3}, {4}
+/// Range syntax: {start:end<separator>} where end is inclusive
 pub fn parse_template(template: &str) -> ValidationResult {
     let mut result = ValidationResult::default();
     let chars: Vec<char> = template.chars().collect();
@@ -51,9 +65,9 @@ pub fn parse_template(template: &str) -> ValidationResult {
             i += 1;
 
             // Find closing brace
-            let mut num_str = String::new();
+            let mut content = String::new();
             while i < chars.len() && chars[i] != '}' {
-                num_str.push(chars[i]);
+                content.push(chars[i]);
                 i += 1;
             }
 
@@ -62,10 +76,77 @@ pub fn parse_template(template: &str) -> ValidationResult {
                 break;
             }
 
-            // Parse the number
-            if num_str.is_empty() {
+            // Parse the content - could be simple {N} or range {N:M<sep>}
+            if content.is_empty() {
                 result.errors.push(TemplateError::InvalidPlaceholder(start));
-            } else if let Ok(n) = num_str.parse::<usize>() {
+            } else if let Some(colon_pos) = content.find(':') {
+                // Range placeholder: {start:end<separator>}
+                let start_str = &content[..colon_pos];
+                let rest = &content[colon_pos + 1..];
+
+                // Parse start number
+                let range_start = match start_str.parse::<usize>() {
+                    Ok(n) => n,
+                    Err(_) => {
+                        result.errors.push(TemplateError::InvalidRange(
+                            start,
+                            format!("invalid start index '{}'", start_str),
+                        ));
+                        i += 1;
+                        continue;
+                    }
+                };
+
+                // Find where the end number stops (first non-digit)
+                let end_num_len = rest.chars().take_while(|c| c.is_ascii_digit()).count();
+                if end_num_len == 0 {
+                    result.errors.push(TemplateError::InvalidRange(
+                        start,
+                        "missing end index after ':'".to_string(),
+                    ));
+                    i += 1;
+                    continue;
+                }
+
+                let end_str = &rest[..end_num_len];
+                let separator = rest[end_num_len..].to_string();
+
+                let range_end = match end_str.parse::<usize>() {
+                    Ok(n) => n,
+                    Err(_) => {
+                        result.errors.push(TemplateError::InvalidRange(
+                            start,
+                            format!("invalid end index '{}'", end_str),
+                        ));
+                        i += 1;
+                        continue;
+                    }
+                };
+
+                if range_start > range_end {
+                    result.errors.push(TemplateError::InvalidRange(
+                        start,
+                        format!("start {} > end {}", range_start, range_end),
+                    ));
+                    i += 1;
+                    continue;
+                }
+
+                // Add all indices in range to placeholders_found
+                for idx in range_start..=range_end {
+                    result.placeholders_found.insert(idx);
+                    result.max_placeholder = Some(
+                        result.max_placeholder.map_or(idx, |max| max.max(idx))
+                    );
+                }
+
+                result.ranges.push(RangePlaceholder {
+                    start: range_start,
+                    end: range_end,
+                    separator,
+                    position: start,
+                });
+            } else if let Ok(n) = content.parse::<usize>() {
                 result.placeholders_found.insert(n);
                 result.max_placeholder = Some(
                     result.max_placeholder.map_or(n, |max| max.max(n))
@@ -74,7 +155,7 @@ pub fn parse_template(template: &str) -> ValidationResult {
                 // Not a number - might be a different kind of placeholder, just warn
                 result.warnings.push(format!(
                     "Non-numeric placeholder '{{{}}}' at position {}",
-                    num_str, start
+                    content, start
                 ));
             }
 
@@ -168,10 +249,10 @@ pub fn validate_template(
     Ok(warnings)
 }
 
-/// Validate the fold template (expects {0} and {1})
-pub fn validate_fold_template(template: &str) -> Result<Vec<String>, String> {
+/// Expand a template by substituting values for placeholders
+/// Handles both simple {N} placeholders and range {N:M<sep>} placeholders
+pub fn expand_template(template: &str, values: &[&str]) -> Result<String, String> {
     let result = parse_template(template);
-    let mut warnings = result.warnings.clone();
 
     if !result.errors.is_empty() {
         return Err(result.errors.iter()
@@ -180,25 +261,122 @@ pub fn validate_fold_template(template: &str) -> Result<Vec<String>, String> {
             .join("; "));
     }
 
-    // Fold template must have {0} and {1}
-    if !result.placeholders_found.contains(&0) {
-        return Err("Fold template must contain {0} for the first item".to_string());
-    }
-    if !result.placeholders_found.contains(&1) {
-        return Err("Fold template must contain {1} for the second item".to_string());
-    }
-
-    // Warn about extra placeholders
+    // Check that all referenced placeholders have values
     if let Some(max) = result.max_placeholder {
-        if max > 1 {
-            warnings.push(format!(
-                "Fold template has placeholder {{{}}} but only {{0}} and {{1}} are used",
-                max
+        if max >= values.len() {
+            return Err(format!(
+                "Template references {{{}}} but only {} value(s) provided",
+                max, values.len()
             ));
         }
     }
 
-    Ok(warnings)
+    let mut output = String::new();
+    let chars: Vec<char> = template.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars[i] == '{' {
+            // Check for escaped brace {{
+            if i + 1 < chars.len() && chars[i + 1] == '{' {
+                output.push('{');
+                i += 2;
+                continue;
+            }
+
+            i += 1;
+
+            // Find closing brace
+            let mut content = String::new();
+            while i < chars.len() && chars[i] != '}' {
+                content.push(chars[i]);
+                i += 1;
+            }
+
+            // Parse and substitute
+            if let Some(colon_pos) = content.find(':') {
+                // Range placeholder
+                let start_str = &content[..colon_pos];
+                let rest = &content[colon_pos + 1..];
+                let end_num_len = rest.chars().take_while(|c| c.is_ascii_digit()).count();
+                let end_str = &rest[..end_num_len];
+                let separator = &rest[end_num_len..];
+
+                let range_start: usize = start_str.parse().unwrap();
+                let range_end: usize = end_str.parse().unwrap();
+
+                let expanded: Vec<&str> = (range_start..=range_end)
+                    .map(|idx| values[idx])
+                    .collect();
+                output.push_str(&expanded.join(separator));
+            } else if let Ok(n) = content.parse::<usize>() {
+                output.push_str(values[n]);
+            }
+
+            i += 1; // Skip closing brace
+        } else if chars[i] == '}' {
+            // Check for escaped brace }}
+            if i + 1 < chars.len() && chars[i + 1] == '}' {
+                output.push('}');
+                i += 2;
+                continue;
+            }
+            output.push(chars[i]);
+            i += 1;
+        } else {
+            output.push(chars[i]);
+            i += 1;
+        }
+    }
+
+    Ok(output)
+}
+
+/// Validate the fold template (expects {0} and {1}) - legacy 2-way
+pub fn validate_fold_template(template: &str) -> Result<Vec<String>, String> {
+    validate_reduce_template(template).map(|(warnings, _)| warnings)
+}
+
+/// Validate reduce template and return (warnings, arity K)
+/// Arity is determined by the number of sequential placeholders {0}, {1}, ..., {K-1}
+/// Must have at least {0} and {1} (K >= 2)
+pub fn validate_reduce_template(template: &str) -> Result<(Vec<String>, usize), String> {
+    let result = parse_template(template);
+    let warnings = result.warnings.clone();
+
+    if !result.errors.is_empty() {
+        return Err(result.errors.iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<_>>()
+            .join("; "));
+    }
+
+    // Must have at least {0} and {1}
+    if !result.placeholders_found.contains(&0) {
+        return Err("Reduce template must contain {0}".to_string());
+    }
+    if !result.placeholders_found.contains(&1) {
+        return Err("Reduce template must contain {1} (need at least 2 placeholders for reduce)".to_string());
+    }
+
+    // Determine arity K by finding the highest sequential placeholder
+    // {0}, {1}, {2} -> K=3, but {0}, {1}, {5} -> K=2 (gap detected)
+    let mut k = 0usize;
+    while result.placeholders_found.contains(&k) {
+        k += 1;
+    }
+
+    // Warn about gaps (e.g., {0}, {1}, {5} but missing {2}, {3}, {4})
+    if let Some(max) = result.max_placeholder {
+        if max >= k {
+            return Err(format!(
+                "Reduce template has gap in placeholders: found {{{}}} but missing {{{}}}",
+                max, k
+            ));
+        }
+    }
+
+    Ok((warnings, k))
 }
 
 /// Validate the map template (expects {0})
@@ -290,5 +468,49 @@ mod tests {
     fn test_map_template() {
         assert!(validate_map_template("Process: {0}").is_ok());
         assert!(validate_map_template("No placeholder").is_err());
+    }
+
+    #[test]
+    fn test_range_placeholder_parse() {
+        let result = parse_template("Combine: {0:2, }");
+        assert!(result.is_valid());
+        assert!(result.placeholders_found.contains(&0));
+        assert!(result.placeholders_found.contains(&1));
+        assert!(result.placeholders_found.contains(&2));
+        assert_eq!(result.max_placeholder, Some(2));
+        assert_eq!(result.ranges.len(), 1);
+        assert_eq!(result.ranges[0].start, 0);
+        assert_eq!(result.ranges[0].end, 2);
+        assert_eq!(result.ranges[0].separator, ", ");
+    }
+
+    #[test]
+    fn test_range_placeholder_expand() {
+        let result = expand_template("Items: {0:2, }", &["a", "b", "c"]).unwrap();
+        assert_eq!(result, "Items: a, b, c");
+
+        let result = expand_template("List:\n{0:3\n}", &["one", "two", "three", "four"]).unwrap();
+        assert_eq!(result, "List:\none\ntwo\nthree\nfour");
+    }
+
+    #[test]
+    fn test_mixed_placeholders() {
+        let result = expand_template("First: {0}, Rest: {1:3, }", &["a", "b", "c", "d"]).unwrap();
+        assert_eq!(result, "First: a, Rest: b, c, d");
+    }
+
+    #[test]
+    fn test_k_way_reduce_template() {
+        // 3-way reduce
+        let (_, k) = validate_reduce_template("Combine: {0:2, }").unwrap();
+        assert_eq!(k, 3);
+
+        // 4-way reduce
+        let (_, k) = validate_reduce_template("{0} + {1} + {2} + {3}").unwrap();
+        assert_eq!(k, 4);
+
+        // Range covers 0-4, so K=5
+        let (_, k) = validate_reduce_template("Merge all: {0:4\n---\n}").unwrap();
+        assert_eq!(k, 5);
     }
 }

@@ -510,7 +510,8 @@ fn print_welcome() {
     println!();
     println!("\x1b[1mLLM Functions:\x1b[0m");
     println!("  llm(template, arg1, ...)           - Per-row with {{0}}, {{1}} placeholders");
-    println!("  llm_agg(col, reduce[, map])        - Aggregate with optional map-reduce");
+    println!("  llm_agg(col, reduce[, map])        - K-way aggregate (K from placeholders)");
+    println!("  Tip: Use {{0:3, }} range syntax for K-way reduce prompts");
     println!();
 }
 
@@ -545,15 +546,24 @@ async fn handle_dot_command(
             println!("    Per-row processing. Template uses {{0}}, {{1}}, etc.");
             println!();
             println!("  llm_agg(column, reduce_prompt)");
-            println!("    Aggregate: tree-reduce values using reduce_prompt ({{0}}, {{1}})");
+            println!("    Aggregate: K-way tree-reduce. K is detected from placeholders.");
             println!();
             println!("  llm_agg(column, reduce_prompt, map_prompt)");
-            println!("    Map-reduce: transform each row, then tree-reduce");
+            println!("    Map-reduce: transform each row, then K-way tree-reduce.");
+            println!();
+            println!("\x1b[1mTemplate Syntax:\x1b[0m");
+            println!("  {{0}}, {{1}}, ...          Single placeholders");
+            println!("  {{0:3, }}                  Range: expands to {{0}}, {{1}}, {{2}}, {{3}}");
+            println!("  {{0:2\\n}}                  Range with newline separator");
             println!();
             println!("\x1b[1mExamples:\x1b[0m");
             println!("  SELECT llm('Extract date from: {{0}}', text) FROM docs;");
             println!("  SELECT llm('Translate {{0}} to {{1}}', content, 'French') FROM articles;");
+            println!("  -- 2-way reduce (pairs)");
             println!("  SELECT llm_agg(text, 'Combine:\\n{{0}}\\n---\\n{{1}}') FROM docs;");
+            println!("  -- 4-way reduce using range syntax");
+            println!("  SELECT llm_agg(text, 'Merge all:\\n{{0:3\\n---\\n}}') FROM docs;");
+            println!("  -- Map then reduce");
             println!("  SELECT llm_agg(text, 'Combine: {{0}}\\n{{1}}', 'Summarize: {{0}}') FROM docs;");
             Ok(true)
         }
@@ -599,7 +609,7 @@ async fn handle_dot_command(
             // Just show our custom functions prominently
             println!("\x1b[1mLLM Functions:\x1b[0m");
             println!("  llm(template, ...)             - Per-row with {{0}}, {{1}} placeholders");
-            println!("  llm_agg(col, reduce[, map])    - Aggregate with optional map-reduce");
+            println!("  llm_agg(col, reduce[, map])    - K-way aggregate (K detected from {{0}}, {{1}}, ...)");
             println!();
             println!("Run 'SHOW FUNCTIONS;' to see all {} available functions.", {
                 let df = ctx.sql("SHOW FUNCTIONS").await?;
