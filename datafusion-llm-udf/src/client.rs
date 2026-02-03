@@ -385,8 +385,6 @@ impl LlmClient {
                     self.download_partial(file_id, download_offset).await?;
 
                 bytes_downloaded += bytes;
-                download_progress.set_position(results_map.len() as u64 + new_results.len() as u64);
-                download_progress.set_message(format!("{} bytes", bytes_downloaded));
 
                 // Parse and store new results
                 for line in new_results.lines() {
@@ -409,11 +407,17 @@ impl LlmClient {
                     }
                 }
 
-                download_progress.set_position(results_map.len() as u64);
+                // Cap download progress to not exceed processing progress
+                let downloaded = results_map.len() as u64;
+                let processed = process_progress.position();
+                download_progress.set_position(downloaded.min(processed));
+                download_progress.set_message(format!("{} bytes", bytes_downloaded));
+
                 download_offset = new_offset;
 
                 // If batch complete and no more results, we're done
                 if batch_complete && is_complete {
+                    download_progress.set_position(downloaded);
                     download_progress.finish_with_message(format!("✓ {} bytes", bytes_downloaded));
                     break;
                 }
