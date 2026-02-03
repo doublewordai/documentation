@@ -1,12 +1,22 @@
+use arrow::array::Array;
 use arrow::util::pretty::pretty_format_batches;
 use clap::Parser;
 use datafusion::execution::context::{SessionConfig, SessionContext};
 use datafusion::logical_expr::ScalarUDF;
 use datafusion::prelude::NdJsonReadOptions;
 use datafusion_llm_udf::{LlmClient, LlmExtractUdf};
+use rustyline::completion::{Completer, Pair};
 use rustyline::error::ReadlineError;
-use rustyline::DefaultEditor;
+use rustyline::highlight::{CmdKind, Highlighter};
+use rustyline::hint::{Hint, Hinter};
+use rustyline::history::{DefaultHistory, History, SearchDirection};
+use rustyline::validate::Validator;
+use rustyline::{CompletionType, Config, Context, EditMode, Editor, Helper};
+use std::borrow::Cow;
+use std::cell::RefCell;
+use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Parser, Debug)]
 #[command(name = "llmql")]
@@ -39,6 +49,220 @@ struct Args {
     model: String,
 }
 
+// SQL keywords for completion
+const SQL_KEYWORDS: &[&str] = &[
+    "SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IN", "IS", "NULL", "AS",
+    "ORDER", "BY", "ASC", "DESC", "LIMIT", "OFFSET", "GROUP", "HAVING",
+    "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS", "ON",
+    "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE", "CREATE", "TABLE",
+    "DROP", "ALTER", "ADD", "COLUMN", "INDEX", "VIEW", "DISTINCT", "ALL",
+    "UNION", "INTERSECT", "EXCEPT", "CASE", "WHEN", "THEN", "ELSE", "END",
+    "CAST", "COALESCE", "NULLIF", "EXISTS", "BETWEEN", "LIKE", "ILIKE",
+    "COUNT", "SUM", "AVG", "MIN", "MAX", "FIRST", "LAST",
+    "TRUE", "FALSE", "WITH", "RECURSIVE", "OVER", "PARTITION", "WINDOW",
+    "ROW_NUMBER", "RANK", "DENSE_RANK", "LAG", "LEAD",
+    "SHOW", "TABLES", "DESCRIBE", "EXPLAIN", "ANALYZE",
+    // Our UDF
+    "llm_extract",
+];
+
+// Dot commands
+const DOT_COMMANDS: &[&str] = &[
+    ".help", ".quit", ".exit", ".tables", ".schema", ".load", ".functions",
+    ".clear", ".history",
+];
+
+struct SqlHelper {
+    tables: RefCell<HashSet<String>>,
+    columns: RefCell<HashSet<String>>,
+}
+
+impl SqlHelper {
+    fn new() -> Self {
+        Self {
+            tables: RefCell::new(HashSet::new()),
+            columns: RefCell::new(HashSet::new()),
+        }
+    }
+
+    fn update_tables(&self, tables: HashSet<String>) {
+        *self.tables.borrow_mut() = tables;
+    }
+
+    fn update_columns(&self, columns: HashSet<String>) {
+        *self.columns.borrow_mut() = columns;
+    }
+}
+
+impl Helper for SqlHelper {}
+
+impl Completer for SqlHelper {
+    type Candidate = Pair;
+
+    fn complete(
+        &self,
+        line: &str,
+        pos: usize,
+        _ctx: &Context<'_>,
+    ) -> rustyline::Result<(usize, Vec<Pair>)> {
+        // Find word start
+        let line_to_pos = &line[..pos];
+        let word_start = line_to_pos
+            .rfind(|c: char| c.is_whitespace() || c == '(' || c == ',' || c == '.')
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        let word = &line_to_pos[word_start..];
+        let word_upper = word.to_uppercase();
+        let word_lower = word.to_lowercase();
+
+        let mut completions = Vec::new();
+
+        // Dot commands
+        if line.trim_start().starts_with('.') {
+            for cmd in DOT_COMMANDS {
+                if cmd.starts_with(&word_lower) {
+                    completions.push(Pair {
+                        display: cmd.to_string(),
+                        replacement: cmd.to_string(),
+                    });
+                }
+            }
+        } else {
+            // SQL keywords (match case)
+            for kw in SQL_KEYWORDS {
+                if kw.starts_with(&word_upper) {
+                    let replacement = if word.chars().next().map(|c| c.is_lowercase()).unwrap_or(false) {
+                        kw.to_lowercase()
+                    } else {
+                        kw.to_string()
+                    };
+                    completions.push(Pair {
+                        display: kw.to_string(),
+                        replacement,
+                    });
+                }
+            }
+
+            // Table names
+            for table in self.tables.borrow().iter() {
+                if table.to_lowercase().starts_with(&word_lower) {
+                    completions.push(Pair {
+                        display: table.clone(),
+                        replacement: table.clone(),
+                    });
+                }
+            }
+
+            // Column names
+            for col in self.columns.borrow().iter() {
+                if col.to_lowercase().starts_with(&word_lower) {
+                    completions.push(Pair {
+                        display: col.clone(),
+                        replacement: col.clone(),
+                    });
+                }
+            }
+        }
+
+        // Sort and dedupe
+        completions.sort_by(|a, b| a.display.cmp(&b.display));
+        completions.dedup_by(|a, b| a.display == b.display);
+
+        Ok((word_start, completions))
+    }
+}
+
+// History hint - shows most recent matching command in gray
+struct HistoryHint(String);
+
+impl Hint for HistoryHint {
+    fn display(&self) -> &str {
+        &self.0
+    }
+
+    fn completion(&self) -> Option<&str> {
+        Some(&self.0)
+    }
+}
+
+impl Hinter for SqlHelper {
+    type Hint = HistoryHint;
+
+    fn hint(&self, line: &str, pos: usize, ctx: &Context<'_>) -> Option<Self::Hint> {
+        if line.is_empty() || pos < line.len() {
+            return None;
+        }
+
+        // Search history for matching prefix
+        let history = ctx.history();
+        if history.is_empty() {
+            return None;
+        }
+
+        // Search backwards through history
+        for i in (0..history.len()).rev() {
+            if let Some(entry) = history.get(i, SearchDirection::Forward).ok().flatten() {
+                let entry_str: &str = &entry.entry;
+                if entry_str.starts_with(line) && entry_str != line {
+                    // Return the suffix as hint
+                    return Some(HistoryHint(entry_str[line.len()..].to_string()));
+                }
+            }
+        }
+
+        None
+    }
+}
+
+impl Highlighter for SqlHelper {
+    fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
+        &'s self,
+        prompt: &'p str,
+        _default: bool,
+    ) -> Cow<'b, str> {
+        // Cyan bold prompt
+        Cow::Owned(format!("\x1b[1;36m{}\x1b[0m", prompt))
+    }
+
+    fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
+        // Dim gray hint
+        Cow::Owned(format!("\x1b[2;37m{}\x1b[0m", hint))
+    }
+
+    fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
+        // Basic SQL keyword highlighting
+        let mut result = line.to_string();
+
+        // Highlight SQL keywords (simple approach)
+        for kw in SQL_KEYWORDS {
+            let patterns = [
+                format!(" {} ", kw),
+                format!(" {}\n", kw),
+                format!("({}", kw),
+            ];
+            for pat in &patterns {
+                let colored = pat.replace(kw, &format!("\x1b[1;34m{}\x1b[0m", kw));
+                result = result.replace(pat, &colored);
+            }
+            // Start of line
+            if result.to_uppercase().starts_with(kw) {
+                let len = kw.len();
+                if result.len() == len || !result.chars().nth(len).map(|c| c.is_alphanumeric()).unwrap_or(false) {
+                    result = format!("\x1b[1;34m{}\x1b[0m{}", &result[..len], &result[len..]);
+                }
+            }
+        }
+
+        Cow::Owned(result)
+    }
+
+    fn highlight_char(&self, _line: &str, _pos: usize, _kind: CmdKind) -> bool {
+        true
+    }
+}
+
+impl Validator for SqlHelper {}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
@@ -59,10 +283,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Execute based on mode
     if let Some(sql) = args.command {
-        // Execute single command
         execute_sql(&ctx, &sql).await?;
     } else if let Some(file) = args.file {
-        // Execute SQL file
         let sql = std::fs::read_to_string(&file)?;
         for statement in sql.split(';') {
             let statement = statement.trim();
@@ -71,8 +293,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     } else {
-        // Interactive mode
-        run_repl(&ctx).await?;
+        run_repl(Arc::new(ctx)).await?;
     }
 
     Ok(())
@@ -137,11 +358,52 @@ async fn execute_sql(ctx: &SessionContext, sql: &str) -> Result<(), Box<dyn std:
     Ok(())
 }
 
-async fn run_repl(ctx: &SessionContext) -> Result<(), Box<dyn std::error::Error>> {
-    println!("llmql - SQL shell with LLM UDFs");
-    println!("Type .help for commands, .quit to exit\n");
+fn get_table_names(ctx: &SessionContext) -> HashSet<String> {
+    let mut tables = HashSet::new();
+    if let Some(catalog) = ctx.catalog("datafusion") {
+        for schema_name in catalog.schema_names() {
+            if let Some(schema) = catalog.schema(&schema_name) {
+                for table_name in schema.table_names() {
+                    tables.insert(table_name);
+                }
+            }
+        }
+    }
+    tables
+}
 
-    let mut rl = DefaultEditor::new()?;
+async fn get_column_names(ctx: &SessionContext) -> HashSet<String> {
+    let mut columns = HashSet::new();
+    if let Ok(df) = ctx.sql("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public'").await {
+        if let Ok(batches) = df.collect().await {
+            for batch in batches {
+                if let Some(arr) = batch.column(0).as_any().downcast_ref::<arrow::array::StringArray>() {
+                    for i in 0..arr.len() {
+                        if let Some(col) = arr.value(i).into() {
+                            columns.insert(col.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    columns
+}
+
+async fn run_repl(ctx: Arc<SessionContext>) -> Result<(), Box<dyn std::error::Error>> {
+    print_welcome();
+
+    // Configure rustyline
+    let config = Config::builder()
+        .history_ignore_space(true)
+        .completion_type(CompletionType::List)
+        .edit_mode(EditMode::Emacs)
+        .auto_add_history(false)
+        .build();
+
+    let helper = SqlHelper::new();
+    let mut rl = Editor::with_config(config)?;
+    rl.set_helper(Some(helper));
 
     // Load history
     let history_path = dirs::data_local_dir()
@@ -152,6 +414,12 @@ async fn run_repl(ctx: &SessionContext) -> Result<(), Box<dyn std::error::Error>
     let mut buffer = String::new();
 
     loop {
+        // Update completions with current tables and columns
+        if let Some(helper) = rl.helper_mut() {
+            helper.update_tables(get_table_names(&ctx));
+            helper.update_columns(get_column_names(&ctx).await);
+        }
+
         let prompt = if buffer.is_empty() { "llmql> " } else { "   ...> " };
 
         match rl.readline(prompt) {
@@ -160,11 +428,12 @@ async fn run_repl(ctx: &SessionContext) -> Result<(), Box<dyn std::error::Error>
 
                 // Handle dot commands
                 if buffer.is_empty() && line.starts_with('.') {
-                    match handle_dot_command(ctx, line).await {
+                    rl.add_history_entry(line)?;
+                    match handle_dot_command(&ctx, line, &mut rl).await {
                         Ok(true) => continue,
                         Ok(false) => break,
                         Err(e) => {
-                            eprintln!("Error: {}", e);
+                            eprintln!("\x1b[31mError: {}\x1b[0m", e);
                             continue;
                         }
                     }
@@ -173,13 +442,13 @@ async fn run_repl(ctx: &SessionContext) -> Result<(), Box<dyn std::error::Error>
                 buffer.push_str(line);
                 buffer.push(' ');
 
-                // Check if statement is complete (ends with semicolon)
+                // Check if statement is complete
                 if line.ends_with(';') {
                     let sql = buffer.trim().trim_end_matches(';');
                     if !sql.is_empty() {
-                        let _ = rl.add_history_entry(buffer.trim());
-                        if let Err(e) = execute_sql(ctx, sql).await {
-                            eprintln!("Error: {}", e);
+                        rl.add_history_entry(buffer.trim())?;
+                        if let Err(e) = execute_sql(&ctx, sql).await {
+                            eprintln!("\x1b[31mError: {}\x1b[0m", e);
                         }
                     }
                     buffer.clear();
@@ -187,14 +456,14 @@ async fn run_repl(ctx: &SessionContext) -> Result<(), Box<dyn std::error::Error>
             }
             Err(ReadlineError::Interrupted) => {
                 buffer.clear();
-                println!("^C");
+                println!("^C (use .quit or Ctrl-D to exit)");
             }
             Err(ReadlineError::Eof) => {
-                println!("Goodbye!");
+                println!("\nGoodbye!");
                 break;
             }
             Err(err) => {
-                eprintln!("Error: {:?}", err);
+                eprintln!("\x1b[31mError: {:?}\x1b[0m", err);
                 break;
             }
         }
@@ -206,9 +475,32 @@ async fn run_repl(ctx: &SessionContext) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+fn print_welcome() {
+    println!("\x1b[1;36m");
+    println!("  ╭─────────────────────────────────────────╮");
+    println!("  │           llmql v{}                │", env!("CARGO_PKG_VERSION"));
+    println!("  │   SQL shell with LLM-powered UDFs      │");
+    println!("  ╰─────────────────────────────────────────╯\x1b[0m");
+    println!();
+    println!("\x1b[1mKeyboard shortcuts:\x1b[0m");
+    println!("  Tab          Autocomplete SQL keywords, tables, columns");
+    println!("  Ctrl-R       Search command history");
+    println!("  Ctrl-P/N     Previous/next history entry");
+    println!("  Ctrl-A/E     Jump to start/end of line");
+    println!("  Ctrl-W       Delete word backwards");
+    println!("  Ctrl-U       Clear line");
+    println!("  Ctrl-D       Exit (or .quit)");
+    println!();
+    println!("\x1b[1mCommands:\x1b[0m .help .tables .schema <t> .load <file> .functions .history");
+    println!();
+    println!("\x1b[1mLLM UDF:\x1b[0m  llm_extract(content, 'your prompt')");
+    println!();
+}
+
 async fn handle_dot_command(
     ctx: &SessionContext,
     cmd: &str,
+    rl: &mut Editor<SqlHelper, DefaultHistory>,
 ) -> Result<bool, Box<dyn std::error::Error>> {
     let parts: Vec<&str> = cmd.split_whitespace().collect();
     let command = parts.first().map(|s| s.to_lowercase()).unwrap_or_default();
@@ -216,31 +508,43 @@ async fn handle_dot_command(
     match command.as_str() {
         ".quit" | ".exit" | ".q" => Ok(false),
         ".help" | ".h" => {
-            println!("Commands:");
-            println!("  .help           Show this help");
-            println!("  .quit           Exit the shell");
-            println!("  .tables         List all tables");
-            println!("  .schema <table> Show schema of a table");
-            println!("  .load <path>    Load a file as a table");
-            println!("  .functions      List available functions");
+            println!("\x1b[1mDot Commands:\x1b[0m");
+            println!("  .help             Show this help message");
+            println!("  .quit / .exit     Exit the shell");
+            println!("  .tables           List all loaded tables");
+            println!("  .schema <table>   Show table schema (columns and types)");
+            println!("  .load <path>      Load file as table (CSV, Parquet, JSON)");
+            println!("  .load name=<path> Load file with custom table name");
+            println!("  .functions        List all available functions");
+            println!("  .history          Show command history");
+            println!("  .clear            Clear the screen");
             println!();
-            println!("SQL:");
-            println!("  Enter SQL statements ending with semicolon (;)");
-            println!("  Multi-line statements are supported");
+            println!("\x1b[1mSQL:\x1b[0m");
+            println!("  End statements with semicolon (;)");
+            println!("  Multi-line statements supported");
             println!();
-            println!("LLM UDF:");
-            println!("  llm_extract(content, prompt) - Process text with LLM");
-            println!("  Example: SELECT llm_extract(text, 'summarize') FROM docs;");
+            println!("\x1b[1mLLM UDF:\x1b[0m");
+            println!("  llm_extract(content, prompt)");
+            println!("  Sends text to LLM and returns the response");
+            println!();
+            println!("\x1b[1mExamples:\x1b[0m");
+            println!("  SELECT llm_extract(text, 'Extract the date') FROM docs;");
+            println!("  SELECT llm_extract(content, 'Summarize in one sentence') FROM articles;");
             Ok(true)
         }
         ".tables" | ".t" => {
-            let df = ctx.sql("SHOW TABLES").await?;
-            let batches = df.collect().await?;
-            if batches.iter().all(|b| b.num_rows() == 0) {
-                println!("No tables loaded");
+            let tables = get_table_names(ctx);
+            let user_tables: Vec<_> = tables.iter()
+                .filter(|t| !["tables", "views", "columns", "df_settings", "schemata"].contains(&t.as_str()))
+                .collect();
+
+            if user_tables.is_empty() {
+                println!("No tables loaded. Use .load <file> to load a table.");
             } else {
-                let formatted = pretty_format_batches(&batches)?;
-                println!("{}", formatted);
+                println!("\x1b[1mTables:\x1b[0m");
+                for table in user_tables {
+                    println!("  {}", table);
+                }
             }
             Ok(true)
         }
@@ -259,6 +563,7 @@ async fn handle_dot_command(
         ".load" | ".l" => {
             if parts.len() < 2 {
                 println!("Usage: .load <path> or .load <name>=<path>");
+                println!("Supported formats: CSV, Parquet, JSON, JSONL, NDJSON");
             } else {
                 let spec = parts[1..].join(" ");
                 load_table(ctx, &spec).await?;
@@ -266,10 +571,35 @@ async fn handle_dot_command(
             Ok(true)
         }
         ".functions" | ".f" => {
-            let df = ctx.sql("SHOW FUNCTIONS").await?;
-            let batches = df.collect().await?;
-            let formatted = pretty_format_batches(&batches)?;
-            println!("{}", formatted);
+            // Just show our custom function prominently
+            println!("\x1b[1mLLM Functions:\x1b[0m");
+            println!("  llm_extract(content, prompt) - Process text with LLM");
+            println!();
+            println!("Run 'SHOW FUNCTIONS;' to see all {} available functions.", {
+                let df = ctx.sql("SHOW FUNCTIONS").await?;
+                let batches = df.collect().await?;
+                batches.iter().map(|b| b.num_rows()).sum::<usize>()
+            });
+            Ok(true)
+        }
+        ".history" => {
+            let history = rl.history();
+            let len = history.len();
+            let start = if len > 20 { len - 20 } else { 0 };
+            println!("\x1b[1mRecent commands:\x1b[0m");
+            for i in start..len {
+                if let Ok(Some(entry)) = history.get(i, SearchDirection::Forward) {
+                    let entry_str: &str = &entry.entry;
+                    println!("  \x1b[2m{:4}\x1b[0m  {}", i + 1, entry_str);
+                }
+            }
+            if len > 20 {
+                println!("  ... ({} more)", len - 20);
+            }
+            Ok(true)
+        }
+        ".clear" | ".cls" => {
+            print!("\x1b[2J\x1b[1;1H");
             Ok(true)
         }
         _ => {
