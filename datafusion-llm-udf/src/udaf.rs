@@ -10,30 +10,42 @@ use std::any::Any;
 use std::time::Duration;
 
 use crate::client::LlmClient;
-use crate::validation::{validate_fold_template, validate_map_template};
+use crate::validation::validate_fold_template;
 
-/// Parallel fold UDAF: llm_fold(fold_template, map_template, column)
+/// LLM Aggregate function with optional map-reduce
 ///
-/// 1. Maps each row through map_template: "Summarize: {0}"
-/// 2. Tree-reduces results pairwise using fold_template: "Combine:\n{0}\n{1}"
+/// Two forms:
+///   llm_agg(column, reduce_prompt)              -- reduce only
+///   llm_agg(column, reduce_prompt, map_prompt)  -- map then reduce
 ///
-/// Example:
-///   SELECT llm_fold(
-///     'Combine these summaries:\n{0}\n---\n{1}',
-///     'Summarize this text: {0}',
-///     content
-///   ) FROM documents;
+/// - reduce_prompt: Uses {0} and {1} for combining pairs in tree-reduce
+/// - map_prompt: Optional, uses {0} to transform each value before reduce
+///
+/// Examples:
+///   -- Reduce only (combine raw values)
+///   SELECT llm_agg(content, 'Combine:\n{0}\n---\n{1}') FROM docs;
+///
+///   -- Map then reduce
+///   SELECT llm_agg(
+///     content,
+///     'Combine summaries:\n{0}\n---\n{1}',
+///     'Summarize: {0}'
+///   ) FROM docs;
 #[derive(Debug)]
-pub struct LlmFoldUdaf {
+pub struct LlmAggUdaf {
     signature: Signature,
     client: LlmClient,
 }
 
-impl LlmFoldUdaf {
+impl LlmAggUdaf {
     pub fn new(client: LlmClient) -> Self {
         Self {
+            // Accept 2 args (reduce only) or 3 args (map + reduce)
             signature: Signature::new(
-                TypeSignature::Exact(vec![DataType::Utf8, DataType::Utf8, DataType::Utf8]),
+                TypeSignature::OneOf(vec![
+                    TypeSignature::Exact(vec![DataType::Utf8, DataType::Utf8]),
+                    TypeSignature::Exact(vec![DataType::Utf8, DataType::Utf8, DataType::Utf8]),
+                ]),
                 Volatility::Volatile,
             ),
             client,
@@ -41,13 +53,13 @@ impl LlmFoldUdaf {
     }
 }
 
-impl AggregateUDFImpl for LlmFoldUdaf {
+impl AggregateUDFImpl for LlmAggUdaf {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "llm_fold"
+        "llm_agg"
     }
 
     fn signature(&self) -> &Signature {
@@ -58,46 +70,47 @@ impl AggregateUDFImpl for LlmFoldUdaf {
         Ok(DataType::Utf8)
     }
 
-    fn accumulator(&self, _args: AccumulatorArgs) -> DFResult<Box<dyn Accumulator>> {
-        Ok(Box::new(LlmFoldAccumulator::new(self.client.clone())))
+    fn accumulator(&self, args: AccumulatorArgs) -> DFResult<Box<dyn Accumulator>> {
+        let has_map = args.exprs.len() == 3;
+        Ok(Box::new(LlmAggAccumulator::new(self.client.clone(), has_map)))
     }
 
     fn state_fields(&self, _args: StateFieldsArgs) -> DFResult<Vec<Field>> {
-        // Store: fold_template, map_template, collected values as JSON array
         Ok(vec![
-            Field::new("fold_template", DataType::Utf8, true),
-            Field::new("map_template", DataType::Utf8, true),
-            Field::new("values", DataType::Utf8, true), // JSON array of strings
+            Field::new("reduce_prompt", DataType::Utf8, true),
+            Field::new("map_prompt", DataType::Utf8, true),
+            Field::new("values", DataType::Utf8, true), // JSON array
         ])
     }
 }
 
 #[derive(Debug)]
-struct LlmFoldAccumulator {
+struct LlmAggAccumulator {
     client: LlmClient,
-    fold_template: Option<String>,
-    map_template: Option<String>,
+    reduce_prompt: Option<String>,
+    map_prompt: Option<String>,
     values: Vec<String>,
+    has_map: bool,
 }
 
-impl LlmFoldAccumulator {
-    fn new(client: LlmClient) -> Self {
+impl LlmAggAccumulator {
+    fn new(client: LlmClient, has_map: bool) -> Self {
         Self {
             client,
-            fold_template: None,
-            map_template: None,
+            reduce_prompt: None,
+            map_prompt: None,
             values: Vec::new(),
+            has_map,
         }
     }
 
-    /// Perform tree-reduce on values using the fold template
     fn tree_reduce(
         &self,
         mut items: Vec<String>,
         progress: &ProgressBar,
     ) -> DFResult<String> {
-        let fold_template = self.fold_template.as_ref().ok_or_else(|| {
-            datafusion::error::DataFusionError::Execution("Missing fold template".to_string())
+        let reduce_prompt = self.reduce_prompt.as_ref().ok_or_else(|| {
+            datafusion::error::DataFusionError::Execution("Missing reduce prompt".to_string())
         })?;
 
         if items.is_empty() {
@@ -109,9 +122,8 @@ impl LlmFoldAccumulator {
         }
 
         let client = self.client.clone();
-        let template = fold_template.clone();
+        let template = reduce_prompt.clone();
 
-        // Tree reduce: pair up items and reduce until we have one
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 let mut level = 1u64;
@@ -119,24 +131,20 @@ impl LlmFoldAccumulator {
                     let mut prompts = Vec::new();
                     let mut new_items = Vec::new();
 
-                    // Pair up items
                     let mut i = 0;
                     while i < items.len() {
                         if i + 1 < items.len() {
-                            // Create fold prompt for this pair
                             let prompt = template
                                 .replace("{0}", &items[i])
                                 .replace("{1}", &items[i + 1]);
                             prompts.push(prompt);
                             i += 2;
                         } else {
-                            // Odd item, carry forward
                             new_items.push(items[i].clone());
                             i += 1;
                         }
                     }
 
-                    // Process all pairs in one batch
                     if !prompts.is_empty() {
                         progress.set_message(format!(
                             "reduce level {} ({} → {})",
@@ -146,7 +154,7 @@ impl LlmFoldAccumulator {
                         ));
                         let results = client.process_prompts_quiet(prompts).await.map_err(|e| {
                             datafusion::error::DataFusionError::Execution(format!(
-                                "LLM API error during fold: {}",
+                                "LLM API error during reduce: {}",
                                 e
                             ))
                         })?;
@@ -163,52 +171,55 @@ impl LlmFoldAccumulator {
     }
 }
 
-impl Accumulator for LlmFoldAccumulator {
+impl Accumulator for LlmAggAccumulator {
     fn update_batch(&mut self, values: &[ArrayRef]) -> DFResult<()> {
-        if values.len() != 3 {
-            return Err(datafusion::error::DataFusionError::Execution(
-                "llm_fold requires exactly 3 arguments".to_string(),
-            ));
-        }
-
-        let fold_templates = values[0]
+        // values[0] = column, values[1] = reduce_prompt, values[2] = map_prompt (optional)
+        let content = values[0]
             .as_any()
             .downcast_ref::<StringArray>()
             .ok_or_else(|| {
                 datafusion::error::DataFusionError::Execution(
-                    "First argument must be string".to_string(),
+                    "First argument (column) must be string".to_string(),
                 )
             })?;
 
-        let map_templates = values[1]
+        let reduce_prompts = values[1]
             .as_any()
             .downcast_ref::<StringArray>()
             .ok_or_else(|| {
                 datafusion::error::DataFusionError::Execution(
-                    "Second argument must be string".to_string(),
+                    "Second argument (reduce_prompt) must be string".to_string(),
                 )
             })?;
 
-        let content = values[2]
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| {
-                datafusion::error::DataFusionError::Execution(
-                    "Third argument must be string".to_string(),
-                )
-            })?;
-
-        // Capture templates from first non-null row
-        for i in 0..fold_templates.len() {
-            if self.fold_template.is_none() && !fold_templates.is_null(i) {
-                self.fold_template = Some(fold_templates.value(i).to_string());
-            }
-            if self.map_template.is_none() && !map_templates.is_null(i) {
-                self.map_template = Some(map_templates.value(i).to_string());
+        // Capture reduce prompt from first non-null
+        for i in 0..reduce_prompts.len() {
+            if self.reduce_prompt.is_none() && !reduce_prompts.is_null(i) {
+                self.reduce_prompt = Some(reduce_prompts.value(i).to_string());
+                break;
             }
         }
 
-        // Collect non-null content values
+        // Capture map prompt if provided
+        if self.has_map && values.len() > 2 {
+            let map_prompts = values[2]
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .ok_or_else(|| {
+                    datafusion::error::DataFusionError::Execution(
+                        "Third argument (map_prompt) must be string".to_string(),
+                    )
+                })?;
+
+            for i in 0..map_prompts.len() {
+                if self.map_prompt.is_none() && !map_prompts.is_null(i) {
+                    self.map_prompt = Some(map_prompts.value(i).to_string());
+                    break;
+                }
+            }
+        }
+
+        // Collect values
         for i in 0..content.len() {
             if !content.is_null(i) {
                 self.values.push(content.value(i).to_string());
@@ -223,79 +234,67 @@ impl Accumulator for LlmFoldAccumulator {
             return Ok(ScalarValue::Utf8(None));
         }
 
-        let map_template = self.map_template.as_ref().ok_or_else(|| {
-            datafusion::error::DataFusionError::Execution("Missing map template".to_string())
+        let reduce_prompt = self.reduce_prompt.as_ref().ok_or_else(|| {
+            datafusion::error::DataFusionError::Execution("Missing reduce prompt".to_string())
         })?;
 
-        // Validate map template
-        match validate_map_template(map_template) {
-            Ok(warnings) => {
-                for warning in warnings {
-                    eprintln!("llm_fold() map template warning: {}", warning);
-                }
-            }
-            Err(e) => {
-                return Err(datafusion::error::DataFusionError::Execution(format!(
-                    "Invalid map template: {}",
-                    e
-                )));
+        // Validate reduce prompt
+        if let Err(e) = validate_fold_template(reduce_prompt) {
+            return Err(datafusion::error::DataFusionError::Execution(format!(
+                "Invalid reduce prompt: {}. Must contain {{0}} and {{1}} for combining pairs.",
+                e
+            )));
+        }
+
+        // Validate map prompt if provided
+        if let Some(ref map_prompt) = self.map_prompt {
+            if !map_prompt.contains("{0}") {
+                return Err(datafusion::error::DataFusionError::Execution(
+                    "Map prompt must contain {0} placeholder".to_string(),
+                ));
             }
         }
 
-        let fold_template = self.fold_template.as_ref().ok_or_else(|| {
-            datafusion::error::DataFusionError::Execution("Missing fold template".to_string())
-        })?;
-
-        // Validate fold template
-        match validate_fold_template(fold_template) {
-            Ok(warnings) => {
-                for warning in warnings {
-                    eprintln!("llm_fold() fold template warning: {}", warning);
-                }
-            }
-            Err(e) => {
-                return Err(datafusion::error::DataFusionError::Execution(format!(
-                    "Invalid fold template: {}",
-                    e
-                )));
-            }
-        }
-
-        // Single progress spinner for the entire fold operation
         let progress = ProgressBar::new_spinner();
         progress.set_style(
             ProgressStyle::default_spinner()
                 .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-                .template("{spinner:.cyan} llm_fold: {msg}")
+                .template("{spinner:.cyan} llm_agg: {msg}")
                 .unwrap(),
         );
         progress.enable_steady_tick(Duration::from_millis(80));
 
-        // Step 1: Map all values through the map template
-        let prompts: Vec<String> = self
-            .values
-            .iter()
-            .map(|v| map_template.replace("{0}", v))
-            .collect();
+        let item_count = self.values.len();
 
-        let item_count = prompts.len();
-        progress.set_message(format!("mapping {} items...", item_count));
+        // Step 1: Map if map_prompt provided, otherwise use raw values
+        let items = if let Some(ref map_prompt) = self.map_prompt {
+            progress.set_message(format!("mapping {} items...", item_count));
 
-        let mapped = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                self.client.process_prompts_quiet(prompts).await
+            let prompts: Vec<String> = self
+                .values
+                .iter()
+                .map(|v| map_prompt.replace("{0}", v))
+                .collect();
+
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    self.client.process_prompts_quiet(prompts).await
+                })
             })
-        })
-        .map_err(|e| {
-            progress.finish_with_message(format!("✗ failed: {}", e));
-            datafusion::error::DataFusionError::Execution(format!(
-                "LLM API error during map: {}",
-                e
-            ))
-        })?;
+            .map_err(|e| {
+                progress.finish_with_message(format!("✗ map failed: {}", e));
+                datafusion::error::DataFusionError::Execution(format!(
+                    "LLM API error during map: {}",
+                    e
+                ))
+            })?
+        } else {
+            progress.set_message(format!("reducing {} items...", item_count));
+            self.values.clone()
+        };
 
-        // Step 2: Tree-reduce the mapped results
-        let result = self.tree_reduce(mapped, &progress)?;
+        // Step 2: Tree-reduce
+        let result = self.tree_reduce(items, &progress)?;
 
         progress.finish_with_message(format!("✓ complete ({} items)", item_count));
 
@@ -305,15 +304,15 @@ impl Accumulator for LlmFoldAccumulator {
     fn size(&self) -> usize {
         std::mem::size_of_val(self)
             + self.values.iter().map(|s| s.len()).sum::<usize>()
-            + self.fold_template.as_ref().map(|s| s.len()).unwrap_or(0)
-            + self.map_template.as_ref().map(|s| s.len()).unwrap_or(0)
+            + self.reduce_prompt.as_ref().map(|s| s.len()).unwrap_or(0)
+            + self.map_prompt.as_ref().map(|s| s.len()).unwrap_or(0)
     }
 
     fn state(&mut self) -> DFResult<Vec<ScalarValue>> {
         let values_json = serde_json::to_string(&self.values).unwrap_or_default();
         Ok(vec![
-            ScalarValue::Utf8(self.fold_template.clone()),
-            ScalarValue::Utf8(self.map_template.clone()),
+            ScalarValue::Utf8(self.reduce_prompt.clone()),
+            ScalarValue::Utf8(self.map_prompt.clone()),
             ScalarValue::Utf8(Some(values_json)),
         ])
     }
@@ -321,20 +320,20 @@ impl Accumulator for LlmFoldAccumulator {
     fn merge_batch(&mut self, states: &[ArrayRef]) -> DFResult<()> {
         if states.len() != 3 {
             return Err(datafusion::error::DataFusionError::Execution(
-                "Invalid state for llm_fold".to_string(),
+                "Invalid state for llm_agg".to_string(),
             ));
         }
 
-        let fold_templates = states[0].as_any().downcast_ref::<StringArray>().unwrap();
-        let map_templates = states[1].as_any().downcast_ref::<StringArray>().unwrap();
+        let reduce_prompts = states[0].as_any().downcast_ref::<StringArray>().unwrap();
+        let map_prompts = states[1].as_any().downcast_ref::<StringArray>().unwrap();
         let values_jsons = states[2].as_any().downcast_ref::<StringArray>().unwrap();
 
-        for i in 0..fold_templates.len() {
-            if self.fold_template.is_none() && !fold_templates.is_null(i) {
-                self.fold_template = Some(fold_templates.value(i).to_string());
+        for i in 0..reduce_prompts.len() {
+            if self.reduce_prompt.is_none() && !reduce_prompts.is_null(i) {
+                self.reduce_prompt = Some(reduce_prompts.value(i).to_string());
             }
-            if self.map_template.is_none() && !map_templates.is_null(i) {
-                self.map_template = Some(map_templates.value(i).to_string());
+            if self.map_prompt.is_none() && !map_prompts.is_null(i) {
+                self.map_prompt = Some(map_prompts.value(i).to_string());
             }
             if !values_jsons.is_null(i) {
                 let json = values_jsons.value(i);

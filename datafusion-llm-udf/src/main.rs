@@ -4,7 +4,7 @@ use clap::Parser;
 use datafusion::execution::context::{SessionConfig, SessionContext};
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use datafusion::prelude::NdJsonReadOptions;
-use datafusion_llm_udf::{LlmClient, LlmFoldUdaf, LlmUdf};
+use datafusion_llm_udf::{LlmAggUdaf, LlmClient, LlmUdf};
 use rustyline::completion::{Completer, Pair};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::{CmdKind, Highlighter};
@@ -62,8 +62,8 @@ const SQL_KEYWORDS: &[&str] = &[
     "TRUE", "FALSE", "WITH", "RECURSIVE", "OVER", "PARTITION", "WINDOW",
     "ROW_NUMBER", "RANK", "DENSE_RANK", "LAG", "LEAD",
     "SHOW", "TABLES", "DESCRIBE", "EXPLAIN", "ANALYZE",
-    // Our UDF
-    "llm", "llm_fold",
+    // Our UDFs
+    "llm", "llm_agg",
 ];
 
 // Dot commands
@@ -285,9 +285,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let llm_udf = ScalarUDF::from(LlmUdf::new(client.clone()));
     ctx.register_udf(llm_udf);
 
-    // llm_fold(fold_template, map_template, column) - aggregate with tree-reduce
-    let llm_fold = AggregateUDF::from(LlmFoldUdaf::new(client));
-    ctx.register_udaf(llm_fold);
+    // llm_agg(column, reduce_prompt[, map_prompt]) - aggregate with optional map-reduce
+    let llm_agg = AggregateUDF::from(LlmAggUdaf::new(client));
+    ctx.register_udaf(llm_agg);
 
     // Load any specified tables
     for table_spec in &args.tables {
@@ -509,8 +509,8 @@ fn print_welcome() {
     println!("\x1b[1mCommands:\x1b[0m .help .tables .schema <t> .load <file> .functions .history");
     println!();
     println!("\x1b[1mLLM Functions:\x1b[0m");
-    println!("  llm(template, arg1, ...)     - Template with {{0}}, {{1}}, ... placeholders");
-    println!("  llm_fold(fold, map, col)     - Map-reduce with tree folding");
+    println!("  llm(template, arg1, ...)           - Per-row with {{0}}, {{1}} placeholders");
+    println!("  llm_agg(col, reduce[, map])        - Aggregate with optional map-reduce");
     println!();
 }
 
@@ -542,15 +542,19 @@ async fn handle_dot_command(
             println!();
             println!("\x1b[1mLLM Functions:\x1b[0m");
             println!("  llm(template, arg1, arg2, ...)");
-            println!("    Template uses {{0}}, {{1}}, etc. for placeholders");
+            println!("    Per-row processing. Template uses {{0}}, {{1}}, etc.");
             println!();
-            println!("  llm_fold(fold_template, map_template, column)");
-            println!("    Map each row, then tree-reduce pairwise");
+            println!("  llm_agg(column, reduce_prompt)");
+            println!("    Aggregate: tree-reduce values using reduce_prompt ({{0}}, {{1}})");
+            println!();
+            println!("  llm_agg(column, reduce_prompt, map_prompt)");
+            println!("    Map-reduce: transform each row, then tree-reduce");
             println!();
             println!("\x1b[1mExamples:\x1b[0m");
             println!("  SELECT llm('Extract date from: {{0}}', text) FROM docs;");
             println!("  SELECT llm('Translate {{0}} to {{1}}', content, 'French') FROM articles;");
-            println!("  SELECT llm_fold('Combine: {{0}}\\n{{1}}', 'Summarize: {{0}}', text) FROM docs;");
+            println!("  SELECT llm_agg(text, 'Combine:\\n{{0}}\\n---\\n{{1}}') FROM docs;");
+            println!("  SELECT llm_agg(text, 'Combine: {{0}}\\n{{1}}', 'Summarize: {{0}}') FROM docs;");
             Ok(true)
         }
         ".tables" | ".t" => {
@@ -594,8 +598,8 @@ async fn handle_dot_command(
         ".functions" | ".f" => {
             // Just show our custom functions prominently
             println!("\x1b[1mLLM Functions:\x1b[0m");
-            println!("  llm(template, ...)       - Variadic template with {{0}}, {{1}} placeholders");
-            println!("  llm_fold(fold, map, col) - Map-reduce with tree-fold");
+            println!("  llm(template, ...)             - Per-row with {{0}}, {{1}} placeholders");
+            println!("  llm_agg(col, reduce[, map])    - Aggregate with optional map-reduce");
             println!();
             println!("Run 'SHOW FUNCTIONS;' to see all {} available functions.", {
                 let df = ctx.sql("SHOW FUNCTIONS").await?;
