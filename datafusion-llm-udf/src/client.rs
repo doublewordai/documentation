@@ -1,5 +1,5 @@
 use futures_util::StreamExt;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -130,7 +130,7 @@ impl LlmClient {
         }
     }
 
-    /// Process multiple prompts using the batch API
+    /// Process multiple prompts using the batch API with interleaved downloads
     pub async fn process_prompts(
         &self,
         prompts: Vec<String>,
@@ -163,11 +163,8 @@ impl LlmClient {
         // Create batch
         let batch_id = self.create_batch(&file_id).await?;
 
-        // Poll until complete
-        let output_file_id = self.poll_batch(&batch_id).await?;
-
-        // Download and parse results with progress
-        let results = self.download_results(&output_file_id, prompts.len()).await?;
+        // Poll and download results with interleaved streaming
+        let results = self.poll_and_download(&batch_id, count).await?;
 
         Ok(results)
     }
@@ -294,6 +291,212 @@ impl LlmClient {
         Ok(batch_resp.id)
     }
 
+    /// Poll batch status and download results as they become available (interleaved)
+    async fn poll_and_download(
+        &self,
+        batch_id: &str,
+        expected_count: usize,
+    ) -> Result<Vec<String>, LlmError> {
+        let multi = MultiProgress::new();
+
+        // Processing progress bar
+        let process_progress = multi.add(ProgressBar::new(expected_count as u64));
+        process_progress.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.cyan} Processing [{bar:30.cyan/dim}] {pos}/{len} requests ({msg})")
+                .unwrap()
+                .progress_chars("█▓▒░"),
+        );
+        process_progress.enable_steady_tick(Duration::from_millis(80));
+
+        // Download progress bar
+        let download_progress = multi.add(ProgressBar::new(expected_count as u64));
+        download_progress.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.cyan} Downloaded [{bar:30.cyan/dim}] {pos}/{len} results ({bytes})")
+                .unwrap()
+                .progress_chars("█▓▒░"),
+        );
+        download_progress.enable_steady_tick(Duration::from_millis(80));
+
+        let mut results_map: HashMap<String, String> = HashMap::new();
+        let mut output_file_id: Option<String> = None;
+        let mut download_offset: u64 = 0;
+        let mut bytes_downloaded: u64 = 0;
+        let mut batch_complete = false;
+
+        loop {
+            // Poll batch status
+            let resp = self
+                .client
+                .get(format!("{}/batches/{}", self.base_url, batch_id))
+                .bearer_auth(&self.api_key)
+                .send()
+                .await?;
+
+            let resp = Self::check_response(resp).await?;
+            let batch_resp: BatchResponse = resp.json().await?;
+
+            // Update processing progress
+            if let Some(ref counts) = batch_resp.request_counts {
+                process_progress.set_length(counts.total);
+                process_progress.set_position(counts.completed + counts.failed);
+            }
+
+            // Check for output file (available even before batch completes)
+            if output_file_id.is_none() {
+                output_file_id = batch_resp.output_file_id.clone();
+            }
+
+            // Handle batch status
+            match batch_resp.status.as_str() {
+                "completed" => {
+                    if let Some(ref counts) = batch_resp.request_counts {
+                        process_progress.set_position(counts.total);
+                    }
+                    process_progress.finish_with_message("✓ complete");
+                    batch_complete = true;
+                }
+                "failed" => {
+                    process_progress.finish_with_message("✗ failed");
+                    download_progress.finish_with_message("✗ aborted");
+                    return Err(LlmError::BatchFailed(
+                        "Batch processing failed".to_string(),
+                    ));
+                }
+                "expired" => {
+                    process_progress.finish_with_message("✗ expired");
+                    download_progress.finish_with_message("✗ aborted");
+                    return Err(LlmError::BatchExpired);
+                }
+                "cancelled" => {
+                    process_progress.finish_with_message("✗ cancelled");
+                    download_progress.finish_with_message("✗ aborted");
+                    return Err(LlmError::BatchCancelled);
+                }
+                status => {
+                    process_progress.set_message(status.to_string());
+                }
+            }
+
+            // Try to download new results if we have an output file
+            if let Some(ref file_id) = output_file_id {
+                let (new_results, new_offset, bytes, is_complete) =
+                    self.download_partial(file_id, download_offset).await?;
+
+                bytes_downloaded += bytes;
+                download_progress.set_position(results_map.len() as u64 + new_results.len() as u64);
+                download_progress.set_message(format!("{} bytes", bytes_downloaded));
+
+                // Parse and store new results
+                for line in new_results.lines() {
+                    if line.trim().is_empty() {
+                        continue;
+                    }
+                    if let Ok(result) = serde_json::from_str::<BatchResultLine>(line) {
+                        let output = if let Some(resp) = result.response {
+                            resp.body
+                                .choices
+                                .first()
+                                .map(|c| c.message.content.clone())
+                                .unwrap_or_default()
+                        } else if let Some(err) = result.error {
+                            format!("Error: {}", err.message)
+                        } else {
+                            String::new()
+                        };
+                        results_map.insert(result.custom_id, output);
+                    }
+                }
+
+                download_progress.set_position(results_map.len() as u64);
+                download_offset = new_offset;
+
+                // If batch complete and no more results, we're done
+                if batch_complete && is_complete {
+                    download_progress.finish_with_message(format!("✓ {} bytes", bytes_downloaded));
+                    break;
+                }
+            }
+
+            // Small delay before next poll
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+
+        // Reconstruct results in original order
+        let mut results = Vec::with_capacity(expected_count);
+        for i in 0..expected_count {
+            let custom_id = format!("req-{}", i);
+            let result = results_map
+                .remove(&custom_id)
+                .ok_or_else(|| LlmError::ResultNotFound(custom_id))?;
+            results.push(result);
+        }
+
+        Ok(results)
+    }
+
+    /// Download partial results from output file using offset
+    /// Returns (content, new_offset, bytes_read, is_complete)
+    async fn download_partial(
+        &self,
+        file_id: &str,
+        offset: u64,
+    ) -> Result<(String, u64, u64, bool), LlmError> {
+        let url = if offset > 0 {
+            format!("{}/files/{}/content?offset={}", self.base_url, file_id, offset)
+        } else {
+            format!("{}/files/{}/content", self.base_url, file_id)
+        };
+
+        let resp = self
+            .client
+            .get(&url)
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+
+        let resp = Self::check_response(resp).await?;
+
+        // Check X-Incomplete header to know if more data is coming
+        let is_incomplete = resp
+            .headers()
+            .get("X-Incomplete")
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v == "true")
+            .unwrap_or(false);
+
+        // Get X-Last-Line header for next offset
+        let last_line = resp
+            .headers()
+            .get("X-Last-Line")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(offset);
+
+        // Stream the response
+        let mut content = Vec::new();
+        let mut stream = resp.bytes_stream();
+
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            content.extend_from_slice(&chunk);
+        }
+
+        let bytes_read = content.len() as u64;
+        let content_str = String::from_utf8_lossy(&content).to_string();
+
+        // Use X-Last-Line as new offset, or calculate from content if not available
+        let new_offset = if last_line > offset {
+            last_line
+        } else {
+            offset + bytes_read
+        };
+
+        Ok((content_str, new_offset, bytes_read, !is_incomplete))
+    }
+
+    #[allow(dead_code)]
     async fn poll_batch(&self, batch_id: &str) -> Result<String, LlmError> {
         let progress = ProgressBar::new(100);
         progress.set_style(
