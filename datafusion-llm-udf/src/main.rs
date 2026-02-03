@@ -1,6 +1,6 @@
 use arrow::util::pretty::pretty_format_batches;
 use clap::Parser;
-use datafusion::execution::context::SessionContext;
+use datafusion::execution::context::{SessionConfig, SessionContext};
 use datafusion::logical_expr::ScalarUDF;
 use datafusion_llm_udf::{LlmClient, LlmExtractUdf};
 use rustyline::error::ReadlineError;
@@ -42,8 +42,9 @@ struct Args {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    // Create DataFusion session
-    let ctx = SessionContext::new();
+    // Create DataFusion session with information_schema enabled
+    let config = SessionConfig::new().with_information_schema(true);
+    let ctx = SessionContext::new_with_config(config);
 
     // Register LLM UDF
     let client = LlmClient::new(&args.api_url, &args.api_key, &args.model);
