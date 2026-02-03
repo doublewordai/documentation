@@ -2,8 +2,8 @@ use arrow::array::{Array, ArrayRef, RecordBatch, StringArray};
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use async_trait::async_trait;
 use datafusion::catalog::Session;
-use datafusion::common::Result as DFResult;
 use datafusion::catalog::TableFunctionImpl;
+use datafusion::common::Result as DFResult;
 use datafusion::datasource::TableProvider;
 use datafusion::execution::context::ExecutionProps;
 use datafusion::logical_expr::Expr;
@@ -18,16 +18,19 @@ use crate::client::LlmClient;
 /// LLM Unfold - fan-out table function
 ///
 /// Takes a single value and produces multiple rows by splitting LLM output.
+/// Can optionally iterate multiple times for recursive unfolding.
 ///
 /// Usage:
-///   SELECT * FROM llm_unfold('Extract all names:\n{0}', 'John met Mary and Bob', '\n')
+///   SELECT * FROM llm_unfold('Extract all names:\n{0}', 'John met Mary')
+///   SELECT * FROM llm_unfold('Split into parts:\n{0}', text, '\n', 2)  -- 2 iterations
 ///
 /// Arguments:
 ///   - template: Prompt template with {0} for the input value
 ///   - value: The input value to process
-///   - delimiter: How to split the output into rows (default: newline)
+///   - delimiter: How to split the output (default: newline)
+///   - iterations: How many times to unfold (default: 1)
 ///
-/// Returns a table with columns: (item TEXT, index INT)
+/// Returns a table with single column: (item TEXT)
 #[derive(Debug)]
 pub struct LlmUnfoldFunc {
     client: LlmClient,
@@ -41,10 +44,9 @@ impl LlmUnfoldFunc {
 
 impl TableFunctionImpl for LlmUnfoldFunc {
     fn call(&self, args: &[Expr]) -> DFResult<Arc<dyn TableProvider>> {
-        // Extract literal arguments
-        if args.len() < 2 || args.len() > 3 {
+        if args.len() < 2 || args.len() > 4 {
             return Err(datafusion::error::DataFusionError::Plan(
-                "llm_unfold requires 2-3 arguments: (template, value[, delimiter])".to_string(),
+                "llm_unfold requires 2-4 arguments: (template, value[, delimiter[, iterations]])".to_string(),
             ));
         }
 
@@ -55,12 +57,18 @@ impl TableFunctionImpl for LlmUnfoldFunc {
         } else {
             "\n".to_string()
         };
+        let iterations = if args.len() > 3 {
+            extract_int_literal(&args[3])? as usize
+        } else {
+            1
+        };
 
         Ok(Arc::new(LlmUnfoldTable {
             client: self.client.clone(),
             template,
             value,
             delimiter,
+            iterations,
         }))
     }
 }
@@ -70,7 +78,6 @@ fn extract_string_literal(expr: &Expr) -> DFResult<String> {
         Expr::Literal(ScalarValue::Utf8(Some(s))) => Ok(s.clone()),
         Expr::Literal(ScalarValue::LargeUtf8(Some(s))) => Ok(s.clone()),
         _ => {
-            // Try to simplify the expression
             let props = ExecutionProps::new();
             let simplified = datafusion::optimizer::simplify_expressions::ExprSimplifier::new(
                 datafusion::optimizer::simplify_expressions::SimplifyContext::new(&props),
@@ -89,12 +96,42 @@ fn extract_string_literal(expr: &Expr) -> DFResult<String> {
     }
 }
 
+fn extract_int_literal(expr: &Expr) -> DFResult<i64> {
+    match expr {
+        Expr::Literal(ScalarValue::Int8(Some(n))) => Ok(*n as i64),
+        Expr::Literal(ScalarValue::Int16(Some(n))) => Ok(*n as i64),
+        Expr::Literal(ScalarValue::Int32(Some(n))) => Ok(*n as i64),
+        Expr::Literal(ScalarValue::Int64(Some(n))) => Ok(*n),
+        Expr::Literal(ScalarValue::UInt8(Some(n))) => Ok(*n as i64),
+        Expr::Literal(ScalarValue::UInt16(Some(n))) => Ok(*n as i64),
+        Expr::Literal(ScalarValue::UInt32(Some(n))) => Ok(*n as i64),
+        Expr::Literal(ScalarValue::UInt64(Some(n))) => Ok(*n as i64),
+        _ => {
+            let props = ExecutionProps::new();
+            let simplified = datafusion::optimizer::simplify_expressions::ExprSimplifier::new(
+                datafusion::optimizer::simplify_expressions::SimplifyContext::new(&props),
+            )
+            .simplify(expr.clone())?;
+
+            match &simplified {
+                Expr::Literal(ScalarValue::Int64(Some(n))) => Ok(*n),
+                Expr::Literal(ScalarValue::Int32(Some(n))) => Ok(*n as i64),
+                _ => Err(datafusion::error::DataFusionError::Plan(format!(
+                    "Expected integer literal, got: {:?}",
+                    expr
+                ))),
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 struct LlmUnfoldTable {
     client: LlmClient,
     template: String,
     value: String,
     delimiter: String,
+    iterations: usize,
 }
 
 #[async_trait]
@@ -104,10 +141,7 @@ impl TableProvider for LlmUnfoldTable {
     }
 
     fn schema(&self) -> SchemaRef {
-        Arc::new(Schema::new(vec![
-            Field::new("item", DataType::Utf8, false),
-            Field::new("index", DataType::Int64, false),
-        ]))
+        Arc::new(Schema::new(vec![Field::new("item", DataType::Utf8, false)]))
     }
 
     fn table_type(&self) -> datafusion::datasource::TableType {
@@ -121,42 +155,41 @@ impl TableProvider for LlmUnfoldTable {
         _filters: &[Expr],
         _limit: Option<usize>,
     ) -> DFResult<Arc<dyn ExecutionPlan>> {
-        // Build the prompt
-        let prompt = self.template.replace("{0}", &self.value);
+        let mut items = vec![self.value.clone()];
 
-        // Call the LLM
-        let result = self
-            .client
-            .process_prompts(vec![prompt])
-            .await
-            .map_err(|e| {
-                datafusion::error::DataFusionError::Execution(format!("LLM API error: {}", e))
-            })?;
+        for _ in 0..self.iterations {
+            let prompts: Vec<String> = items
+                .iter()
+                .map(|v| self.template.replace("{0}", v))
+                .collect();
 
-        let output = result.into_iter().next().unwrap_or_default();
+            let results = self
+                .client
+                .process_prompts(prompts)
+                .await
+                .map_err(|e| {
+                    datafusion::error::DataFusionError::Execution(format!("LLM API error: {}", e))
+                })?;
 
-        // Split by delimiter and create rows
-        let items: Vec<&str> = if self.delimiter.is_empty() {
-            vec![output.as_str()]
-        } else {
-            output.split(&self.delimiter).collect()
-        };
-
-        // Filter out empty items and trim whitespace
-        let items: Vec<String> = items
-            .into_iter()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-
-        let indices: Vec<i64> = (0..items.len() as i64).collect();
+            // Split each result and flatten
+            items = results
+                .into_iter()
+                .flat_map(|output| {
+                    if self.delimiter.is_empty() {
+                        vec![output]
+                    } else {
+                        output
+                            .split(&self.delimiter)
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect()
+                    }
+                })
+                .collect();
+        }
 
         let item_array: ArrayRef = Arc::new(StringArray::from(items));
-        let index_array: ArrayRef =
-            Arc::new(arrow::array::Int64Array::from(indices));
-
-        let batch = RecordBatch::try_new(self.schema(), vec![item_array, index_array])?;
-
+        let batch = RecordBatch::try_new(self.schema(), vec![item_array])?;
         let exec = MemoryExec::try_new(&[vec![batch]], self.schema(), projection.cloned())?;
 
         Ok(Arc::new(exec))
@@ -165,14 +198,21 @@ impl TableProvider for LlmUnfoldTable {
 
 /// LLM Batch Map - process multiple values in a single LLM call
 ///
-/// This is a table function that takes a subquery and processes rows in batches.
+/// Takes an array of values, sends them all to the LLM in one prompt,
+/// and returns the split outputs.
 ///
 /// Usage:
 ///   SELECT * FROM llm_batch_map(
-///     'Categorize each item:\n{0:9\n}\n\nReturn one category per line.',
-///     TABLE(SELECT content FROM docs LIMIT 100),
-///     10  -- batch size
+///     'Classify each:\n{0:2\n}\nReturn one word per line.',
+///     ARRAY['apple', 'carrot', 'banana']
 ///   )
+///
+/// Arguments:
+///   - template: Prompt template using range syntax {0:N<sep>}
+///   - values: Array of input values
+///   - delimiter: How to split output (default: newline)
+///
+/// Returns table with: (input TEXT, output TEXT)
 #[derive(Debug)]
 pub struct LlmBatchMapFunc {
     client: LlmClient,
@@ -188,15 +228,13 @@ impl TableFunctionImpl for LlmBatchMapFunc {
     fn call(&self, args: &[Expr]) -> DFResult<Arc<dyn TableProvider>> {
         if args.len() < 2 || args.len() > 3 {
             return Err(datafusion::error::DataFusionError::Plan(
-                "llm_batch_map requires 2-3 arguments: (template, values_array[, delimiter])".to_string(),
+                "llm_batch_map requires 2-3 arguments: (template, values_array[, delimiter])"
+                    .to_string(),
             ));
         }
 
         let template = extract_string_literal(&args[0])?;
-
-        // Second argument should be an array of values
         let values = extract_string_array(&args[1])?;
-
         let delimiter = if args.len() > 2 {
             extract_string_literal(&args[2])?
         } else {
@@ -252,7 +290,6 @@ impl TableProvider for LlmBatchMapTable {
         Arc::new(Schema::new(vec![
             Field::new("input", DataType::Utf8, false),
             Field::new("output", DataType::Utf8, false),
-            Field::new("index", DataType::Int64, false),
         ]))
     }
 
@@ -275,7 +312,6 @@ impl TableProvider for LlmBatchMapTable {
                 vec![
                     Arc::new(StringArray::from(Vec::<String>::new())),
                     Arc::new(StringArray::from(Vec::<String>::new())),
-                    Arc::new(arrow::array::Int64Array::from(Vec::<i64>::new())),
                 ],
             )?;
             return Ok(Arc::new(MemoryExec::try_new(
@@ -302,22 +338,21 @@ impl TableProvider for LlmBatchMapTable {
 
         let output = result.into_iter().next().unwrap_or_default();
 
-        // Split output by delimiter to get per-item results
+        // Split output by delimiter
         let outputs: Vec<String> = output
             .split(&self.delimiter)
             .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
             .collect();
 
-        // Pair inputs with outputs (pad with empty if mismatched)
-        let len = self.values.len();
+        // Pair inputs with outputs
+        let len = self.values.len().max(outputs.len());
         let mut inputs = Vec::with_capacity(len);
         let mut results = Vec::with_capacity(len);
-        let mut indices = Vec::with_capacity(len);
 
-        for (i, input) in self.values.iter().enumerate() {
-            inputs.push(input.clone());
+        for i in 0..len {
+            inputs.push(self.values.get(i).cloned().unwrap_or_default());
             results.push(outputs.get(i).cloned().unwrap_or_default());
-            indices.push(i as i64);
         }
 
         let batch = RecordBatch::try_new(
@@ -325,7 +360,6 @@ impl TableProvider for LlmBatchMapTable {
             vec![
                 Arc::new(StringArray::from(inputs)),
                 Arc::new(StringArray::from(results)),
-                Arc::new(arrow::array::Int64Array::from(indices)),
             ],
         )?;
 

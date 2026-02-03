@@ -519,8 +519,8 @@ fn print_welcome() {
     println!("  llm_agg(col, reduce[, map])        - K-way aggregate (K from placeholders)");
     println!();
     println!("\x1b[1mTable Functions:\x1b[0m");
-    println!("  llm_unfold(template, value[, delim])  - Fan-out: one value -> multiple rows");
-    println!("  llm_batch_map(template, array[, delim]) - Batch: process array in one call");
+    println!("  llm_unfold(template, value[, delim[, iters]])  - Fan-out (recursive)");
+    println!("  llm_batch_map(template, array[, delim])        - Batch process array");
     println!();
     println!("  Tip: Use {{0:3, }} range syntax for K-way operations");
     println!();
@@ -568,13 +568,14 @@ async fn handle_dot_command(
             println!("  {{0:2\\n}}                  Range with newline separator");
             println!();
             println!("\x1b[1mTable Functions (fan-out / batch):\x1b[0m");
-            println!("  llm_unfold(template, value[, delimiter])");
+            println!("  llm_unfold(template, value[, delim[, iterations]])");
             println!("    Fan-out: generate multiple rows from one LLM call.");
-            println!("    Returns table with (item TEXT, index INT).");
+            println!("    Iterations param allows recursive unfolding.");
+            println!("    Returns table with (item TEXT).");
             println!();
             println!("  llm_batch_map(template, array[, delimiter])");
             println!("    Batch: process array of values in a single LLM call.");
-            println!("    Returns table with (input TEXT, output TEXT, index INT).");
+            println!("    Returns table with (input TEXT, output TEXT).");
             println!();
             println!("\x1b[1mExamples:\x1b[0m");
             println!("  SELECT llm('Extract date from: {{0}}', text) FROM docs;");
@@ -583,8 +584,8 @@ async fn handle_dot_command(
             println!("  SELECT llm_agg(text, 'Combine:\\n{{0}}\\n---\\n{{1}}') FROM docs;");
             println!("  -- 4-way reduce using range syntax");
             println!("  SELECT llm_agg(text, 'Merge all:\\n{{0:3\\n---\\n}}') FROM docs;");
-            println!("  -- Fan-out: extract entities");
-            println!("  SELECT * FROM llm_unfold('Extract names:\\n{{0}}', 'John met Mary', '\\n');");
+            println!("  -- Fan-out: extract entities (2 iterations of unfolding)");
+            println!("  SELECT * FROM llm_unfold('Extract names:\\n{{0}}', 'text', '\\n', 2);");
             println!("  -- Batch: process array in one call");
             println!("  SELECT * FROM llm_batch_map('Classify each:\\n{{0:2\\n}}', ARRAY['a','b','c']);");
             Ok(true)
