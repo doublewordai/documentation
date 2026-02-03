@@ -135,6 +135,22 @@ impl LlmClient {
         &self,
         prompts: Vec<String>,
     ) -> Result<Vec<String>, LlmError> {
+        self.process_prompts_inner(prompts, true).await
+    }
+
+    /// Process prompts without showing progress bars (for use in nested operations)
+    pub async fn process_prompts_quiet(
+        &self,
+        prompts: Vec<String>,
+    ) -> Result<Vec<String>, LlmError> {
+        self.process_prompts_inner(prompts, false).await
+    }
+
+    async fn process_prompts_inner(
+        &self,
+        prompts: Vec<String>,
+        show_progress: bool,
+    ) -> Result<Vec<String>, LlmError> {
         if prompts.is_empty() {
             return Ok(vec![]);
         }
@@ -145,26 +161,38 @@ impl LlmClient {
         let jsonl = self.build_jsonl_from_prompts(&prompts)?;
         let upload_size = jsonl.len() as u64;
 
-        // Upload file with progress
-        let upload_progress = ProgressBar::new(upload_size);
-        upload_progress.set_style(
-            ProgressStyle::default_bar()
-                .template("{spinner:.cyan} Uploading [{bar:30.cyan/dim}] {bytes}/{total_bytes} ({msg})")
-                .unwrap()
-                .progress_chars("█▓▒░"),
-        );
-        upload_progress.set_message(format!("{} prompts", count));
-        upload_progress.enable_steady_tick(Duration::from_millis(80));
+        // Upload file
+        let upload_progress = if show_progress {
+            let pb = ProgressBar::new(upload_size);
+            pb.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.cyan} Uploading [{bar:30.cyan/dim}] {bytes}/{total_bytes} ({msg})")
+                    .unwrap()
+                    .progress_chars("█▓▒░"),
+            );
+            pb.set_message(format!("{} prompts", count));
+            pb.enable_steady_tick(Duration::from_millis(80));
+            Some(pb)
+        } else {
+            None
+        };
 
         let file_id = self.upload_file(&jsonl).await?;
-        upload_progress.set_position(upload_size);
-        upload_progress.finish_with_message(format!("✓ {} prompts", count));
+
+        if let Some(ref pb) = upload_progress {
+            pb.set_position(upload_size);
+            pb.finish_and_clear();
+        }
 
         // Create batch
         let batch_id = self.create_batch(&file_id).await?;
 
-        // Poll and download results with interleaved streaming
-        let results = self.poll_and_download(&batch_id, count).await?;
+        // Poll and download results
+        let results = if show_progress {
+            self.poll_and_download(&batch_id, count).await?
+        } else {
+            self.poll_and_download_quiet(&batch_id, count).await?
+        };
 
         Ok(results)
     }
@@ -424,6 +452,99 @@ impl LlmClient {
             }
 
             // Small delay before next poll
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+
+        // Reconstruct results in original order
+        let mut results = Vec::with_capacity(expected_count);
+        for i in 0..expected_count {
+            let custom_id = format!("req-{}", i);
+            let result = results_map
+                .remove(&custom_id)
+                .ok_or_else(|| LlmError::ResultNotFound(custom_id))?;
+            results.push(result);
+        }
+
+        Ok(results)
+    }
+
+    /// Poll and download without progress bars (for nested operations)
+    async fn poll_and_download_quiet(
+        &self,
+        batch_id: &str,
+        expected_count: usize,
+    ) -> Result<Vec<String>, LlmError> {
+        let mut results_map: HashMap<String, String> = HashMap::new();
+        let mut output_file_id: Option<String> = None;
+        let mut download_offset: u64 = 0;
+        let mut batch_complete = false;
+
+        loop {
+            // Poll batch status
+            let resp = self
+                .client
+                .get(format!("{}/batches/{}", self.base_url, batch_id))
+                .bearer_auth(&self.api_key)
+                .send()
+                .await?;
+
+            let resp = Self::check_response(resp).await?;
+            let batch_resp: BatchResponse = resp.json().await?;
+
+            // Check for output file
+            if output_file_id.is_none() {
+                output_file_id = batch_resp.output_file_id.clone();
+            }
+
+            // Handle batch status
+            match batch_resp.status.as_str() {
+                "completed" => {
+                    batch_complete = true;
+                }
+                "failed" => {
+                    return Err(LlmError::BatchFailed(
+                        "Batch processing failed".to_string(),
+                    ));
+                }
+                "expired" => return Err(LlmError::BatchExpired),
+                "cancelled" => return Err(LlmError::BatchCancelled),
+                _ => {}
+            }
+
+            // Try to download new results if we have an output file
+            if let Some(ref file_id) = output_file_id {
+                let (new_results, new_offset, _, is_complete) =
+                    self.download_partial(file_id, download_offset).await?;
+
+                // Parse and store new results
+                for line in new_results.lines() {
+                    if line.trim().is_empty() {
+                        continue;
+                    }
+                    if let Ok(result) = serde_json::from_str::<BatchResultLine>(line) {
+                        let output = if let Some(resp) = result.response {
+                            resp.body
+                                .choices
+                                .first()
+                                .map(|c| c.message.content.clone())
+                                .unwrap_or_default()
+                        } else if let Some(err) = result.error {
+                            format!("Error: {}", err.message)
+                        } else {
+                            String::new()
+                        };
+                        results_map.insert(result.custom_id, output);
+                    }
+                }
+
+                download_offset = new_offset;
+
+                // If batch complete and no more results, we're done
+                if batch_complete && is_complete {
+                    break;
+                }
+            }
+
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
 
