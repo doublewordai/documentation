@@ -105,7 +105,7 @@ async fn load_table(ctx: &SessionContext, spec: &str) -> Result<(), Box<dyn std:
             ctx.register_parquet(&name, &path_str, Default::default()).await?;
             eprintln!("Loaded Parquet '{}' as table '{}'", path_str, name);
         }
-        "json" | "ndjson" => {
+        "json" | "jsonl" | "ndjson" => {
             ctx.register_json(&name, &path_str, Default::default()).await?;
             eprintln!("Loaded JSON '{}' as table '{}'", path_str, name);
         }
