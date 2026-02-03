@@ -4,7 +4,7 @@ use clap::Parser;
 use datafusion::execution::context::{SessionConfig, SessionContext};
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use datafusion::prelude::NdJsonReadOptions;
-use datafusion_llm_udf::{LlmAggUdaf, LlmClient, LlmUdf};
+use datafusion_llm_udf::{LlmAggUdaf, LlmBatchMapFunc, LlmClient, LlmUdf, LlmUnfoldFunc};
 use rustyline::completion::{Completer, Pair};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::{CmdKind, Highlighter};
@@ -63,7 +63,7 @@ const SQL_KEYWORDS: &[&str] = &[
     "ROW_NUMBER", "RANK", "DENSE_RANK", "LAG", "LEAD",
     "SHOW", "TABLES", "DESCRIBE", "EXPLAIN", "ANALYZE",
     // Our UDFs
-    "llm", "llm_agg",
+    "llm", "llm_agg", "llm_unfold", "llm_batch_map",
 ];
 
 // Dot commands
@@ -286,8 +286,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ctx.register_udf(llm_udf);
 
     // llm_agg(column, reduce_prompt[, map_prompt]) - aggregate with optional map-reduce
-    let llm_agg = AggregateUDF::from(LlmAggUdaf::new(client));
+    let llm_agg = AggregateUDF::from(LlmAggUdaf::new(client.clone()));
     ctx.register_udaf(llm_agg);
+
+    // llm_unfold(template, value[, delimiter]) - fan-out table function
+    ctx.register_udtf("llm_unfold", Arc::new(LlmUnfoldFunc::new(client.clone())));
+
+    // llm_batch_map(template, values_array[, delimiter]) - batched processing
+    ctx.register_udtf("llm_batch_map", Arc::new(LlmBatchMapFunc::new(client)));
 
     // Load any specified tables
     for table_spec in &args.tables {
@@ -511,7 +517,12 @@ fn print_welcome() {
     println!("\x1b[1mLLM Functions:\x1b[0m");
     println!("  llm(template, arg1, ...)           - Per-row with {{0}}, {{1}} placeholders");
     println!("  llm_agg(col, reduce[, map])        - K-way aggregate (K from placeholders)");
-    println!("  Tip: Use {{0:3, }} range syntax for K-way reduce prompts");
+    println!();
+    println!("\x1b[1mTable Functions:\x1b[0m");
+    println!("  llm_unfold(template, value[, delim])  - Fan-out: one value -> multiple rows");
+    println!("  llm_batch_map(template, array[, delim]) - Batch: process array in one call");
+    println!();
+    println!("  Tip: Use {{0:3, }} range syntax for K-way operations");
     println!();
 }
 
@@ -556,6 +567,15 @@ async fn handle_dot_command(
             println!("  {{0:3, }}                  Range: expands to {{0}}, {{1}}, {{2}}, {{3}}");
             println!("  {{0:2\\n}}                  Range with newline separator");
             println!();
+            println!("\x1b[1mTable Functions (fan-out / batch):\x1b[0m");
+            println!("  llm_unfold(template, value[, delimiter])");
+            println!("    Fan-out: generate multiple rows from one LLM call.");
+            println!("    Returns table with (item TEXT, index INT).");
+            println!();
+            println!("  llm_batch_map(template, array[, delimiter])");
+            println!("    Batch: process array of values in a single LLM call.");
+            println!("    Returns table with (input TEXT, output TEXT, index INT).");
+            println!();
             println!("\x1b[1mExamples:\x1b[0m");
             println!("  SELECT llm('Extract date from: {{0}}', text) FROM docs;");
             println!("  SELECT llm('Translate {{0}} to {{1}}', content, 'French') FROM articles;");
@@ -563,8 +583,10 @@ async fn handle_dot_command(
             println!("  SELECT llm_agg(text, 'Combine:\\n{{0}}\\n---\\n{{1}}') FROM docs;");
             println!("  -- 4-way reduce using range syntax");
             println!("  SELECT llm_agg(text, 'Merge all:\\n{{0:3\\n---\\n}}') FROM docs;");
-            println!("  -- Map then reduce");
-            println!("  SELECT llm_agg(text, 'Combine: {{0}}\\n{{1}}', 'Summarize: {{0}}') FROM docs;");
+            println!("  -- Fan-out: extract entities");
+            println!("  SELECT * FROM llm_unfold('Extract names:\\n{{0}}', 'John met Mary', '\\n');");
+            println!("  -- Batch: process array in one call");
+            println!("  SELECT * FROM llm_batch_map('Classify each:\\n{{0:2\\n}}', ARRAY['a','b','c']);");
             Ok(true)
         }
         ".tables" | ".t" => {
@@ -610,6 +632,10 @@ async fn handle_dot_command(
             println!("\x1b[1mLLM Functions:\x1b[0m");
             println!("  llm(template, ...)             - Per-row with {{0}}, {{1}} placeholders");
             println!("  llm_agg(col, reduce[, map])    - K-way aggregate (K detected from {{0}}, {{1}}, ...)");
+            println!();
+            println!("\x1b[1mTable Functions:\x1b[0m");
+            println!("  llm_unfold(template, value[, delim])  - Fan-out: one -> many rows");
+            println!("  llm_batch_map(template, array[, delim]) - Batch process in one call");
             println!();
             println!("Run 'SHOW FUNCTIONS;' to see all {} available functions.", {
                 let df = ctx.sql("SHOW FUNCTIONS").await?;

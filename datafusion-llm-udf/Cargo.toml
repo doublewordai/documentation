@@ -19,3 +19,4 @@ rustyline = { version = "15", features = ["derive"] }
 dirs = "6"
 indicatif = "0.17"
 console = "0.15"
+async-trait = "0.1.89"
