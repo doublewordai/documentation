@@ -8,6 +8,7 @@ use std::any::Any;
 use std::sync::Arc;
 
 use crate::client::LlmClient;
+use crate::validation::validate_template;
 
 /// Variadic LLM UDF: llm(template, arg1, arg2, ...)
 /// Template uses {0}, {1}, {2}, etc. for placeholders
@@ -100,6 +101,24 @@ impl ScalarUDFImpl for LlmUdf {
 
             // Get template (first arg)
             let template = string_arrays[0].value(row);
+
+            // Validate template on first non-null row
+            if row == 0 || (null_indices.len() == row) {
+                let arg_count = string_arrays.len() - 1; // Exclude template itself
+                match validate_template(template, arg_count, false) {
+                    Ok(warnings) => {
+                        for warning in warnings {
+                            eprintln!("llm() warning: {}", warning);
+                        }
+                    }
+                    Err(e) => {
+                        return Err(datafusion::error::DataFusionError::Execution(format!(
+                            "Invalid template: {}",
+                            e
+                        )));
+                    }
+                }
+            }
 
             // Fill in placeholders {0}, {1}, {2}, etc.
             let mut prompt = template.to_string();

@@ -8,6 +8,7 @@ use datafusion::logical_expr::{
 use std::any::Any;
 
 use crate::client::LlmClient;
+use crate::validation::{validate_fold_template, validate_map_template};
 
 /// Parallel fold UDAF: llm_fold(fold_template, map_template, column)
 ///
@@ -212,6 +213,40 @@ impl Accumulator for LlmFoldAccumulator {
         let map_template = self.map_template.as_ref().ok_or_else(|| {
             datafusion::error::DataFusionError::Execution("Missing map template".to_string())
         })?;
+
+        // Validate map template
+        match validate_map_template(map_template) {
+            Ok(warnings) => {
+                for warning in warnings {
+                    eprintln!("llm_fold() map template warning: {}", warning);
+                }
+            }
+            Err(e) => {
+                return Err(datafusion::error::DataFusionError::Execution(format!(
+                    "Invalid map template: {}",
+                    e
+                )));
+            }
+        }
+
+        let fold_template = self.fold_template.as_ref().ok_or_else(|| {
+            datafusion::error::DataFusionError::Execution("Missing fold template".to_string())
+        })?;
+
+        // Validate fold template
+        match validate_fold_template(fold_template) {
+            Ok(warnings) => {
+                for warning in warnings {
+                    eprintln!("llm_fold() fold template warning: {}", warning);
+                }
+            }
+            Err(e) => {
+                return Err(datafusion::error::DataFusionError::Execution(format!(
+                    "Invalid fold template: {}",
+                    e
+                )));
+            }
+        }
 
         // Step 1: Map all values through the map template
         let prompts: Vec<String> = self
