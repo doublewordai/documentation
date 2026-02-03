@@ -1,3 +1,4 @@
+use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -65,7 +66,16 @@ struct BatchResponse {
     id: String,
     status: String,
     output_file_id: Option<String>,
+    #[allow(dead_code)]
     error_file_id: Option<String>,
+    request_counts: Option<RequestCounts>,
+}
+
+#[derive(Deserialize, Debug)]
+struct RequestCounts {
+    total: u64,
+    completed: u64,
+    failed: u64,
 }
 
 #[derive(Deserialize, Debug)]
@@ -133,20 +143,22 @@ impl LlmClient {
 
         // Build JSONL content
         let jsonl = self.build_jsonl_from_prompts(&prompts)?;
+        let upload_size = jsonl.len() as u64;
 
         // Upload file with progress
-        let upload_spinner = ProgressBar::new_spinner();
-        upload_spinner.set_style(
-            ProgressStyle::default_spinner()
-                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-                .template("{spinner:.cyan} {msg}")
-                .unwrap(),
+        let upload_progress = ProgressBar::new(upload_size);
+        upload_progress.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.cyan} Uploading [{bar:30.cyan/dim}] {bytes}/{total_bytes} ({msg})")
+                .unwrap()
+                .progress_chars("█▓▒░"),
         );
-        upload_spinner.set_message(format!("Uploading {} prompts...", count));
-        upload_spinner.enable_steady_tick(Duration::from_millis(80));
+        upload_progress.set_message(format!("{} prompts", count));
+        upload_progress.enable_steady_tick(Duration::from_millis(80));
 
         let file_id = self.upload_file(&jsonl).await?;
-        upload_spinner.finish_with_message(format!("✓ Uploaded {} prompts", count));
+        upload_progress.set_position(upload_size);
+        upload_progress.finish_with_message(format!("✓ {} prompts", count));
 
         // Create batch
         let batch_id = self.create_batch(&file_id).await?;
@@ -154,19 +166,8 @@ impl LlmClient {
         // Poll until complete
         let output_file_id = self.poll_batch(&batch_id).await?;
 
-        // Download and parse results
-        let download_spinner = ProgressBar::new_spinner();
-        download_spinner.set_style(
-            ProgressStyle::default_spinner()
-                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-                .template("{spinner:.cyan} {msg}")
-                .unwrap(),
-        );
-        download_spinner.set_message("Downloading results...");
-        download_spinner.enable_steady_tick(Duration::from_millis(80));
-
+        // Download and parse results with progress
         let results = self.download_results(&output_file_id, prompts.len()).await?;
-        download_spinner.finish_with_message("✓ Results downloaded");
 
         Ok(results)
     }
@@ -294,15 +295,16 @@ impl LlmClient {
     }
 
     async fn poll_batch(&self, batch_id: &str) -> Result<String, LlmError> {
-        let spinner = ProgressBar::new_spinner();
-        spinner.set_style(
-            ProgressStyle::default_spinner()
-                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-                .template("{spinner:.cyan} {msg}")
-                .unwrap(),
+        let progress = ProgressBar::new(100);
+        progress.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.cyan} Processing [{bar:30.cyan/dim}] {pos}/{len} requests ({msg})")
+                .unwrap()
+                .progress_chars("█▓▒░"),
         );
-        spinner.set_message(format!("Processing batch {}...", &batch_id[..8.min(batch_id.len())]));
-        spinner.enable_steady_tick(Duration::from_millis(80));
+        progress.enable_steady_tick(Duration::from_millis(80));
+
+        let mut initialized = false;
 
         loop {
             let resp = self
@@ -315,27 +317,39 @@ impl LlmClient {
             let resp = Self::check_response(resp).await?;
             let batch_resp: BatchResponse = resp.json().await?;
 
+            // Update progress bar with request counts if available
+            if let Some(ref counts) = batch_resp.request_counts {
+                if !initialized {
+                    progress.set_length(counts.total);
+                    initialized = true;
+                }
+                progress.set_position(counts.completed + counts.failed);
+            }
+
             match batch_resp.status.as_str() {
                 "completed" => {
-                    spinner.finish_with_message("✓ Batch completed");
+                    if let Some(ref counts) = batch_resp.request_counts {
+                        progress.set_position(counts.total);
+                    }
+                    progress.finish_with_message("✓ complete");
                     return batch_resp.output_file_id.ok_or(LlmError::MissingOutputFile);
                 }
                 "failed" => {
-                    spinner.finish_with_message("✗ Batch failed");
+                    progress.finish_with_message("✗ failed");
                     return Err(LlmError::BatchFailed(
                         "Batch processing failed".to_string(),
                     ));
                 }
                 "expired" => {
-                    spinner.finish_with_message("✗ Batch expired");
+                    progress.finish_with_message("✗ expired");
                     return Err(LlmError::BatchExpired);
                 }
                 "cancelled" => {
-                    spinner.finish_with_message("✗ Batch cancelled");
+                    progress.finish_with_message("✗ cancelled");
                     return Err(LlmError::BatchCancelled);
                 }
                 status => {
-                    spinner.set_message(format!("Processing batch {}... ({})", &batch_id[..8.min(batch_id.len())], status));
+                    progress.set_message(status.to_string());
                     tokio::time::sleep(Duration::from_millis(500)).await;
                 }
             }
@@ -355,7 +369,33 @@ impl LlmClient {
             .await?;
 
         let resp = Self::check_response(resp).await?;
-        let content = resp.text().await?;
+
+        // Get content length for progress bar
+        let total_size = resp.content_length().unwrap_or(0);
+
+        let progress = ProgressBar::new(total_size);
+        progress.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.cyan} Downloading [{bar:30.cyan/dim}] {bytes}/{total_bytes} ({msg})")
+                .unwrap()
+                .progress_chars("█▓▒░"),
+        );
+        progress.set_message(format!("{} results", expected_count));
+        progress.enable_steady_tick(Duration::from_millis(80));
+
+        // Stream the response and collect bytes
+        let mut content = Vec::new();
+        let mut stream = resp.bytes_stream();
+
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            progress.inc(chunk.len() as u64);
+            content.extend_from_slice(&chunk);
+        }
+
+        progress.finish_with_message(format!("✓ {} results", expected_count));
+
+        let content = String::from_utf8_lossy(&content);
 
         // Parse JSONL results into a map by custom_id
         let mut results_map: HashMap<String, String> = HashMap::new();
