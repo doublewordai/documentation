@@ -105,29 +105,36 @@ impl Completer for SqlHelper {
         pos: usize,
         _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
-        // Find word start
         let line_to_pos = &line[..pos];
-        let word_start = line_to_pos
-            .rfind(|c: char| c.is_whitespace() || c == '(' || c == ',' || c == '.')
-            .map(|i| i + 1)
-            .unwrap_or(0);
-        let word = &line_to_pos[word_start..];
-        let word_upper = word.to_uppercase();
-        let word_lower = word.to_lowercase();
-
+        let trimmed = line_to_pos.trim_start();
         let mut completions = Vec::new();
 
-        // Dot commands
-        if line.trim_start().starts_with('.') {
+        // Dot commands - handle specially
+        if trimmed.starts_with('.') {
+            let word_start = line_to_pos.len() - trimmed.len();
             for cmd in DOT_COMMANDS {
-                if cmd.starts_with(&word_lower) {
+                if cmd.starts_with(trimmed) {
                     completions.push(Pair {
                         display: cmd.to_string(),
                         replacement: cmd.to_string(),
                     });
                 }
             }
-        } else {
+            completions.sort_by(|a, b| a.display.cmp(&b.display));
+            return Ok((word_start, completions));
+        }
+
+        // SQL - find word start
+        let word_start = line_to_pos
+            .rfind(|c: char| c.is_whitespace() || c == '(' || c == ',')
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        let word = &line_to_pos[word_start..];
+        let word_upper = word.to_uppercase();
+        let word_lower = word.to_lowercase();
+
+        // Only complete if we have at least 1 char
+        if !word.is_empty() {
             // SQL keywords (match case)
             for kw in SQL_KEYWORDS {
                 if kw.starts_with(&word_upper) {
@@ -396,9 +403,11 @@ async fn run_repl(ctx: Arc<SessionContext>) -> Result<(), Box<dyn std::error::Er
     // Configure rustyline
     let config = Config::builder()
         .history_ignore_space(true)
-        .completion_type(CompletionType::List)
+        .completion_type(CompletionType::Circular)
+        .completion_prompt_limit(50)
         .edit_mode(EditMode::Emacs)
         .auto_add_history(false)
+        .tab_stop(4)
         .build();
 
     let helper = SqlHelper::new();
