@@ -2,6 +2,7 @@ use arrow::util::pretty::pretty_format_batches;
 use clap::Parser;
 use datafusion::execution::context::{SessionConfig, SessionContext};
 use datafusion::logical_expr::ScalarUDF;
+use datafusion::prelude::NdJsonReadOptions;
 use datafusion_llm_udf::{LlmClient, LlmExtractUdf};
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
@@ -106,8 +107,12 @@ async fn load_table(ctx: &SessionContext, spec: &str) -> Result<(), Box<dyn std:
             ctx.register_parquet(&name, &path_str, Default::default()).await?;
             eprintln!("Loaded Parquet '{}' as table '{}'", path_str, name);
         }
-        "json" | "jsonl" | "ndjson" => {
-            ctx.register_json(&name, &path_str, Default::default()).await?;
+        ext @ ("json" | "jsonl" | "ndjson") => {
+            let file_ext = format!(".{}", ext);
+            let mut options = NdJsonReadOptions::default();
+            options.schema_infer_max_records = 1000;
+            options.file_extension = file_ext.leak();
+            ctx.register_json(&name, &path_str, options).await?;
             eprintln!("Loaded JSON '{}' as table '{}'", path_str, name);
         }
         _ => {
