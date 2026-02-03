@@ -1,23 +1,29 @@
 use arrow::array::{Array, ArrayRef, StringArray};
 use arrow::datatypes::DataType;
 use datafusion::common::Result as DFResult;
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use std::any::Any;
 use std::sync::Arc;
 
 use crate::client::LlmClient;
 
+/// Variadic LLM UDF: llm(template, arg1, arg2, ...)
+/// Template uses {0}, {1}, {2}, etc. for placeholders
+/// Example: llm('Translate {0} to {1}', text_col, 'French')
 #[derive(Debug)]
-pub struct LlmExtractUdf {
+pub struct LlmUdf {
     signature: Signature,
     client: LlmClient,
 }
 
-impl LlmExtractUdf {
+impl LlmUdf {
     pub fn new(client: LlmClient) -> Self {
         Self {
-            signature: Signature::exact(
-                vec![DataType::Utf8, DataType::Utf8],
+            // At least 1 argument (template), then any number of string args
+            signature: Signature::new(
+                TypeSignature::VariadicAny,
                 Volatility::Volatile,
             ),
             client,
@@ -25,13 +31,13 @@ impl LlmExtractUdf {
     }
 }
 
-impl ScalarUDFImpl for LlmExtractUdf {
+impl ScalarUDFImpl for LlmUdf {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "llm_extract"
+        "llm"
     }
 
     fn signature(&self) -> &Signature {
@@ -44,73 +50,81 @@ impl ScalarUDFImpl for LlmExtractUdf {
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let args = &args.args;
-        if args.len() != 2 {
+        if args.is_empty() {
             return Err(datafusion::error::DataFusionError::Execution(
-                "llm_extract requires exactly 2 arguments".to_string(),
+                "llm() requires at least a template argument".to_string(),
             ));
         }
 
-        // Convert both arguments to arrays
-        let content_array = match &args[0] {
-            ColumnarValue::Array(arr) => arr.clone(),
-            ColumnarValue::Scalar(s) => s.to_array()?,
-        };
+        // Get the number of rows from the first array argument
+        let num_rows = args
+            .iter()
+            .find_map(|a| match a {
+                ColumnarValue::Array(arr) => Some(arr.len()),
+                _ => None,
+            })
+            .unwrap_or(1);
 
-        let prompt_array = match &args[1] {
-            ColumnarValue::Array(arr) => arr.clone(),
-            ColumnarValue::Scalar(s) => {
-                // Expand scalar to match content array length
-                s.to_array_of_size(content_array.len())?
-            }
-        };
+        // Convert all arguments to arrays of the same length
+        let arrays: Vec<ArrayRef> = args
+            .iter()
+            .map(|arg| match arg {
+                ColumnarValue::Array(arr) => Ok(arr.clone()),
+                ColumnarValue::Scalar(s) => s.to_array_of_size(num_rows),
+            })
+            .collect::<DFResult<Vec<_>>>()?;
 
-        let content_arr = content_array
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| {
-                datafusion::error::DataFusionError::Execution(
-                    "First argument must be a string".to_string(),
-                )
-            })?;
+        // Convert to string arrays
+        let string_arrays: Vec<&StringArray> = arrays
+            .iter()
+            .map(|arr| {
+                arr.as_any().downcast_ref::<StringArray>().ok_or_else(|| {
+                    datafusion::error::DataFusionError::Execution(
+                        "All arguments to llm() must be strings".to_string(),
+                    )
+                })
+            })
+            .collect::<DFResult<Vec<_>>>()?;
 
-        let prompt_arr = prompt_array
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| {
-                datafusion::error::DataFusionError::Execution(
-                    "Second argument must be a string".to_string(),
-                )
-            })?;
-
-        // Collect all (content, prompt) pairs
-        let mut requests = Vec::with_capacity(content_arr.len());
+        // Build prompts by filling in templates
+        let mut prompts = Vec::with_capacity(num_rows);
         let mut null_indices = Vec::new();
 
-        for i in 0..content_arr.len() {
-            if content_arr.is_null(i) || prompt_arr.is_null(i) {
-                null_indices.push(i);
-                requests.push((String::new(), String::new())); // Placeholder
-            } else {
-                requests.push((
-                    content_arr.value(i).to_string(),
-                    prompt_arr.value(i).to_string(),
-                ));
+        for row in 0..num_rows {
+            // Check for nulls
+            if string_arrays.iter().any(|arr| arr.is_null(row)) {
+                null_indices.push(row);
+                prompts.push(String::new()); // Placeholder
+                continue;
             }
+
+            // Get template (first arg)
+            let template = string_arrays[0].value(row);
+
+            // Fill in placeholders {0}, {1}, {2}, etc.
+            let mut prompt = template.to_string();
+            for (i, arr) in string_arrays.iter().skip(1).enumerate() {
+                let placeholder = format!("{{{}}}", i);
+                let value = arr.value(row);
+                prompt = prompt.replace(&placeholder, value);
+            }
+
+            prompts.push(prompt);
         }
 
         // Filter out null entries for the API call
-        let valid_requests: Vec<(String, String)> = requests
+        let valid_prompts: Vec<String> = prompts
             .iter()
             .enumerate()
             .filter(|(i, _)| !null_indices.contains(i))
-            .map(|(_, r)| r.clone())
+            .map(|(_, p)| p.clone())
             .collect();
 
-        // Call the batch API (blocking on async)
+        // Call the batch API
         let client = self.client.clone();
         let api_results = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
-                client.process_batch(valid_requests).await
+                client.process_prompts(valid_prompts).await
             })
         })
         .map_err(|e| {
@@ -121,7 +135,7 @@ impl ScalarUDFImpl for LlmExtractUdf {
         let mut result_builder = arrow::array::StringBuilder::new();
         let mut api_idx = 0;
 
-        for i in 0..content_arr.len() {
+        for i in 0..num_rows {
             if null_indices.contains(&i) {
                 result_builder.append_null();
             } else {

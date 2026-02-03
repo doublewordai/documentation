@@ -119,7 +119,58 @@ impl LlmClient {
         }
     }
 
+    /// Process multiple prompts using the batch API
+    pub async fn process_prompts(
+        &self,
+        prompts: Vec<String>,
+    ) -> Result<Vec<String>, LlmError> {
+        if prompts.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Build JSONL content
+        let jsonl = self.build_jsonl_from_prompts(&prompts)?;
+
+        // Upload file
+        let file_id = self.upload_file(&jsonl).await?;
+
+        // Create batch
+        let batch_id = self.create_batch(&file_id).await?;
+
+        // Poll until complete
+        let output_file_id = self.poll_batch(&batch_id).await?;
+
+        // Download and parse results
+        let results = self.download_results(&output_file_id, prompts.len()).await?;
+
+        Ok(results)
+    }
+
+    fn build_jsonl_from_prompts(&self, prompts: &[String]) -> Result<String, LlmError> {
+        let mut lines = Vec::with_capacity(prompts.len());
+
+        for (i, prompt) in prompts.iter().enumerate() {
+            let batch_req = BatchRequest {
+                custom_id: format!("req-{}", i),
+                method: "POST".to_string(),
+                url: "/v1/chat/completions".to_string(),
+                body: ChatCompletionRequest {
+                    model: self.model.clone(),
+                    messages: vec![Message {
+                        role: "user".to_string(),
+                        content: prompt.clone(),
+                    }],
+                },
+            };
+
+            lines.push(serde_json::to_string(&batch_req)?);
+        }
+
+        Ok(lines.join("\n"))
+    }
+
     /// Process multiple (content, prompt) pairs using the batch API
+    #[allow(dead_code)]
     pub async fn process_batch(
         &self,
         requests: Vec<(String, String)>, // (content, prompt) pairs

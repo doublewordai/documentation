@@ -2,9 +2,9 @@ use arrow::array::Array;
 use arrow::util::pretty::pretty_format_batches;
 use clap::Parser;
 use datafusion::execution::context::{SessionConfig, SessionContext};
-use datafusion::logical_expr::ScalarUDF;
+use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use datafusion::prelude::NdJsonReadOptions;
-use datafusion_llm_udf::{LlmClient, LlmExtractUdf};
+use datafusion_llm_udf::{LlmClient, LlmFoldUdaf, LlmUdf};
 use rustyline::completion::{Completer, Pair};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::{CmdKind, Highlighter};
@@ -63,7 +63,7 @@ const SQL_KEYWORDS: &[&str] = &[
     "ROW_NUMBER", "RANK", "DENSE_RANK", "LAG", "LEAD",
     "SHOW", "TABLES", "DESCRIBE", "EXPLAIN", "ANALYZE",
     // Our UDF
-    "llm_extract",
+    "llm", "llm_fold",
 ];
 
 // Dot commands
@@ -278,10 +278,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = SessionConfig::new().with_information_schema(true);
     let ctx = SessionContext::new_with_config(config);
 
-    // Register LLM UDF
+    // Register LLM UDFs
     let client = LlmClient::new(&args.api_url, &args.api_key, &args.model);
-    let llm_extract = ScalarUDF::from(LlmExtractUdf::new(client));
-    ctx.register_udf(llm_extract);
+
+    // llm(template, arg1, arg2, ...) - variadic scalar UDF
+    let llm_udf = ScalarUDF::from(LlmUdf::new(client.clone()));
+    ctx.register_udf(llm_udf);
+
+    // llm_fold(fold_template, map_template, column) - aggregate with tree-reduce
+    let llm_fold = AggregateUDF::from(LlmFoldUdaf::new(client));
+    ctx.register_udaf(llm_fold);
 
     // Load any specified tables
     for table_spec in &args.tables {
@@ -502,7 +508,9 @@ fn print_welcome() {
     println!();
     println!("\x1b[1mCommands:\x1b[0m .help .tables .schema <t> .load <file> .functions .history");
     println!();
-    println!("\x1b[1mLLM UDF:\x1b[0m  llm_extract(content, 'your prompt')");
+    println!("\x1b[1mLLM Functions:\x1b[0m");
+    println!("  llm(template, arg1, ...)     - Template with {{0}}, {{1}}, ... placeholders");
+    println!("  llm_fold(fold, map, col)     - Map-reduce with tree folding");
     println!();
 }
 
@@ -532,13 +540,17 @@ async fn handle_dot_command(
             println!("  End statements with semicolon (;)");
             println!("  Multi-line statements supported");
             println!();
-            println!("\x1b[1mLLM UDF:\x1b[0m");
-            println!("  llm_extract(content, prompt)");
-            println!("  Sends text to LLM and returns the response");
+            println!("\x1b[1mLLM Functions:\x1b[0m");
+            println!("  llm(template, arg1, arg2, ...)");
+            println!("    Template uses {{0}}, {{1}}, etc. for placeholders");
+            println!();
+            println!("  llm_fold(fold_template, map_template, column)");
+            println!("    Map each row, then tree-reduce pairwise");
             println!();
             println!("\x1b[1mExamples:\x1b[0m");
-            println!("  SELECT llm_extract(text, 'Extract the date') FROM docs;");
-            println!("  SELECT llm_extract(content, 'Summarize in one sentence') FROM articles;");
+            println!("  SELECT llm('Extract date from: {{0}}', text) FROM docs;");
+            println!("  SELECT llm('Translate {{0}} to {{1}}', content, 'French') FROM articles;");
+            println!("  SELECT llm_fold('Combine: {{0}}\\n{{1}}', 'Summarize: {{0}}', text) FROM docs;");
             Ok(true)
         }
         ".tables" | ".t" => {
@@ -580,9 +592,10 @@ async fn handle_dot_command(
             Ok(true)
         }
         ".functions" | ".f" => {
-            // Just show our custom function prominently
+            // Just show our custom functions prominently
             println!("\x1b[1mLLM Functions:\x1b[0m");
-            println!("  llm_extract(content, prompt) - Process text with LLM");
+            println!("  llm(template, ...)       - Variadic template with {{0}}, {{1}} placeholders");
+            println!("  llm_fold(fold, map, col) - Map-reduce with tree-fold");
             println!();
             println!("Run 'SHOW FUNCTIONS;' to see all {} available functions.", {
                 let df = ctx.sql("SHOW FUNCTIONS").await?;
