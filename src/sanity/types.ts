@@ -92,7 +92,7 @@ export interface DocPageForNav {
   externalLinkIcon?: boolean;
   categorySlug: string;
   categoryName: string;
-  parentSlug?: string;
+  parentSlug?: string | null;
   category: {
     _id: string;
     name: string;
