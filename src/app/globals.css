@@ -32,7 +32,9 @@
   --button-text: #ffffff;
 
   /* Typography */
-  --font-family: 'IBM Plex Sans Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family:
+    "IBM Plex Sans Variable", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
   --line-height: 1.5;
 }
 
@@ -58,8 +60,8 @@ html[data-theme="dark"] {
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: 'IBM Plex Sans Variable', sans-serif;
-  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+  --font-sans: "IBM Plex Sans Variable", sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
 }
 
 /* ============================================
@@ -83,12 +85,12 @@ body {
 
 /* Hide scrollbar but keep functionality */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari, Opera */
+  display: none; /* Chrome, Safari, Opera */
 }
 
 /* Subtle vertical scrollbar for TOC */
@@ -194,6 +196,10 @@ body {
   border-bottom-color: var(--sidebar-border);
 }
 
+.prose thead th {
+  color: var(--foreground);
+}
+
 .prose tbody tr {
   border-bottom-color: var(--sidebar-border);
 }
@@ -219,7 +225,9 @@ body {
 .prose pre {
   background: var(--pre-bg);
   border: 1px solid var(--pre-border);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 1px 2px rgba(0, 0, 0, 0.05);
   border-radius: 12px;
   overflow-x: auto;
   padding: 1.5rem;
@@ -515,7 +523,9 @@ html[data-theme="dark"] .admonition-info .admonition-title::before {
   background: var(--sidebar-bg);
   border: 1px solid var(--pre-border);
   border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
   color: var(--foreground);
   z-index: 50;
   opacity: 0;
@@ -641,7 +651,7 @@ html[data-theme="dark"] .admonition-info .admonition-title::before {
 
 /* Chevron icon using CSS - positioned on the right */
 .prose details summary::after {
-  content: '';
+  content: "";
   width: 1rem;
   height: 1rem;
   flex-shrink: 0;
@@ -715,7 +725,7 @@ html[data-theme="dark"] .prose details summary:hover::after {
    ============================================ */
 
 .toc-aside::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -2rem;
   left: 0;

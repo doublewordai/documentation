@@ -67,20 +67,25 @@ function getGitHubBaseUrl(rawUrl: string): string | null {
 }
 
 /**
- * Convert relative links to absolute GitHub URLs
- * e.g., ./async-agents/ -> https://github.com/doublewordai/use-cases/tree/main/async-agents
+ * Convert relative directory links to docs page links
+ * e.g., ./async-agents/ -> /batches/async-agents
  */
-function convertRelativeLinksToGitHub(
+function convertRelativeLinksToDocsPages(
   markdown: string,
-  baseUrl: string,
+  productSlug: string,
 ): string {
-  // Match markdown links with relative paths: [text](./path) or [text](path/)
+  // Match markdown links with relative directory paths: [text](./path/) or [text](./path)
   return markdown.replace(
-    /\[([^\]]+)\]\((\.[^)]+)\)/g,
+    /\[([^\]]+)\]\(\.\/([^)]+)\)/g,
     (match, text, relativePath) => {
-      // Remove leading ./ if present
-      const cleanPath = relativePath.replace(/^\.\//, "").replace(/\/$/, "");
-      return `[${text}](${baseUrl}/${cleanPath})`;
+      // Remove trailing slash if present
+      const cleanPath = relativePath.replace(/\/$/, "");
+      // Only convert if it looks like a directory (no file extension)
+      if (!cleanPath.includes(".")) {
+        return `[${text}](/${productSlug}/${cleanPath})`;
+      }
+      // Keep original for files
+      return match;
     },
   );
 }
@@ -89,10 +94,12 @@ export async function MarkdownRenderer({
   content,
   images,
   externalSource,
+  productSlug,
 }: {
   content: string;
   images?: ImageData[];
   externalSource?: string;
+  productSlug?: string;
 }) {
   // Fetch models data for templating
   const modelsResponse = await fetchModelsServer();
@@ -105,15 +112,12 @@ export async function MarkdownRenderer({
   // Convert sidenote syntax [>id] to footnote syntax [^id] before parsing
   processedContent = convertSidenotesToFootnotes(processedContent);
 
-  // Convert relative links to absolute GitHub URLs if we have an external source
-  if (externalSource) {
-    const gitHubBaseUrl = getGitHubBaseUrl(externalSource);
-    if (gitHubBaseUrl) {
-      processedContent = convertRelativeLinksToGitHub(
-        processedContent,
-        gitHubBaseUrl,
-      );
-    }
+  // Convert relative directory links to docs page links if we have a product slug
+  if (externalSource && productSlug) {
+    processedContent = convertRelativeLinksToDocsPages(
+      processedContent,
+      productSlug,
+    );
   }
 
   // Replace image filenames with Sanity CDN URLs

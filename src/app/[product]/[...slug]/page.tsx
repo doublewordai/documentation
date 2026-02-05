@@ -260,6 +260,7 @@ export default async function DocPage({ params }: Props) {
                     content={content}
                     images={images}
                     externalSource={doc.externalSource}
+                    productSlug={productSlug}
                   />
                 )}
               </div>

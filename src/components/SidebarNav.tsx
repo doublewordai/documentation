@@ -166,7 +166,7 @@ export default function SidebarNav({
                       {/* Child pages */}
                       <ul
                         className={`ml-3 pl-2 border-l space-y-0.5 overflow-hidden transition-all duration-200 ${
-                          isOpen || isChildActive
+                          isOpen
                             ? "max-h-96 opacity-100 mt-0.5"
                             : "max-h-0 opacity-0"
                         }`}
