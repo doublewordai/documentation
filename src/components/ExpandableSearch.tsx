@@ -306,7 +306,7 @@ export default function ExpandableSearch({expandable = false, expandedWidth = 24
           onFocus={() => { if (matches.length > 0) setDropdownOpen(true); }}
           onKeyDown={onKeyDown}
           autoComplete="off"
-          className="w-full bg-transparent text-sm outline-none"
+          className="w-full bg-transparent text-sm 2xl:text-base outline-none"
           style={{color: "var(--foreground)"}}
         />
         {query && (
