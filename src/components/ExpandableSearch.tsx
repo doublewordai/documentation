@@ -262,12 +262,12 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
       <>
         <button
           onClick={() => setExpanded(true)}
-          className={`flex items-center justify-center w-7 h-7 ${className ?? ""}`}
+          className={`flex items-center justify-center w-10 h-10 -m-1.5 ${className ?? ""}`}
           style={{color: "var(--text-muted)"}}
           aria-label="Search docs"
           type="button"
         >
-          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
             <circle cx="8.5" cy="8.5" r="5.5" />
             <path d="M13 13L17 17" />
           </svg>
@@ -279,7 +279,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
             style={{background: "var(--sidebar-bg)", borderBottom: "1px solid var(--sidebar-border)"}}
           >
             <svg
-              className="w-4 h-4 shrink-0"
+              className="w-5 h-5 shrink-0"
               viewBox="0 0 20 20"
               fill="none"
               stroke="currentColor"
@@ -309,11 +309,11 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
             <button
               type="button"
               onClick={collapse}
-              className="flex items-center justify-center shrink-0 w-7 h-7"
+              className="flex items-center justify-center shrink-0 w-10 h-10 -m-1.5"
               style={{color: "var(--text-muted)"}}
               aria-label="Close search"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M4 4l8 8M12 4l-8 8" />
               </svg>
             </button>
@@ -329,12 +329,13 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
     return (
       <div ref={wrapperRef} className={`relative ${className ?? ""}`}>
         <div
-          className="flex items-center rounded-lg overflow-hidden transition-all duration-200 ease-out"
+          className="flex items-center rounded-lg overflow-hidden"
           style={{
             maxWidth: expanded ? 240 : 28,
-            width: expanded ? "100%" : 28,
+            width: "100%",
             background: expanded ? "var(--sidebar-bg)" : "transparent",
             border: expanded ? "1px solid var(--sidebar-border)" : "1px solid transparent",
+            transition: "max-width 200ms ease-out, background 200ms ease-out, border-color 200ms ease-out",
           }}
         >
           <button
