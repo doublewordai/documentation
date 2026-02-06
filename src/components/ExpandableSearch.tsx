@@ -250,7 +250,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
         {expanded && (
           <div
             ref={wrapperRef}
-            className="fixed top-0 left-0 right-0 h-14 z-[60] flex items-center gap-3 px-4 animate-[fadeIn_150ms_ease-out]"
+            className="fixed top-0 left-0 right-0 h-14 z-[60] flex items-center gap-3 px-4 animate-[fadeIn_50ms_ease-out]"
             style={{background: "var(--sidebar-bg)", borderBottom: "1px solid var(--sidebar-border)"}}
           >
             <svg
