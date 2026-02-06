@@ -11,7 +11,6 @@ import ApiKeyBanner from "@/components/ApiKeyBanner";
 import ApiKeyIndicator from "@/components/ApiKeyIndicator";
 import ModelSelector from "@/components/ModelSelector";
 import ExpandableSearch from "@/components/ExpandableSearch";
-import SearchHighlighter from "@/components/SearchHighlighter";
 
 const SITE_URL = "https://docs.doubleword.ai";
 
@@ -69,7 +68,7 @@ export async function generateStaticParams() {
 
 interface Props {
   params: Promise<{ product: string; slug: string[] }>;
-  searchParams: Promise<{highlight?: string}>;
+
 }
 
 /**
@@ -119,10 +118,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function DocPage({ params, searchParams }: Props) {
+export default async function DocPage({ params }: Props) {
   const { product: productSlug, slug } = await params;
   const docSlug = slug.join("/");
-  const {highlight} = await searchParams;
+
 
   // Fetch the documentation page
   const doc = (await sanityFetch({
@@ -292,7 +291,7 @@ export default async function DocPage({ params, searchParams }: Props) {
                   </a>
                 </div>
               )}
-              {highlight && <SearchHighlighter query={highlight} />}
+
             </article>
           </div>
 

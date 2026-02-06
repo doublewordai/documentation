@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       categoryName: result.categoryName || "",
       snippet: result.snippet,
       score: result.score,
-      href: `/${result.productSlug}/${result.slug}?highlight=${encodeURIComponent(query)}`,
+      href: `/${result.productSlug}/${result.slug}`,
       path: `/${result.productSlug}/${result.slug}`,
     }));
 
