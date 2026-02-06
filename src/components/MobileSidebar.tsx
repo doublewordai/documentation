@@ -82,7 +82,7 @@ export default function MobileSidebar({
 
         <Link
           href="/"
-          className="hover:opacity-80 transition-opacity"
+          className="absolute left-1/2 -translate-x-1/2 hover:opacity-80 transition-opacity"
         >
           <Image
             src="/logo-full-black.png"
