@@ -57,7 +57,7 @@ export default async function ProductLayout({
         productSlug={productSlug}
         groupedDocs={groupedDocs}
       />
-      <main className="pt-14 lg:pt-0 lg:ml-64">{children}</main>
+      <main className="pt-14 xl:pt-0 xl:ml-64">{children}</main>
     </div>
   )
 }

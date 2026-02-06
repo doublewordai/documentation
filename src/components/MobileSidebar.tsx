@@ -47,7 +47,7 @@ export default function MobileSidebar({
     <>
       {/* Mobile header bar */}
       <header
-        className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
+        className="xl:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
         style={{ backgroundColor: 'var(--sidebar-bg)', borderBottom: '1px solid var(--sidebar-border)' }}
       >
         <button
@@ -113,7 +113,7 @@ export default function MobileSidebar({
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-40"
+          className="xl:hidden fixed inset-0 z-40"
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
           onClick={() => setIsMobileMenuOpen(false)}
         />
@@ -123,8 +123,8 @@ export default function MobileSidebar({
       <aside
         className={`
           w-64 overflow-y-auto fixed z-40 transition-transform duration-300
-          top-14 bottom-0 lg:top-0 lg:h-screen
-          lg:translate-x-0
+          top-14 bottom-0 xl:top-0 xl:h-screen
+          xl:translate-x-0
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
         style={{
@@ -134,7 +134,7 @@ export default function MobileSidebar({
         }}
       >
         <div className="p-6">
-          <div className="hidden lg:flex items-center justify-between mb-8">
+          <div className="hidden xl:flex items-center justify-between mb-8">
             <Link
               href="/"
               className="hover:opacity-80 transition-opacity"
