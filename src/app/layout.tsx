@@ -12,6 +12,8 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ConfigProvider } from "@/components/ConfigProvider";
 import PageEnhancer from "@/components/PageEnhancer";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Doubleword Documentation",
@@ -55,6 +57,8 @@ export default async function RootLayout({
           </AuthProvider>
         </ThemeProvider>
         {(await draftMode()).isEnabled && <VisualEditing />}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
