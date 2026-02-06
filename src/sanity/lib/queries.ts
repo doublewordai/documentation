@@ -162,7 +162,7 @@ export const HOMEPAGE_QUERY = defineQuery(`*[_type == "homepage"][0]{
   heroTitle,
   heroTitleMuted,
   heroDescription,
-  "featuredGuides": featuredGuides[defined(@->product->slug.current)]->{
+  "featuredGuides": featuredGuides[]->{
     _id,
     title,
     "slug": slug.current,
@@ -182,4 +182,48 @@ export const CLAUDE_SKILL_QUERY = defineQuery(`*[
   description,
   githubUrl,
   version
+}`);
+
+/**
+ * Query documentation pages for search index across all products.
+ * We include body text to support body-level matches.
+ */
+export const DOC_SEARCH_INDEX_QUERY =
+  defineQuery(`*[
+  _type == "docPage" &&
+  defined(slug.current) &&
+  defined(product->slug.current)
+]{
+  _id,
+  title,
+  sidebarLabel,
+  description,
+  body,
+  "slug": slug.current,
+  "productSlug": product->slug.current,
+  "productName": product->name,
+  "categorySlug": category->slug.current,
+  "categoryName": category->name
+}`);
+
+/**
+ * Query documentation pages for search index scoped to a single product.
+ */
+export const DOC_SEARCH_INDEX_BY_PRODUCT_QUERY =
+  defineQuery(`*[
+  _type == "docPage" &&
+  defined(slug.current) &&
+  defined(product->slug.current) &&
+  product->slug.current == $productSlug
+]{
+  _id,
+  title,
+  sidebarLabel,
+  description,
+  body,
+  "slug": slug.current,
+  "productSlug": product->slug.current,
+  "productName": product->name,
+  "categorySlug": category->slug.current,
+  "categoryName": category->name
 }`);

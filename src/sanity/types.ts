@@ -108,3 +108,21 @@ export interface ClaudeSkill {
   githubUrl?: string;
   version?: string;
 }
+
+export interface DocSearchIndexItem {
+  _id: string;
+  title: string;
+  sidebarLabel?: string;
+  description?: string;
+  body?: string;
+  slug: string;
+  productSlug: string;
+  productName: string;
+  categorySlug?: string;
+  categoryName?: string;
+}
+
+export interface DocSearchResult extends DocSearchIndexItem {
+  score: number;
+  snippet: string;
+}

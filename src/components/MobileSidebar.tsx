@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import SidebarNav from "./SidebarNav";
 import ThemeToggle from "./ThemeToggle";
+import ExpandableSearch from "./ExpandableSearch";
 import type {DocPageForNav} from '@/sanity/types';
 
 type GroupedDocs = Record<string, {
@@ -52,7 +53,7 @@ export default function MobileSidebar({
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 -ml-2 rounded-lg"
-          aria-label="Toggle menu"
+          aria-label={`Toggle ${productName} docs menu`}
         >
           <svg
             className="w-5 h-5"
@@ -157,9 +158,14 @@ export default function MobileSidebar({
             <ThemeToggle />
           </div>
 
-          <div onClick={() => setIsMobileMenuOpen(false)}>
-            <SidebarNav productSlug={productSlug} groupedDocs={groupedDocs} />
+          <div className="mb-4 lg:hidden">
+            <ExpandableSearch productSlug={productSlug} />
           </div>
+          <SidebarNav
+            productSlug={productSlug}
+            groupedDocs={groupedDocs}
+            onNavigate={() => setIsMobileMenuOpen(false)}
+          />
         </div>
       </aside>
     </>

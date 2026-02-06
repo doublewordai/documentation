@@ -10,6 +10,8 @@ import CopyMarkdownButton from "@/components/CopyMarkdownButton";
 import ApiKeyBanner from "@/components/ApiKeyBanner";
 import ApiKeyIndicator from "@/components/ApiKeyIndicator";
 import ModelSelector from "@/components/ModelSelector";
+import ExpandableSearch from "@/components/ExpandableSearch";
+import SearchHighlighter from "@/components/SearchHighlighter";
 
 const SITE_URL = "https://docs.doubleword.ai";
 
@@ -67,6 +69,7 @@ export async function generateStaticParams() {
 
 interface Props {
   params: Promise<{ product: string; slug: string[] }>;
+  searchParams: Promise<{highlight?: string}>;
 }
 
 /**
@@ -116,9 +119,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function DocPage({ params }: Props) {
+export default async function DocPage({ params, searchParams }: Props) {
   const { product: productSlug, slug } = await params;
   const docSlug = slug.join("/");
+  const {highlight} = await searchParams;
 
   // Fetch the documentation page
   const doc = (await sanityFetch({
@@ -288,6 +292,7 @@ export default async function DocPage({ params }: Props) {
                   </a>
                 </div>
               )}
+              {highlight && <SearchHighlighter query={highlight} />}
             </article>
           </div>
 
@@ -296,6 +301,9 @@ export default async function DocPage({ params }: Props) {
             className="hidden xl:block sticky top-8 h-fit pt-8 z-10 toc-aside ml-auto flex-shrink-0 w-[280px] 2xl:w-[360px]"
             style={{ background: "var(--background)" }}
           >
+            <div className="mb-4">
+              <ExpandableSearch productSlug={productSlug} />
+            </div>
             <TableOfContents />
 
             <div className="mt-6">
