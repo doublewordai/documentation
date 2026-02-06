@@ -119,7 +119,7 @@ export default async function HomePage() {
         {/* Hero Section */}
         <header className="mb-12 sm:mb-16">
           <div className="flex items-center justify-between mb-8">
-            <div>
+            <div className="shrink-0">
               <Image
                 src="/logo-full-black.png"
                 alt="Doubleword"

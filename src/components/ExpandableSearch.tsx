@@ -194,8 +194,9 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
 
   const dropdown = dropdownOpen && query.trim().length >= MIN_QUERY_LENGTH && (
     <div
-      className="absolute mt-2 rounded-lg overflow-hidden z-50"
+      className="absolute rounded-lg overflow-hidden z-50"
       style={{
+        top: "calc(100% + 0.5rem)",
         right: 0,
         width: expandable ? 400 : "100%",
         border: "1px solid var(--sidebar-border)",
@@ -346,7 +347,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
             placeholder={placeholder}
             tabIndex={expanded ? 0 : -1}
             autoComplete="off"
-            className="bg-transparent text-sm outline-none py-1 pr-2"
+            className="bg-transparent text-sm outline-none py-1 pr-1"
             style={{
               color: "var(--foreground)",
               width: expanded ? "calc(100% - 28px)" : 0,
@@ -354,6 +355,23 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
               transition: "opacity 150ms ease-out",
             }}
           />
+          {expanded && query && (loading ? (
+            <span className="shrink-0 pr-1.5" style={{color: "var(--text-muted)"}}>
+              <Spinner className="w-3 h-3 animate-spin" />
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="shrink-0 pr-1.5 hover:text-[var(--foreground)] transition-colors"
+              style={{color: "var(--text-muted)"}}
+              aria-label="Clear search"
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3 h-3">
+                <path d="M4 4l8 8M12 4l-8 8" />
+              </svg>
+            </button>
+          ))}
         </div>
         {expanded && dropdown}
       </div>
