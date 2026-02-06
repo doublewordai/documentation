@@ -63,6 +63,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(!expandable);
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<Match[]>([]);
@@ -131,12 +132,18 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
     return () => clearTimeout(timer);
   }, [query, productSlug]);
 
-  // Focus on expand
+  // Focus on expand (non-fullWidth variants use setTimeout; fullWidth uses ref callback)
   useEffect(() => {
-    if (!expandable || !expanded) return;
+    if (!expandable || !expanded || fullWidthExpand) return;
     const timer = setTimeout(() => inputRef.current?.focus(), 50);
     return () => clearTimeout(timer);
-  }, [expandable, expanded]);
+  }, [expandable, fullWidthExpand, expanded]);
+
+  // Ref callback for fullWidthExpand — focuses synchronously on mount so mobile keyboards appear
+  const fullWidthInputRef = useCallback((el: HTMLInputElement | null) => {
+    inputRef.current = el;
+    if (el) el.focus();
+  }, []);
 
   // Scroll active item into view
   useEffect(() => {
@@ -146,12 +153,13 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
     item?.scrollIntoView({block: "nearest"});
   }, [activeIndex]);
 
-  // Click outside
+  // Click outside (check both wrapper and dropdown since dropdown can be fixed-positioned outside wrapper)
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        collapse();
-      }
+      const target = e.target as Node;
+      if (wrapperRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      collapse();
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
@@ -194,6 +202,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
 
   const dropdown = dropdownOpen && query.trim().length >= MIN_QUERY_LENGTH && (
     <div
+      ref={dropdownRef}
       className={fullWidthExpand
         ? "fixed left-0 right-0 z-50"
         : "absolute rounded-lg overflow-hidden z-50"
@@ -212,7 +221,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
           No matches.
         </p>
       ) : (
-        <ul ref={listRef} className="max-h-80 overflow-y-auto">
+        <ul ref={listRef} className={`overflow-y-auto ${fullWidthExpand ? "max-h-[calc(100vh-3.5rem)]" : "max-h-80"}`}>
           {matches.map((match, index) => {
             const isActive = index === activeIndex;
             return (
@@ -281,7 +290,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
               <path d="M13 13L17 17" />
             </svg>
             <input
-              ref={inputRef}
+              ref={fullWidthInputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -292,23 +301,22 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
               className="flex-1 bg-transparent text-sm outline-none"
               style={{color: "var(--foreground)"}}
             />
-            {loading ? (
-              <span className="flex items-center justify-center shrink-0 w-7 h-7" style={{color: "var(--text-muted)"}}>
+            {loading && (
+              <span className="flex items-center justify-center shrink-0 w-5 h-7" style={{color: "var(--text-muted)"}}>
                 <Spinner />
               </span>
-            ) : (
-              <button
-                type="button"
-                onClick={collapse}
-                className="flex items-center justify-center shrink-0 w-7 h-7"
-                style={{color: "var(--text-muted)"}}
-                aria-label="Close search"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M4 4l8 8M12 4l-8 8" />
-                </svg>
-              </button>
             )}
+            <button
+              type="button"
+              onClick={collapse}
+              className="flex items-center justify-center shrink-0 w-7 h-7"
+              style={{color: "var(--text-muted)"}}
+              aria-label="Close search"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M4 4l8 8M12 4l-8 8" />
+              </svg>
+            </button>
             {dropdown}
           </div>
         )}
