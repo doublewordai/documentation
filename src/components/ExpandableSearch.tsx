@@ -194,12 +194,15 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
 
   const dropdown = dropdownOpen && query.trim().length >= MIN_QUERY_LENGTH && (
     <div
-      className="absolute rounded-lg overflow-hidden z-50"
+      className={fullWidthExpand
+        ? "fixed left-0 right-0 z-50"
+        : "absolute rounded-lg overflow-hidden z-50"
+      }
       style={{
-        top: "calc(100% + 0.5rem)",
-        right: 0,
-        width: expandable ? 400 : "100%",
-        border: "1px solid var(--sidebar-border)",
+        top: fullWidthExpand ? 56 : "calc(100% + 0.5rem)",
+        ...(!fullWidthExpand && { right: 0, width: expandable ? 400 : "100%" }),
+        border: fullWidthExpand ? undefined : "1px solid var(--sidebar-border)",
+        borderTop: fullWidthExpand ? "1px solid var(--sidebar-border)" : undefined,
         background: "var(--sidebar-bg)",
         boxShadow: "0 4px 24px rgba(0, 0, 0, 0.12)",
       }}
