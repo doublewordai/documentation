@@ -21,11 +21,13 @@ type GroupedDocs = Record<
 type SidebarNavProps = {
   productSlug: string;
   groupedDocs: GroupedDocs;
+  onNavigate?: () => void;
 };
 
 export default function SidebarNav({
   productSlug,
   groupedDocs,
+  onNavigate,
 }: SidebarNavProps) {
   const pathname = usePathname();
 
@@ -116,6 +118,7 @@ export default function SidebarNav({
                       <div className="flex items-center">
                         <Link
                           href={href}
+                          onClick={onNavigate}
                           className={`flex-1 flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
                             isActive ? "" : "hover:translate-x-0.5"
                           }`}
@@ -180,6 +183,7 @@ export default function SidebarNav({
                             <li key={child._id}>
                               <Link
                                 href={childHref}
+                                onClick={onNavigate}
                                 className={`flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
                                   isChildItemActive
                                     ? ""
@@ -220,6 +224,7 @@ export default function SidebarNav({
                   <li key={doc._id}>
                     <Link
                       href={href}
+                      onClick={onNavigate}
                       className={`flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
                         isActive ? "" : "hover:translate-x-0.5"
                       }`}

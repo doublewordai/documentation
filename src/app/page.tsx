@@ -4,6 +4,7 @@ import {sanityFetch} from '@/sanity/lib/client'
 import {PRODUCTS_QUERY, HOMEPAGE_QUERY} from '@/sanity/lib/queries'
 import type {Product} from '@/sanity/types'
 import ThemeToggle from '@/components/ThemeToggle'
+import ExpandableSearch from '@/components/ExpandableSearch'
 
 type FeaturedGuide = {
   _id: string
@@ -138,7 +139,10 @@ export default async function HomePage() {
                 style={{ height: 'auto' }}
               />
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-1">
+              <ExpandableSearch expandable />
+              <ThemeToggle />
+            </div>
           </div>
 
           <h1
@@ -166,6 +170,7 @@ export default async function HomePage() {
           >
             {homepage?.heroDescription || "Explore guides and references for Doubleword's open-source tools."}
           </p>
+
         </header>
 
         {/* Products Grid */}

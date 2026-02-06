@@ -83,6 +83,12 @@ body {
   }
 }
 
+/* Hide native search clear button (we use a custom one) */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* Hide scrollbar but keep functionality */
 .scrollbar-hide {
   -ms-overflow-style: none; /* IE and Edge */
@@ -804,4 +810,13 @@ html[data-theme="dark"] .logo-light {
 
 html[data-theme="dark"] .logo-dark {
   display: block;
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

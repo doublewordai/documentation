@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import SidebarNav from "./SidebarNav";
 import ThemeToggle from "./ThemeToggle";
+import ExpandableSearch from "./ExpandableSearch";
 import type {DocPageForNav} from '@/sanity/types';
 
 type GroupedDocs = Record<string, {
@@ -46,13 +47,13 @@ export default function MobileSidebar({
     <>
       {/* Mobile header bar */}
       <header
-        className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
+        className="xl:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
         style={{ backgroundColor: 'var(--sidebar-bg)', borderBottom: '1px solid var(--sidebar-border)' }}
       >
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 -ml-2 rounded-lg"
-          aria-label="Toggle menu"
+          aria-label={`Toggle ${productName} docs menu`}
         >
           <svg
             className="w-5 h-5"
@@ -81,7 +82,7 @@ export default function MobileSidebar({
 
         <Link
           href="/"
-          className="hover:opacity-80 transition-opacity"
+          className="absolute left-1/2 -translate-x-1/2 hover:opacity-80 transition-opacity"
         >
           <Image
             src="/logo-full-black.png"
@@ -103,13 +104,16 @@ export default function MobileSidebar({
           />
         </Link>
 
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          <ExpandableSearch expandable fullWidthExpand productSlug={productSlug} />
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-40"
+          className="xl:hidden fixed inset-0 z-40"
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
           onClick={() => setIsMobileMenuOpen(false)}
         />
@@ -119,8 +123,8 @@ export default function MobileSidebar({
       <aside
         className={`
           w-64 overflow-y-auto fixed z-40 transition-transform duration-300
-          top-14 bottom-0 lg:top-0 lg:h-screen
-          lg:translate-x-0
+          top-14 bottom-0 xl:top-0 xl:h-screen
+          xl:translate-x-0
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
         style={{
@@ -130,7 +134,7 @@ export default function MobileSidebar({
         }}
       >
         <div className="p-6">
-          <div className="hidden lg:flex items-center justify-between mb-8">
+          <div className="hidden xl:flex items-center justify-between mb-8">
             <Link
               href="/"
               className="hover:opacity-80 transition-opacity"
@@ -157,9 +161,11 @@ export default function MobileSidebar({
             <ThemeToggle />
           </div>
 
-          <div onClick={() => setIsMobileMenuOpen(false)}>
-            <SidebarNav productSlug={productSlug} groupedDocs={groupedDocs} />
-          </div>
+          <SidebarNav
+            productSlug={productSlug}
+            groupedDocs={groupedDocs}
+            onNavigate={() => setIsMobileMenuOpen(false)}
+          />
         </div>
       </aside>
     </>
