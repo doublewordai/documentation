@@ -43,14 +43,14 @@ type Match = {
 type Props = {
   /** When true, renders as an icon that expands on click. When false, renders as a full input. */
   expandable?: boolean;
-  /** Width in px when expanded. Defaults to 240. */
-  expandedWidth?: number;
+  /** When true (with expandable), expands as a fixed full-width bar instead of widening in place. */
+  fullWidthExpand?: boolean;
   /** Scope search to a specific product. */
   productSlug?: string;
   className?: string;
 };
 
-export default function ExpandableSearch({expandable = false, expandedWidth = 240, productSlug, className}: Props) {
+export default function ExpandableSearch({expandable = false, fullWidthExpand = false, productSlug, className}: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -231,14 +231,80 @@ export default function ExpandableSearch({expandable = false, expandedWidth = 24
     </div>
   );
 
-  // Expandable variant: icon that widens into an input
+  // Expandable variant (full-width takeover): icon that opens a fixed bar across the top
+  if (expandable && fullWidthExpand) {
+    if (!expanded) {
+      return (
+        <button
+          onClick={() => setExpanded(true)}
+          className={`flex items-center justify-center w-7 h-7 ${className ?? ""}`}
+          style={{color: "var(--text-muted)"}}
+          aria-label="Search docs"
+          type="button"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <circle cx="8.5" cy="8.5" r="5.5" />
+            <path d="M13 13L17 17" />
+          </svg>
+        </button>
+      );
+    }
+
+    return (
+      <div
+        ref={wrapperRef}
+        className="fixed top-0 left-0 right-0 h-14 z-[60] flex items-center gap-3 px-4"
+        style={{background: "var(--sidebar-bg)", borderBottom: "1px solid var(--sidebar-border)"}}
+      >
+        <button
+          onClick={collapse}
+          className="flex items-center justify-center shrink-0 w-7 h-7"
+          style={{color: "var(--text-muted)"}}
+          aria-label="Close search"
+          type="button"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M10 2L4 8l6 6" />
+          </svg>
+        </button>
+        <input
+          ref={inputRef}
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => { if (matches.length > 0) setDropdownOpen(true); }}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          autoComplete="off"
+          className="flex-1 bg-transparent text-sm outline-none"
+          style={{color: "var(--foreground)"}}
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={clearSearch}
+            className="flex items-center justify-center shrink-0 w-7 h-7"
+            style={{color: "var(--text-muted)"}}
+            aria-label="Clear search"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M4 4l8 8M12 4l-8 8" />
+            </svg>
+          </button>
+        )}
+        {dropdown}
+      </div>
+    );
+  }
+
+  // Expandable variant (inline widen): icon that smoothly widens into an input
   if (expandable) {
     return (
       <div ref={wrapperRef} className={`relative ${className ?? ""}`}>
         <div
           className="flex items-center rounded-lg overflow-hidden transition-all duration-200 ease-out"
           style={{
-            width: expanded ? expandedWidth : 28,
+            width: expanded ? 240 : 28,
             background: expanded ? "var(--sidebar-bg)" : "transparent",
             border: expanded ? "1px solid var(--sidebar-border)" : "1px solid transparent",
           }}

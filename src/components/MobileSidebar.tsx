@@ -105,7 +105,7 @@ export default function MobileSidebar({
         </Link>
 
         <div className="flex items-center gap-1">
-          <ExpandableSearch expandable expandedWidth={180} productSlug={productSlug} />
+          <ExpandableSearch expandable fullWidthExpand productSlug={productSlug} />
           <ThemeToggle />
         </div>
       </header>
