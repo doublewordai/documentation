@@ -43,12 +43,14 @@ type Match = {
 type Props = {
   /** When true, renders as an icon that expands on click. When false, renders as a full input. */
   expandable?: boolean;
+  /** Width in px when expanded. Defaults to 240. */
+  expandedWidth?: number;
   /** Scope search to a specific product. */
   productSlug?: string;
   className?: string;
 };
 
-export default function ExpandableSearch({expandable = false, productSlug, className}: Props) {
+export default function ExpandableSearch({expandable = false, expandedWidth = 240, productSlug, className}: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -236,7 +238,7 @@ export default function ExpandableSearch({expandable = false, productSlug, class
         <div
           className="flex items-center rounded-lg overflow-hidden transition-all duration-200 ease-out"
           style={{
-            width: expanded ? 240 : 28,
+            width: expanded ? expandedWidth : 28,
             background: expanded ? "var(--sidebar-bg)" : "transparent",
             border: expanded ? "1px solid var(--sidebar-border)" : "1px solid transparent",
           }}

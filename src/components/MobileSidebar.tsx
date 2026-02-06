@@ -104,7 +104,10 @@ export default function MobileSidebar({
           />
         </Link>
 
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          <ExpandableSearch expandable expandedWidth={180} productSlug={productSlug} />
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Overlay for mobile */}
@@ -158,9 +161,6 @@ export default function MobileSidebar({
             <ThemeToggle />
           </div>
 
-          <div className="mb-4 lg:hidden">
-            <ExpandableSearch productSlug={productSlug} />
-          </div>
           <SidebarNav
             productSlug={productSlug}
             groupedDocs={groupedDocs}
