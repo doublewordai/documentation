@@ -19,6 +19,8 @@ function clearPreviousMarks() {
   });
 }
 
+const FADE_DURATION_MS = 1500;
+
 export default function SearchHighlighter({query}: SearchHighlighterProps) {
   useEffect(() => {
     const trimmed = query.trim();
@@ -32,6 +34,7 @@ export default function SearchHighlighter({query}: SearchHighlighterProps) {
     const walker = document.createTreeWalker(prose, NodeFilter.SHOW_TEXT);
     const pattern = new RegExp(escapeRegExp(trimmed), "i");
     let firstMatchElement: Element | null = null;
+    const marks: HTMLElement[] = [];
 
     while (walker.nextNode()) {
       const textNode = walker.currentNode as Text;
@@ -48,12 +51,14 @@ export default function SearchHighlighter({query}: SearchHighlighterProps) {
 
       const mark = document.createElement("mark");
       mark.dataset.searchHighlight = "true";
-      mark.style.background = "rgba(255, 214, 10, 0.35)";
+      mark.style.background = "var(--hover-bg)";
       mark.style.color = "inherit";
-      mark.style.padding = "0 0.05em";
+      mark.style.padding = "0.1em 0.15em";
       mark.style.borderRadius = "0.2em";
+      mark.style.transition = `background ${FADE_DURATION_MS}ms ease-out`;
       mark.textContent = matched;
       fragment.appendChild(mark);
+      marks.push(mark);
 
       if (after) fragment.appendChild(document.createTextNode(after));
 
@@ -65,7 +70,21 @@ export default function SearchHighlighter({query}: SearchHighlighterProps) {
       firstMatchElement.scrollIntoView({behavior: "smooth", block: "center"});
     }
 
+    // Fade out highlights after a brief pause
+    const fadeTimer = setTimeout(() => {
+      marks.forEach((mark) => {
+        mark.style.background = "transparent";
+      });
+    }, 600);
+
+    // Clean up marks after fade completes
+    const cleanupTimer = setTimeout(() => {
+      clearPreviousMarks();
+    }, 600 + FADE_DURATION_MS + 100);
+
     return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(cleanupTimer);
       clearPreviousMarks();
     };
   }, [query]);
