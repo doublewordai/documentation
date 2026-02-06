@@ -298,7 +298,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
               onKeyDown={onKeyDown}
               placeholder={placeholder}
               autoComplete="off"
-              className="flex-1 bg-transparent text-sm outline-none"
+              className="flex-1 bg-transparent text-base sm:text-sm outline-none"
               style={{color: "var(--foreground)"}}
             />
             {loading && (
@@ -359,7 +359,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
             placeholder={placeholder}
             tabIndex={expanded ? 0 : -1}
             autoComplete="off"
-            className="bg-transparent text-sm outline-none py-1 pr-1"
+            className="bg-transparent text-base sm:text-sm outline-none py-1 pr-1"
             style={{
               color: "var(--foreground)",
               width: expanded ? "calc(100% - 28px)" : 0,
