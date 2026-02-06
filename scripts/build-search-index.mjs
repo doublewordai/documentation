@@ -15,7 +15,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUTPUT_DIR = join(__dirname, "..", ".next", "cache");
+const OUTPUT_DIR = join(__dirname, "..", "public");
 const OUTPUT_PATH = join(OUTPUT_DIR, "search-index.json");
 
 const client = createClient({
