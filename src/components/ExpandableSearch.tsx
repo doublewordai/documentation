@@ -26,6 +26,14 @@ function highlightMatches(text: string, query: string): ReactNode {
   );
 }
 
+function Spinner({className}: {className?: string}) {
+  return (
+    <svg className={`animate-spin ${className ?? "w-3.5 h-3.5"}`} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M8 1.5a6.5 6.5 0 1 1 0 13" />
+    </svg>
+  );
+}
+
 const DEBOUNCE_MS = 220;
 const MIN_QUERY_LENGTH = 2;
 
@@ -60,6 +68,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
   const [matches, setMatches] = useState<Match[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [originPath, setOriginPath] = useState<string | null>(null);
 
   const topMatch = useMemo(() => matches[0] || null, [matches]);
@@ -99,21 +108,24 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
   // Debounced search
   useEffect(() => {
     const trimmed = query.trim();
-    const timer = setTimeout(async () => {
-      if (trimmed.length < MIN_QUERY_LENGTH) {
-        setMatches([]);
-        setDropdownOpen(false);
-        setActiveIndex(0);
-        return;
-      }
+    if (trimmed.length < MIN_QUERY_LENGTH) {
+      setMatches([]);
+      setDropdownOpen(false);
+      setActiveIndex(0);
+      setLoading(false);
+      return;
+    }
 
+    setLoading(true);
+    const timer = setTimeout(async () => {
       const productParam = productSlug ? `&product=${encodeURIComponent(productSlug)}` : "";
       const response = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}&limit=6${productParam}`);
-      if (!response.ok) return;
+      if (!response.ok) { setLoading(false); return; }
       const data = (await response.json()) as {matches: Match[]};
       setMatches(data.matches || []);
       setDropdownOpen(true);
       setActiveIndex(0);
+      setLoading(false);
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
@@ -276,17 +288,23 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
               className="flex-1 bg-transparent text-sm outline-none"
               style={{color: "var(--foreground)"}}
             />
-            <button
-              type="button"
-              onClick={collapse}
-              className="flex items-center justify-center shrink-0 w-7 h-7"
-              style={{color: "var(--text-muted)"}}
-              aria-label="Close search"
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M4 4l8 8M12 4l-8 8" />
-              </svg>
-            </button>
+            {loading ? (
+              <span className="flex items-center justify-center shrink-0 w-7 h-7" style={{color: "var(--text-muted)"}}>
+                <Spinner />
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={collapse}
+                className="flex items-center justify-center shrink-0 w-7 h-7"
+                style={{color: "var(--text-muted)"}}
+                aria-label="Close search"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M4 4l8 8M12 4l-8 8" />
+                </svg>
+              </button>
+            )}
             {dropdown}
           </div>
         )}
@@ -372,7 +390,11 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
           className="w-full bg-transparent text-sm 2xl:text-base outline-none"
           style={{color: "var(--foreground)"}}
         />
-        {query && (
+        {query && (loading ? (
+          <span className="shrink-0 p-0.5" style={{color: "var(--text-muted)"}}>
+            <Spinner />
+          </span>
+        ) : (
           <button
             type="button"
             onClick={clearSearch}
@@ -384,7 +406,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
               <path d="M4 4l8 8M12 4l-8 8" />
             </svg>
           </button>
-        )}
+        ))}
       </div>
       {dropdown}
     </div>
