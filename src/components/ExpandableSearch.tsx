@@ -320,7 +320,8 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
         <div
           className="flex items-center rounded-lg overflow-hidden transition-all duration-200 ease-out"
           style={{
-            width: expanded ? 240 : 28,
+            maxWidth: expanded ? 240 : 28,
+            width: expanded ? "100%" : 28,
             background: expanded ? "var(--sidebar-bg)" : "transparent",
             border: expanded ? "1px solid var(--sidebar-border)" : "1px solid transparent",
           }}
