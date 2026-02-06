@@ -266,7 +266,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
             </svg>
             <input
               ref={inputRef}
-              type="search"
+              type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => { if (matches.length > 0) setDropdownOpen(true); }}
@@ -320,7 +320,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
           </button>
           <input
             ref={inputRef}
-            type="search"
+            type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => { if (matches.length > 0) setDropdownOpen(true); }}
@@ -362,7 +362,7 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
         </svg>
         <input
           ref={inputRef}
-          type="search"
+          type="text"
           placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
