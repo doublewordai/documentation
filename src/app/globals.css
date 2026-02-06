@@ -811,3 +811,12 @@ html[data-theme="dark"] .logo-light {
 html[data-theme="dark"] .logo-dark {
   display: block;
 }
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

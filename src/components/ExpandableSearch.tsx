@@ -233,8 +233,8 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
 
   // Expandable variant (full-width takeover): icon that opens a fixed bar across the top
   if (expandable && fullWidthExpand) {
-    if (!expanded) {
-      return (
+    return (
+      <>
         <button
           onClick={() => setExpanded(true)}
           className={`flex items-center justify-center w-7 h-7 ${className ?? ""}`}
@@ -247,53 +247,50 @@ export default function ExpandableSearch({expandable = false, fullWidthExpand = 
             <path d="M13 13L17 17" />
           </svg>
         </button>
-      );
-    }
-
-    return (
-      <div
-        ref={wrapperRef}
-        className="fixed top-0 left-0 right-0 h-14 z-[60] flex items-center gap-3 px-4"
-        style={{background: "var(--sidebar-bg)", borderBottom: "1px solid var(--sidebar-border)"}}
-      >
-        <button
-          onClick={collapse}
-          className="flex items-center justify-center shrink-0 w-7 h-7"
-          style={{color: "var(--text-muted)"}}
-          aria-label="Close search"
-          type="button"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M10 2L4 8l6 6" />
-          </svg>
-        </button>
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => { if (matches.length > 0) setDropdownOpen(true); }}
-          onKeyDown={onKeyDown}
-          placeholder={placeholder}
-          autoComplete="off"
-          className="flex-1 bg-transparent text-sm outline-none"
-          style={{color: "var(--foreground)"}}
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={clearSearch}
-            className="flex items-center justify-center shrink-0 w-7 h-7"
-            style={{color: "var(--text-muted)"}}
-            aria-label="Clear search"
+        {expanded && (
+          <div
+            ref={wrapperRef}
+            className="fixed top-0 left-0 right-0 h-14 z-[60] flex items-center gap-3 px-4 animate-[fadeIn_150ms_ease-out]"
+            style={{background: "var(--sidebar-bg)", borderBottom: "1px solid var(--sidebar-border)"}}
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M4 4l8 8M12 4l-8 8" />
+            <svg
+              className="w-4 h-4 shrink-0"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              style={{color: "var(--text-muted)"}}
+            >
+              <circle cx="8.5" cy="8.5" r="5.5" />
+              <path d="M13 13L17 17" />
             </svg>
-          </button>
+            <input
+              ref={inputRef}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => { if (matches.length > 0) setDropdownOpen(true); }}
+              onKeyDown={onKeyDown}
+              placeholder={placeholder}
+              autoComplete="off"
+              className="flex-1 bg-transparent text-sm outline-none"
+              style={{color: "var(--foreground)"}}
+            />
+            <button
+              type="button"
+              onClick={collapse}
+              className="flex items-center justify-center shrink-0 w-7 h-7"
+              style={{color: "var(--text-muted)"}}
+              aria-label="Close search"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M4 4l8 8M12 4l-8 8" />
+              </svg>
+            </button>
+            {dropdown}
+          </div>
         )}
-        {dropdown}
-      </div>
+      </>
     );
   }
 
