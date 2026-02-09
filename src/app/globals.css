@@ -824,3 +824,121 @@ html[data-theme="dark"] .logo-dark {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ============================================
+   Status Widget
+   ============================================ */
+
+
+.status-widget {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.status-dot.success {
+  background-color: #10b981;
+}
+
+.status-dot.warning {
+  background-color: #f59e0b;
+}
+
+.view-details {
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.view-details:hover {
+  text-decoration: underline;
+}
+
+.ongoing-incidents {
+  margin-top: 1.5rem;
+}
+
+.ongoing-incidents h4 {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.incident {
+  background: #fef3c7;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.incident-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 0.5rem;
+}
+
+.incident-header h5 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.incident-status {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+
+.incident-status.partial-outage {
+  background: #fbbf24;
+  color: #78350f;
+}
+
+.incident-status.degraded-performance {
+  background: #fcd34d;
+  color: #78350f;
+}
+
+.incident-status.full-outage {
+  background: #ef4444;
+  color: white;
+}
+
+.affected-components {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0.5rem 0;
+}
+
+.incident a {
+  color: #3b82f6;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.incident a:hover {
+  text-decoration: underline;
+}

@@ -13,6 +13,8 @@ import remarkCodeTabs from "@/app/lib/remark-code-tabs";
 import CopyButton from "./CopyButton";
 import { fetchModelsServer } from "@/lib/models";
 import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
+import { StatusWidget } from './StatusWidget';
+
 
 /**
  * Convert sidenote syntax to footnote syntax in raw markdown
@@ -346,6 +348,7 @@ export async function MarkdownRenderer({
         a: AnchorComponent,
         section: SectionComponent,
         li: ListItemComponent,
+        StatusWidget: StatusWidget,
       }}
     >
       {processedContent}
