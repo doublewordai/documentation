@@ -114,6 +114,16 @@ export async function MarkdownRenderer({
   // Convert sidenote syntax [>id] to footnote syntax [^id] before parsing
   processedContent = convertSidenotesToFootnotes(processedContent);
 
+  // Convert <StatusWidget /> to <status-widget> for rehype-raw compatibility
+  processedContent = processedContent.replace(
+    /<StatusWidget\s*\/?\s*>/gi,
+    "<status-widget>",
+  );
+  processedContent = processedContent.replace(
+    /<\/StatusWidget>/gi,
+    "</status-widget>",
+  );
+
   // Convert relative directory links to docs page links if we have a product slug
   if (externalSource && productSlug) {
     processedContent = convertRelativeLinksToDocsPages(
@@ -348,8 +358,8 @@ export async function MarkdownRenderer({
         a: AnchorComponent,
         section: SectionComponent,
         li: ListItemComponent,
-        StatusWidget: StatusWidget,
-      }}
+        "status-widget": StatusWidget,
+      } as React.ComponentProps<typeof MarkdownAsync>["components"]}
     >
       {processedContent}
     </MarkdownAsync>
