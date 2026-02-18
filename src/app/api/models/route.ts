@@ -56,8 +56,8 @@ export async function GET() {
 
     // Transform to cleaner format
     const models = rawModels.map((m) => {
-      const batch1hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window === '1h')
-      const batch24hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window === '24h')
+      const batch1hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window?.includes('1h'))
+      const batch24hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window?.includes('24h'))
       const realtimeTariff = m.tariffs?.find(t => t.api_key_purpose === 'realtime')
 
       return {
