@@ -67,20 +67,12 @@ const productIcons: Record<string, React.ReactNode> = {
       <path d="M16.24 7.76l2.83-2.83" />
     </svg>
   ),
-  'inference-stack': (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-      <path d="M12 2L2 7l10 5 10-5-10-5z" />
-      <path d="M2 17l10 5 10-5" />
-      <path d="M2 12l10 5 10-5" />
-    </svg>
-  ),
 }
 
 // Quick links for each product
 const quickLinks: Record<string, { label: string; href: string }> = {
   'batches': { label: 'Submit your first batch', href: '/batches/getting-started-with-batched-api' },
   'control-layer': { label: 'Getting started', href: '/control-layer/getting-started' },
-  'inference-stack': { label: 'Your first deployment', href: '/inference-stack/deployment/first-deployment' },
 }
 
 export default async function HomePage() {
@@ -182,7 +174,7 @@ export default async function HomePage() {
             Products
           </h2>
 
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
+          <div className={`grid gap-4 sm:gap-6 ${products?.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
             {products?.map((product, index) => {
               const slug = product.slug.current
               const icon = productIcons[slug]
