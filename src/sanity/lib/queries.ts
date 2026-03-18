@@ -4,7 +4,7 @@ import { defineQuery } from "next-sanity";
  * Query all products for the homepage
  */
 export const PRODUCTS_QUERY =
-  defineQuery(`*[_type == "product"] | order(name asc) {
+  defineQuery(`*[_type == "product"] | order(name desc) {
   _id,
   name,
   slug,
@@ -150,7 +150,8 @@ export const ALL_DOC_PAGE_PATHS_QUERY =
  */
 export const FIRST_DOC_QUERY = defineQuery(`*[
   _type == "docPage" &&
-  product->slug.current == $productSlug
+  product->slug.current == $productSlug &&
+  !defined(parent)
 ] | order(category->order asc, order asc)[0]{
   "slug": slug.current
 }`);
