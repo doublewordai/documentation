@@ -46,7 +46,7 @@ function renderWithLinks(text: string) {
 
 // Product icons mapped by slug
 const productIcons: Record<string, React.ReactNode> = {
-  'batches': (
+  'inference-api': (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
       <rect x="3" y="3" width="7" height="7" rx="1" />
       <rect x="14" y="3" width="7" height="7" rx="1" />
@@ -71,7 +71,7 @@ const productIcons: Record<string, React.ReactNode> = {
 
 // Quick links for each product
 const quickLinks: Record<string, { label: string; href: string }> = {
-  'batches': { label: 'Submit your first batch', href: '/batches/getting-started-with-batched-api' },
+  'inference-api': { label: 'Get started', href: '/inference-api/intro-to-doubleword-inference' },
   'control-layer': { label: 'Getting started', href: '/control-layer/getting-started' },
 }
 

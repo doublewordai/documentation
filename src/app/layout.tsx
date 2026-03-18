@@ -17,7 +17,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Doubleword Documentation",
-  description: "Documentation for Doubleword Control Layer, Inference Stack, and Batched API",
+  description: "Documentation for Doubleword Control Layer, Inference Stack, and Inference API",
 };
 
 export default async function RootLayout({

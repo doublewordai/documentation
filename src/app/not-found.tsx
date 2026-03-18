@@ -56,7 +56,7 @@ export default function NotFound() {
         {/* Quick Links */}
         <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
           <Link
-            href="/batches/getting-started-with-batched-api"
+            href="/inference-api/getting-started-with-batched-api"
             className="group p-4 rounded-lg border transition-colors hover:border-[var(--accent)]"
             style={{borderColor: 'var(--sidebar-border)'}}
           >
@@ -64,7 +64,7 @@ export default function NotFound() {
               className="font-semibold mb-1 group-hover:text-[var(--accent)] transition-colors"
               style={{color: 'var(--foreground)'}}
             >
-              Batched API
+              Doubleword Inference API
             </p>
             <p className="text-sm" style={{color: 'var(--text-muted)'}}>
               Low-cost, high-throughput LLM inference

@@ -141,6 +141,20 @@ const nextConfig: NextConfig = {
       },
 
       // =====================================================
+      // PRODUCT SLUG MIGRATION: /batches → /inference-api
+      // =====================================================
+      {
+        source: '/batches',
+        destination: '/inference-api',
+        permanent: true,
+      },
+      {
+        source: '/batches/:path*',
+        destination: '/inference-api/:path*',
+        permanent: true,
+      },
+
+      // =====================================================
       // CHANGED DOC SLUGS
       // =====================================================
       {

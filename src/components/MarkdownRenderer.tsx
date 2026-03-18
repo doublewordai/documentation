@@ -70,7 +70,7 @@ function getGitHubBaseUrl(rawUrl: string): string | null {
 
 /**
  * Convert relative directory links to docs page links
- * e.g., ./async-agents/ -> /batches/async-agents
+ * e.g., ./async-agents/ -> /inference-api/async-agents
  */
 function convertRelativeLinksToDocsPages(
   markdown: string,

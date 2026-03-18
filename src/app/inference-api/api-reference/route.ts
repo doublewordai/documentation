@@ -5,7 +5,7 @@ const config = {
     url: "/api/openapi",
   },
   metaData: {
-    title: "API Reference | Batches | Doubleword Docs",
+    title: "API Reference | Doubleword Inference API | Doubleword Docs",
     description: "Complete API reference for the Doubleword API",
   },
 };

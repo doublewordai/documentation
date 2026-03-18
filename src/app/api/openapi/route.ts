@@ -6,17 +6,17 @@ const SYSTEM_API_KEY = process.env.DOUBLEWORD_SYSTEM_API_KEY;
 const SPEC_OVERRIDES = {
   info: {
     title: "Doubleword API",
-    description: `The Doubleword Batched API lets you process thousands of LLM requests efficiently at a fraction of the cost of real-time inference.
+    description: `The Doubleword Inference API lets you process thousands of LLM requests efficiently at a fraction of the cost of real-time inference.
 
-**Why batch?**
-- **Massive cost savings** — Our 24h SLA is substantially cheaper than real-time pricing
-- **Flexible SLAs** — Choose 1h turnaround (at standard batch pricing) or 24h for maximum savings
+**Why Doubleword?**
+- **Massive cost savings** — Async and batch SLAs are substantially cheaper than real-time pricing
+- **Flexible SLAs** — Choose async (1h turnaround) or batch (24h) for maximum savings
 - **Open-source models** — Access leading open-source models via an OpenAI-compatible API
 - **Higher throughput** — Process large datasets without rate limit concerns
 
-Upload a JSONL file with your requests, kick off a batch, and retrieve your results when ready. Perfect for bulk content generation, data processing, evaluations, and any workload that doesn't need instant responses.
+Use the OpenAI-compatible API with the Autobatcher for drop-in async savings, or upload JSONL files for large-scale batch processing.
 
-[Generate API key →](https://app.doubleword.ai/api-keys) · [Documentation →](https://docs.doubleword.ai/batches)`,
+[Generate API key →](https://app.doubleword.ai/api-keys) · [Documentation →](https://docs.doubleword.ai/inference-api)`,
     version: "1.0.0",
   },
   servers: [
