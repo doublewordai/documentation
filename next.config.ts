@@ -158,6 +158,16 @@ const nextConfig: NextConfig = {
       // CHANGED DOC SLUGS
       // =====================================================
       {
+        source: '/inference-api/real-time-api',
+        destination: '/inference-api/realtime-inference',
+        permanent: true,
+      },
+      {
+        source: '/inference-api/getting-started-with-batched-api',
+        destination: '/inference-api/batch-inference',
+        permanent: true,
+      },
+      {
         source: '/inference-stack/deployment/first',
         destination: '/inference-stack/deployment/first-deployment',
         permanent: true,

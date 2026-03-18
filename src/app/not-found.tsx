@@ -56,7 +56,7 @@ export default function NotFound() {
         {/* Quick Links */}
         <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
           <Link
-            href="/inference-api/getting-started-with-batched-api"
+            href="/inference-api/intro-to-doubleword-inference"
             className="group p-4 rounded-lg border transition-colors hover:border-[var(--accent)]"
             style={{borderColor: 'var(--sidebar-border)'}}
           >
