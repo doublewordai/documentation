@@ -54,7 +54,7 @@ export default function NotFound() {
         </Link>
 
         {/* Quick Links */}
-        <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
           <Link
             href="/inference-api/intro-to-doubleword-inference"
             className="group p-4 rounded-lg border transition-colors hover:border-[var(--accent)]"
@@ -84,22 +84,6 @@ export default function NotFound() {
             </p>
             <p className="text-sm" style={{color: 'var(--text-muted)'}}>
               Secure access control for AI models
-            </p>
-          </Link>
-
-          <Link
-            href="/inference-stack/deployment/first-deployment"
-            className="group p-4 rounded-lg border transition-colors hover:border-[var(--accent)]"
-            style={{borderColor: 'var(--sidebar-border)'}}
-          >
-            <p
-              className="font-semibold mb-1 group-hover:text-[var(--accent)] transition-colors"
-              style={{color: 'var(--foreground)'}}
-            >
-              Inference Stack
-            </p>
-            <p className="text-sm" style={{color: 'var(--text-muted)'}}>
-              Run genAI in your private environment
             </p>
           </Link>
         </div>
