@@ -4,6 +4,8 @@ posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
   api_host: "/ingest",
   ui_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   defaults: '2025-05-24',
+  cross_subdomain_cookie: true,
+  person_profiles: 'always',
   // Enable capturing unhandled exceptions via Error Tracking
   capture_exceptions: true,
   // Turn on debug in development mode
