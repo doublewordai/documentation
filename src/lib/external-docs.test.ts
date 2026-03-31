@@ -7,13 +7,12 @@ import {
 
 const source: ExternalDocsSource = {
   id: "dw-cli",
-  title: "CLI",
-  productSlug: "inference-api",
-  routePrefix: "cli",
+  title: "Doubleword CLI",
+  productSlug: "dw-cli",
   summaryUrl: "https://example.com/SUMMARY.md",
   rawBaseUrl: "https://example.com",
   repoUrl: "https://example.com/repo",
-  productName: "Inference API",
+  productName: "Doubleword CLI",
 };
 
 describe("parseSummary", () => {
@@ -31,21 +30,21 @@ describe("parseSummary", () => {
     expect(parseSummary(summary, source)).toEqual([
       {
         title: "Introduction",
-        slug: "cli/introduction",
+        slug: "introduction",
         sourcePath: "introduction.md",
-        categoryName: "CLI",
+        categoryName: "Doubleword CLI",
         order: 0,
       },
       {
         title: "Installation",
-        slug: "cli/installation",
+        slug: "installation",
         sourcePath: "installation.md",
         categoryName: "Getting Started",
         order: 1,
       },
       {
         title: "Authentication",
-        slug: "cli/authentication",
+        slug: "authentication",
         sourcePath: "authentication.md",
         categoryName: "Getting Started",
         order: 2,
@@ -59,30 +58,30 @@ describe("resolveExternalMarkdownLink", () => {
     expect(
       resolveExternalMarkdownLink({
         href: "authentication.md",
-        productSlug: "inference-api",
-        routePrefix: "cli",
+        productSlug: "dw-cli",
+        routePrefix: "",
         sourcePath: "installation.md",
       }),
-    ).toBe("/inference-api/cli/authentication");
+    ).toBe("/dw-cli/authentication");
   });
 
   it("preserves anchors when rewriting markdown links", () => {
     expect(
       resolveExternalMarkdownLink({
         href: "commands.md#dw-project-create",
-        productSlug: "inference-api",
-        routePrefix: "cli",
+        productSlug: "dw-cli",
+        routePrefix: "",
         sourcePath: "quickstart.md",
       }),
-    ).toBe("/inference-api/cli/commands#dw-project-create");
+    ).toBe("/dw-cli/commands#dw-project-create");
   });
 
   it("leaves non-markdown links unchanged", () => {
     expect(
       resolveExternalMarkdownLink({
         href: "https://doubleword.ai",
-        productSlug: "inference-api",
-        routePrefix: "cli",
+        productSlug: "dw-cli",
+        routePrefix: "",
         sourcePath: "quickstart.md",
       }),
     ).toBe("https://doubleword.ai");

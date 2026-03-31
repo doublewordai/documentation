@@ -232,7 +232,7 @@ export default async function DocPage({ params }: Props) {
               >
                 {resolvedDoc.product.name}
               </Link>
-              {externalDocMatch && (
+              {externalDocMatch?.source.routePrefix && (
                 <>
                   <svg
                     viewBox="0 0 16 16"

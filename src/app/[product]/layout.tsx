@@ -3,7 +3,7 @@ import {sanityFetch} from '@/sanity/lib/client'
 import {PRODUCT_QUERY, DOCS_BY_PRODUCT_QUERY} from '@/sanity/lib/queries'
 import type {Product, DocPageForNav} from '@/sanity/types'
 import MobileSidebar from '@/components/MobileSidebar'
-import {getExternalDocsGroups} from '@/lib/external-docs'
+import {getExternalDocsGroups, getExternalProduct} from '@/lib/external-docs'
 
 
 export default async function ProductLayout({
@@ -20,18 +20,22 @@ export default async function ProductLayout({
     query: PRODUCT_QUERY,
     params: {slug: productSlug},
     tags: ['product'],
-  }) as Product
+  }) as Product | null
 
-  if (!product) {
+  const resolvedProduct = product || getExternalProduct(productSlug)
+
+  if (!resolvedProduct) {
     notFound()
   }
 
   // Fetch all docs for sidebar
-  const docs = await sanityFetch({
-    query: DOCS_BY_PRODUCT_QUERY,
-    params: {productId: product._id},
-    tags: ['docPage', 'category'],
-  }) as DocPageForNav[]
+  const docs = product
+    ? await sanityFetch({
+      query: DOCS_BY_PRODUCT_QUERY,
+      params: {productId: product._id},
+      tags: ['docPage', 'category'],
+    }) as DocPageForNav[]
+    : []
 
   const externalDocGroups = await getExternalDocsGroups(productSlug)
 
@@ -56,7 +60,7 @@ export default async function ProductLayout({
   return (
     <div className="min-h-screen" style={{background: 'var(--background)'}}>
       <MobileSidebar
-        productName={product.name}
+        productName={resolvedProduct.name}
         productSlug={productSlug}
         groupedDocs={groupedDocs}
         externalDocGroups={externalDocGroups}

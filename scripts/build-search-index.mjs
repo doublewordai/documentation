@@ -50,14 +50,13 @@ const QUERY = `*[
 const EXTERNAL_DOCS_SOURCES = [
   {
     id: "dw-cli",
-    title: "CLI",
-    productSlug: "inference-api",
-    routePrefix: "cli",
+    title: "Doubleword CLI",
+    productSlug: "dw-cli",
     summaryUrl:
       "https://raw.githubusercontent.com/doublewordai/dw/main/docs/src/SUMMARY.md",
     rawBaseUrl:
       "https://raw.githubusercontent.com/doublewordai/dw/main/docs/src",
-    productName: "Inference API",
+    productName: "Doubleword CLI",
   },
 ];
 
@@ -124,7 +123,9 @@ function parseSummary(summary, source) {
     entries.push({
       title: title.trim(),
       sourcePath: sourcePath.trim(),
-      slug: `${source.routePrefix}/${sourcePath.trim().replace(/\.md$/, "")}`,
+      slug: source.routePrefix
+        ? `${source.routePrefix}/${sourcePath.trim().replace(/\.md$/, "")}`
+        : sourcePath.trim().replace(/\.md$/, ""),
       categoryName,
     });
   }
@@ -148,7 +149,9 @@ async function getExternalDocsSearchItems() {
           productSlug: source.productSlug,
           productName: source.productName,
           categorySlug: sanitizeCategorySlug(entry.categoryName),
-          categoryName: `${source.title} / ${entry.categoryName}`,
+          categoryName: source.routePrefix
+            ? `${source.title} / ${entry.categoryName}`
+            : entry.categoryName,
           sourceType: "external",
         })),
       );

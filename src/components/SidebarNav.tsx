@@ -303,6 +303,14 @@ export default function SidebarNav({
     <nav className="space-y-6">
       {renderCategoryList(sortedCategories)}
       {externalDocGroups.map((group) => {
+        if (!group.title) {
+          return (
+            <div key={group.id} className="space-y-6">
+              {renderCategoryList(group.categories)}
+            </div>
+          );
+        }
+
         const isOpen = openExternalGroups.has(group.id);
 
         return (

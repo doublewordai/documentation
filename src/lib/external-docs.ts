@@ -5,11 +5,12 @@ export type ExternalDocsSource = {
   id: string;
   title: string;
   productSlug: string;
-  routePrefix: string;
+  routePrefix?: string;
   summaryUrl: string;
   rawBaseUrl: string;
   repoUrl: string;
   productName: string;
+  productDescription?: string;
 };
 
 export type ExternalDocEntry = {
@@ -38,15 +39,16 @@ type ExternalDocMatch = {
 const EXTERNAL_DOCS_SOURCES: ExternalDocsSource[] = [
   {
     id: "dw-cli",
-    title: "CLI",
-    productSlug: "inference-api",
-    routePrefix: "cli",
+    title: "Doubleword CLI",
+    productSlug: "dw-cli",
     summaryUrl:
       "https://raw.githubusercontent.com/doublewordai/dw/main/docs/src/SUMMARY.md",
     rawBaseUrl:
       "https://raw.githubusercontent.com/doublewordai/dw/main/docs/src",
     repoUrl: "https://github.com/doublewordai/dw/tree/main/docs",
-    productName: "Inference API",
+    productName: "Doubleword CLI",
+    productDescription:
+      "Command-line interface for Doubleword batch, streaming, realtime, and project workflows.",
   },
 ];
 
@@ -59,6 +61,11 @@ function sanitizeCategorySlug(value: string): string {
 
 function buildRouteSlug(routePrefix: string, sourcePath: string): string {
   return `${routePrefix}/${sourcePath.replace(/\.md$/, "")}`;
+}
+
+function buildEntrySlug(source: ExternalDocsSource, sourcePath: string): string {
+  const cleanPath = sourcePath.replace(/\.md$/, "");
+  return source.routePrefix ? buildRouteSlug(source.routePrefix, sourcePath) : cleanPath;
 }
 
 export function parseSummary(summary: string, source: ExternalDocsSource): ExternalDocEntry[] {
@@ -83,7 +90,7 @@ export function parseSummary(summary: string, source: ExternalDocsSource): Exter
     const [, title, sourcePath] = linkMatch;
     entries.push({
       title: title.trim(),
-      slug: buildRouteSlug(source.routePrefix, sourcePath.trim()),
+      slug: buildEntrySlug(source, sourcePath.trim()),
       sourcePath: sourcePath.trim(),
       categoryName,
       order: order++,
@@ -157,7 +164,7 @@ export async function getExternalDocsGroups(
 
       return {
         id: source.id,
-        title: source.title,
+        title: source.routePrefix ? source.title : "",
         categories: Array.from(categories.values()),
       };
     }),
@@ -174,9 +181,7 @@ export async function findExternalDocBySlug(
   slug: string,
 ): Promise<ExternalDocMatch | null> {
   const source = EXTERNAL_DOCS_SOURCES.find(
-    (candidate) =>
-      candidate.productSlug === productSlug &&
-      (slug === candidate.routePrefix || slug.startsWith(`${candidate.routePrefix}/`)),
+    (candidate) => candidate.productSlug === productSlug,
   );
 
   if (!source) return null;
@@ -244,7 +249,9 @@ export async function getExternalDocsSearchItems(): Promise<DocSearchIndexItem[]
             productSlug: source.productSlug,
             productName: source.productName,
             categorySlug: sanitizeCategorySlug(entry.categoryName),
-            categoryName: `${source.title} / ${entry.categoryName}`,
+            categoryName: source.routePrefix
+              ? `${source.title} / ${entry.categoryName}`
+              : entry.categoryName,
           } satisfies DocSearchIndexItem;
         }),
       );
@@ -252,6 +259,43 @@ export async function getExternalDocsSearchItems(): Promise<DocSearchIndexItem[]
   );
 
   return groups.flat();
+}
+
+export function getExternalProduct(productSlug: string) {
+  const source = EXTERNAL_DOCS_SOURCES.find(
+    (candidate) => candidate.productSlug === productSlug,
+  );
+
+  if (!source) return null;
+
+  return {
+    _id: source.id,
+    name: source.productName,
+    slug: { current: source.productSlug },
+    description: source.productDescription,
+    githubUrl: source.repoUrl,
+  };
+}
+
+export function getExternalProducts() {
+  return EXTERNAL_DOCS_SOURCES.map((source) => ({
+    _id: source.id,
+    name: source.productName,
+    slug: { current: source.productSlug },
+    description: source.productDescription,
+    githubUrl: source.repoUrl,
+  }));
+}
+
+export async function getFirstExternalDocSlug(productSlug: string) {
+  const source = EXTERNAL_DOCS_SOURCES.find(
+    (candidate) => candidate.productSlug === productSlug,
+  );
+
+  if (!source) return null;
+
+  const entries = await loadSummaryEntries(source);
+  return entries[0]?.slug || null;
 }
 
 export function resolveExternalMarkdownLink({
@@ -290,6 +334,7 @@ export function resolveExternalMarkdownLink({
   }
 
   const cleanPath = resolvedPath.replace(/^(\.\/)+/, "").replace(/\.md$/, "");
-  const target = `/${productSlug}/${routePrefix}/${cleanPath}`;
+  const slugPath = routePrefix ? `${routePrefix}/${cleanPath}` : cleanPath;
+  const target = `/${productSlug}/${slugPath}`;
   return hash ? `${target}#${hash}` : target;
 }
