@@ -59,6 +59,23 @@ export default function SidebarNav({
     });
     return initial;
   });
+  const [openExternalGroups, setOpenExternalGroups] = useState<Set<string>>(
+    () => {
+      const initial = new Set<string>();
+
+      externalDocGroups.forEach((group) => {
+        const hasActiveDoc = group.categories.some(({ docs }) =>
+          docs.some((doc) => pathname === `/${productSlug}/${doc.slug.current}`),
+        );
+
+        if (hasActiveDoc) {
+          initial.add(group.id);
+        }
+      });
+
+      return initial;
+    },
+  );
 
   const toggleSection = (slug: string) => {
     setOpenSections((prev) => {
@@ -67,6 +84,18 @@ export default function SidebarNav({
         next.delete(slug);
       } else {
         next.add(slug);
+      }
+      return next;
+    });
+  };
+
+  const toggleExternalGroup = (groupId: string) => {
+    setOpenExternalGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
       }
       return next;
     });
@@ -273,19 +302,43 @@ export default function SidebarNav({
   return (
     <nav className="space-y-6">
       {renderCategoryList(sortedCategories)}
-      {externalDocGroups.map((group) => (
-        <div key={group.id} className="space-y-4 pt-2 border-t" style={{ borderColor: "var(--sidebar-border)" }}>
-          <p
-            className="px-2 text-[11px] font-semibold tracking-[0.18em] uppercase"
-            style={{ color: "var(--foreground)" }}
+      {externalDocGroups.map((group) => {
+        const isOpen = openExternalGroups.has(group.id);
+
+        return (
+          <div
+            key={group.id}
+            className="space-y-4 pt-2 border-t"
+            style={{ borderColor: "var(--sidebar-border)" }}
           >
-            {group.title}
-          </p>
-          <div className="space-y-6">
-            {renderCategoryList(group.categories)}
+            <button
+              type="button"
+              onClick={() => toggleExternalGroup(group.id)}
+              className="w-full px-2 flex items-center justify-between text-left"
+            >
+              <span
+                className="text-[11px] font-semibold tracking-[0.18em] uppercase"
+                style={{ color: "var(--foreground)" }}
+              >
+                {group.title}
+              </span>
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={`w-3 h-3 transition-transform duration-200 ${
+                  isOpen ? "rotate-90" : ""
+                }`}
+                style={{ color: "var(--text-muted)" }}
+              >
+                <path d="M6 4l4 4-4 4" />
+              </svg>
+            </button>
+            {isOpen && <div className="space-y-6">{renderCategoryList(group.categories)}</div>}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }
