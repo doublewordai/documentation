@@ -47,6 +47,20 @@ const QUERY = `*[
   }
 }`;
 
+const EXTERNAL_DOCS_SOURCES = [
+  {
+    id: "dw-cli",
+    title: "CLI",
+    productSlug: "inference-api",
+    routePrefix: "cli",
+    summaryUrl:
+      "https://raw.githubusercontent.com/doublewordai/dw/main/docs/src/SUMMARY.md",
+    rawBaseUrl:
+      "https://raw.githubusercontent.com/doublewordai/dw/main/docs/src",
+    productName: "Inference API",
+  },
+];
+
 async function fetchExternalContent(url) {
   try {
     const response = await fetch(url);
@@ -81,11 +95,76 @@ async function resolveBody(doc) {
   return doc.body || null;
 }
 
+function sanitizeCategorySlug(value) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function parseSummary(summary, source) {
+  const entries = [];
+  let categoryName = source.title;
+
+  for (const rawLine of summary.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const headingMatch = line.match(/^#\s+(.+)$/);
+    if (headingMatch) {
+      const nextCategory = headingMatch[1].trim();
+      categoryName = nextCategory === "Summary" ? source.title : nextCategory;
+      continue;
+    }
+
+    const linkMatch = line.match(/^-?\s*\[([^\]]+)\]\(([^)]+\.md)\)$/);
+    if (!linkMatch) continue;
+
+    const [, title, sourcePath] = linkMatch;
+    entries.push({
+      title: title.trim(),
+      sourcePath: sourcePath.trim(),
+      slug: `${source.routePrefix}/${sourcePath.trim().replace(/\.md$/, "")}`,
+      categoryName,
+    });
+  }
+
+  return entries;
+}
+
+async function getExternalDocsSearchItems() {
+  const groups = await Promise.all(
+    EXTERNAL_DOCS_SOURCES.map(async (source) => {
+      const summary = await fetchExternalContent(source.summaryUrl);
+      if (!summary) return [];
+
+      const entries = parseSummary(summary, source);
+      return Promise.all(
+        entries.map(async (entry) => ({
+          _id: `${source.id}:${entry.slug}`,
+          title: entry.title,
+          body: (await fetchExternalContent(`${source.rawBaseUrl}/${entry.sourcePath}`)) || undefined,
+          slug: entry.slug,
+          productSlug: source.productSlug,
+          productName: source.productName,
+          categorySlug: sanitizeCategorySlug(entry.categoryName),
+          categoryName: `${source.title} / ${entry.categoryName}`,
+          sourceType: "external",
+        })),
+      );
+    }),
+  );
+
+  return groups.flat();
+}
+
 async function main() {
   console.log("Building search index...");
 
   const docs = await client.fetch(QUERY);
   console.log(`Fetched ${docs.length} doc pages from Sanity`);
+  const externalDocs = await getExternalDocsSearchItems();
+  console.log(`Fetched ${externalDocs.length} external docs`);
 
   let externalFetches = 0;
   let failures = 0;
@@ -116,10 +195,10 @@ async function main() {
   );
 
   mkdirSync(OUTPUT_DIR, { recursive: true });
-  writeFileSync(OUTPUT_PATH, JSON.stringify(index));
+  writeFileSync(OUTPUT_PATH, JSON.stringify([...index, ...externalDocs]));
 
   console.log(
-    `Wrote ${index.length} docs to ${OUTPUT_PATH} (${externalFetches} external fetches, ${failures} failures)`,
+    `Wrote ${index.length + externalDocs.length} docs to ${OUTPUT_PATH} (${externalFetches} external fetches, ${failures} failures)`,
   );
 }
 

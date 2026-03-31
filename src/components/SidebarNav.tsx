@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { DocPageForNav } from "@/sanity/types";
+import type { ExternalDocsGroup } from "@/lib/external-docs";
 
 type GroupedDocs = Record<
   string,
@@ -21,12 +22,14 @@ type GroupedDocs = Record<
 type SidebarNavProps = {
   productSlug: string;
   groupedDocs: GroupedDocs;
+  externalDocGroups?: ExternalDocsGroup[];
   onNavigate?: () => void;
 };
 
 export default function SidebarNav({
   productSlug,
   groupedDocs,
+  externalDocGroups = [],
   onNavigate,
 }: SidebarNavProps) {
   const pathname = usePathname();
@@ -74,26 +77,34 @@ export default function SidebarNav({
     (a, b) => (a.category.order || 0) - (b.category.order || 0),
   );
 
-  return (
-    <nav className="space-y-6">
-      {sortedCategories.map(({ category, docs }) => {
-        // Separate root docs (no parent) from child docs
-        const rootDocs = docs.filter((doc) => !doc.parentSlug);
-        const childDocsByParent = docs.reduce(
-          (acc, doc) => {
-            if (doc.parentSlug) {
-              if (!acc[doc.parentSlug]) {
-                acc[doc.parentSlug] = [];
-              }
-              acc[doc.parentSlug].push(doc);
+  const renderCategoryList = (
+    docsByCategory: Array<{
+      category: {
+        _id: string;
+        name: string;
+        slug: { current: string };
+        order: number;
+      };
+      docs: DocPageForNav[];
+    }>,
+  ) =>
+    docsByCategory.map(({ category, docs }) => {
+      const rootDocs = docs.filter((doc) => !doc.parentSlug);
+      const childDocsByParent = docs.reduce(
+        (acc, doc) => {
+          if (doc.parentSlug) {
+            if (!acc[doc.parentSlug]) {
+              acc[doc.parentSlug] = [];
             }
-            return acc;
-          },
-          {} as Record<string, DocPageForNav[]>,
-        );
+            acc[doc.parentSlug].push(doc);
+          }
+          return acc;
+        },
+        {} as Record<string, DocPageForNav[]>,
+      );
 
-        return (
-          <div key={category._id}>
+      return (
+        <div key={category._id}>
             <h3
               className="text-xs font-semibold tracking-widest uppercase mb-2 px-2"
               style={{ color: "var(--text-muted)" }}
@@ -255,9 +266,26 @@ export default function SidebarNav({
                 );
               })}
             </ul>
+        </div>
+      );
+    });
+
+  return (
+    <nav className="space-y-6">
+      {renderCategoryList(sortedCategories)}
+      {externalDocGroups.map((group) => (
+        <div key={group.id} className="space-y-4 pt-2 border-t" style={{ borderColor: "var(--sidebar-border)" }}>
+          <p
+            className="px-2 text-[11px] font-semibold tracking-[0.18em] uppercase"
+            style={{ color: "var(--foreground)" }}
+          >
+            {group.title}
+          </p>
+          <div className="space-y-6">
+            {renderCategoryList(group.categories)}
           </div>
-        );
-      })}
+        </div>
+      ))}
     </nav>
   );
 }

@@ -11,6 +11,10 @@ import ApiKeyBanner from "@/components/ApiKeyBanner";
 import ApiKeyIndicator from "@/components/ApiKeyIndicator";
 import ModelSelector from "@/components/ModelSelector";
 import ExpandableSearch from "@/components/ExpandableSearch";
+import {
+  findExternalDocBySlug,
+  getExternalDocStaticParams,
+} from "@/lib/external-docs";
 
 const SITE_URL = "https://docs.doubleword.ai";
 
@@ -22,7 +26,7 @@ const SITE_URL = "https://docs.doubleword.ai";
 function rawGitHubToRepoUrl(rawUrl: string): string | null {
   // Match raw.githubusercontent.com URLs
   const match = rawUrl.match(
-    /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/refs\/heads\/([^/]+)\/(.+)$/,
+    /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\/(.+)$/,
   );
   if (!match) return null;
 
@@ -60,10 +64,15 @@ export async function generateStaticParams() {
     tags: [],
   })) as Array<{ productSlug: string; slug: string }>;
 
-  return paths.map((path) => ({
-    product: path.productSlug,
-    slug: path.slug.split("/"),
-  }));
+  const externalPaths = await getExternalDocStaticParams();
+
+  return [
+    ...paths.map((path) => ({
+      product: path.productSlug,
+      slug: path.slug.split("/"),
+    })),
+    ...externalPaths,
+  ];
 }
 
 interface Props {
@@ -84,7 +93,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     tags: ["docPage"],
   })) as DocPage;
 
-  if (!doc || !doc.product) {
+  const externalDocMatch = !doc
+    ? await findExternalDocBySlug(productSlug, docSlug)
+    : null;
+  const resolvedDoc = doc || externalDocMatch?.doc;
+
+  if (!resolvedDoc || !resolvedDoc.product) {
     return {
       title: "Not Found",
     };
@@ -92,10 +106,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   // Use the linkedPost's canonicalUrl if this is transcluded syndicated content
   const canonicalUrl =
-    doc.linkedPost?.canonicalUrl || `${SITE_URL}/${productSlug}/${docSlug}`;
-  const title = `${doc.title} | ${doc.product.name} | Doubleword Docs`;
+    resolvedDoc.linkedPost?.canonicalUrl || `${SITE_URL}/${productSlug}/${docSlug}`;
+  const title = `${resolvedDoc.title} | ${resolvedDoc.product.name} | Doubleword Docs`;
   const description =
-    doc.description || `${doc.title} - ${doc.product.name} documentation`;
+    resolvedDoc.description || `${resolvedDoc.title} - ${resolvedDoc.product.name} documentation`;
 
   return {
     title,
@@ -130,37 +144,42 @@ export default async function DocPage({ params }: Props) {
     tags: ["docPage"],
   })) as DocPage;
 
-  if (!doc || !doc.product) {
+  const externalDocMatch = !doc
+    ? await findExternalDocBySlug(productSlug, docSlug)
+    : null;
+  const resolvedDoc = doc || externalDocMatch?.doc;
+
+  if (!resolvedDoc || !resolvedDoc.product) {
     notFound();
   }
 
   // Determine content source: externalSource > linkedPost > body
   let content: string | undefined;
-  if (doc.externalSource) {
-    let externalContent = await fetchExternalContent(doc.externalSource);
+  if (resolvedDoc.externalSource) {
+    let externalContent = await fetchExternalContent(resolvedDoc.externalSource);
     // Strip the first h1 heading from external content (we use Sanity's title instead)
     if (externalContent) {
       externalContent = externalContent.replace(/^#\s+[^\n]+\n+/, "");
     }
-    content = externalContent || doc.body;
-  } else if (doc.linkedPost) {
-    if (doc.linkedPost.externalSource) {
+    content = externalContent || resolvedDoc.body;
+  } else if (resolvedDoc.linkedPost) {
+    if (resolvedDoc.linkedPost.externalSource) {
       content =
-        (await fetchExternalContent(doc.linkedPost.externalSource)) ||
-        doc.linkedPost.body;
+        (await fetchExternalContent(resolvedDoc.linkedPost.externalSource)) ||
+        resolvedDoc.linkedPost.body;
     } else {
-      content = doc.linkedPost.body;
+      content = resolvedDoc.linkedPost.body;
     }
   } else {
-    content = doc.body;
+    content = resolvedDoc.body;
   }
-  const images = doc.linkedPost?.images || doc.images;
-  const videoUrl = doc.linkedPost?.videoUrl;
+  const images = resolvedDoc.linkedPost?.images || resolvedDoc.images;
+  const videoUrl = resolvedDoc.linkedPost?.videoUrl;
   const hasApiKeyPlaceholder = content?.includes("{{apiKey}}") ?? false;
 
   // Generate GitHub repo URL from external source if available
-  const githubUrl = doc.externalSource
-    ? rawGitHubToRepoUrl(doc.externalSource)
+  const githubUrl = resolvedDoc.externalSource
+    ? rawGitHubToRepoUrl(resolvedDoc.externalSource)
     : null;
 
   return (
@@ -211,8 +230,22 @@ export default async function DocPage({ params }: Props) {
                 href={`/${productSlug}`}
                 className="hover:text-[var(--foreground)] transition-colors"
               >
-                {doc.product.name}
+                {resolvedDoc.product.name}
               </Link>
+              {externalDocMatch && (
+                <>
+                  <svg
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="w-3 h-3 opacity-50"
+                  >
+                    <path d="M6 4l4 4-4 4" />
+                  </svg>
+                  <span>{externalDocMatch.source.title}</span>
+                </>
+              )}
               <svg
                 viewBox="0 0 16 16"
                 fill="none"
@@ -223,18 +256,18 @@ export default async function DocPage({ params }: Props) {
                 <path d="M6 4l4 4-4 4" />
               </svg>
               <span className="truncate" style={{ color: "var(--foreground)" }}>
-                {doc.title}
+                {resolvedDoc.title}
               </span>
             </nav>
 
             <article>
-              {!doc.hideTitle && (
+              {!resolvedDoc.hideTitle && (
                 <header className="mb-6">
                   <h1
                     className="text-3xl sm:text-4xl font-bold tracking-tight"
                     style={{ color: "var(--foreground)" }}
                   >
-                    {doc.title}
+                    {resolvedDoc.title}
                   </h1>
                 </header>
               )}
@@ -262,8 +295,10 @@ export default async function DocPage({ params }: Props) {
                   <MarkdownRenderer
                     content={content}
                     images={images}
-                    externalSource={doc.externalSource}
+                    externalSource={resolvedDoc.externalSource}
                     productSlug={productSlug}
+                    externalDocRoutePrefix={externalDocMatch?.source.routePrefix}
+                    externalDocSourcePath={externalDocMatch?.sourcePath}
                   />
                 )}
               </div>

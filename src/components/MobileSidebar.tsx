@@ -7,6 +7,7 @@ import SidebarNav from "./SidebarNav";
 import ThemeToggle from "./ThemeToggle";
 import ExpandableSearch from "./ExpandableSearch";
 import type {DocPageForNav} from '@/sanity/types';
+import type {ExternalDocsGroup} from "@/lib/external-docs";
 
 type GroupedDocs = Record<string, {
   category: {
@@ -22,12 +23,14 @@ type MobileSidebarProps = {
   productName: string;
   productSlug: string;
   groupedDocs: GroupedDocs;
+  externalDocGroups?: ExternalDocsGroup[];
 };
 
 export default function MobileSidebar({
   productName,
   productSlug,
   groupedDocs,
+  externalDocGroups = [],
 }: MobileSidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -164,6 +167,7 @@ export default function MobileSidebar({
           <SidebarNav
             productSlug={productSlug}
             groupedDocs={groupedDocs}
+            externalDocGroups={externalDocGroups}
             onNavigate={() => setIsMobileMenuOpen(false)}
           />
         </div>

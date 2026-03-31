@@ -3,6 +3,7 @@ import {sanityFetch} from '@/sanity/lib/client'
 import {PRODUCT_QUERY, DOCS_BY_PRODUCT_QUERY} from '@/sanity/lib/queries'
 import type {Product, DocPageForNav} from '@/sanity/types'
 import MobileSidebar from '@/components/MobileSidebar'
+import {getExternalDocsGroups} from '@/lib/external-docs'
 
 
 export default async function ProductLayout({
@@ -32,6 +33,8 @@ export default async function ProductLayout({
     tags: ['docPage', 'category'],
   }) as DocPageForNav[]
 
+  const externalDocGroups = await getExternalDocsGroups(productSlug)
+
   // Group docs by category
   const groupedDocs: Record<
     string,
@@ -56,6 +59,7 @@ export default async function ProductLayout({
         productName={product.name}
         productSlug={productSlug}
         groupedDocs={groupedDocs}
+        externalDocGroups={externalDocGroups}
       />
       <main className="pt-14 xl:pt-0 xl:ml-64">{children}</main>
     </div>
