@@ -46,9 +46,9 @@ const EXTERNAL_DOCS_SOURCES: ExternalDocsSource[] = [
     rawBaseUrl:
       "https://raw.githubusercontent.com/doublewordai/dw/main/docs/src",
     repoUrl: "https://github.com/doublewordai/dw/tree/main/docs",
-    productName: "Doubleword CLI",
+    productName: "CLI",
     productDescription:
-      "Command-line interface for Doubleword batch, streaming, realtime, and project workflows.",
+      "Command-line interface for the Doubleword Inference API and Platform.",
   },
 ];
 
