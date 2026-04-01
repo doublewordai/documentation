@@ -14,6 +14,7 @@ import CopyButton from "./CopyButton";
 import { fetchModelsServer } from "@/lib/models";
 import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
 import { StatusWidget } from './StatusWidget';
+import { resolveExternalMarkdownLink } from "@/lib/external-docs";
 
 
 /**
@@ -74,19 +75,37 @@ function getGitHubBaseUrl(rawUrl: string): string | null {
  */
 function convertRelativeLinksToDocsPages(
   markdown: string,
-  productSlug: string,
+  {
+    productSlug,
+    routePrefix,
+    sourcePath,
+  }: {
+    productSlug: string;
+    routePrefix?: string;
+    sourcePath?: string;
+  },
 ): string {
   // Match markdown links with relative directory paths: [text](./path/) or [text](./path)
   return markdown.replace(
-    /\[([^\]]+)\]\(\.\/([^)]+)\)/g,
-    (match, text, relativePath) => {
-      // Remove trailing slash if present
-      const cleanPath = relativePath.replace(/\/$/, "");
-      // Only convert if it looks like a directory (no file extension)
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    (match, text, href) => {
+      if (routePrefix && sourcePath) {
+        const resolvedHref = resolveExternalMarkdownLink({
+          href,
+          productSlug,
+          routePrefix,
+          sourcePath,
+        });
+        return `[${text}](${resolvedHref})`;
+      }
+
+      if (!href.startsWith("./")) return match;
+
+      const cleanPath = href.slice(2).replace(/\/$/, "");
       if (!cleanPath.includes(".")) {
         return `[${text}](/${productSlug}/${cleanPath})`;
       }
-      // Keep original for files
+
       return match;
     },
   );
@@ -97,11 +116,15 @@ export async function MarkdownRenderer({
   images,
   externalSource,
   productSlug,
+  externalDocRoutePrefix,
+  externalDocSourcePath,
 }: {
   content: string;
   images?: ImageData[];
   externalSource?: string;
   productSlug?: string;
+  externalDocRoutePrefix?: string;
+  externalDocSourcePath?: string;
 }) {
   // Fetch models data for templating
   const modelsResponse = await fetchModelsServer();
@@ -128,7 +151,11 @@ export async function MarkdownRenderer({
   if (externalSource && productSlug) {
     processedContent = convertRelativeLinksToDocsPages(
       processedContent,
-      productSlug,
+      {
+        productSlug,
+        routePrefix: externalDocRoutePrefix,
+        sourcePath: externalDocSourcePath,
+      },
     );
   }
 

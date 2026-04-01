@@ -120,6 +120,7 @@ export interface DocSearchIndexItem {
   productName: string;
   categorySlug?: string;
   categoryName?: string;
+  sourceType?: "sanity" | "external";
 }
 
 export interface DocSearchResult extends DocSearchIndexItem {

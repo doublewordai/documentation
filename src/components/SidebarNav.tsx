@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { DocPageForNav } from "@/sanity/types";
+import type { ExternalDocsGroup } from "@/lib/external-docs";
 
 type GroupedDocs = Record<
   string,
@@ -21,12 +22,14 @@ type GroupedDocs = Record<
 type SidebarNavProps = {
   productSlug: string;
   groupedDocs: GroupedDocs;
+  externalDocGroups?: ExternalDocsGroup[];
   onNavigate?: () => void;
 };
 
 export default function SidebarNav({
   productSlug,
   groupedDocs,
+  externalDocGroups = [],
   onNavigate,
 }: SidebarNavProps) {
   const pathname = usePathname();
@@ -56,6 +59,23 @@ export default function SidebarNav({
     });
     return initial;
   });
+  const [openExternalGroups, setOpenExternalGroups] = useState<Set<string>>(
+    () => {
+      const initial = new Set<string>();
+
+      externalDocGroups.forEach((group) => {
+        const hasActiveDoc = group.categories.some(({ docs }) =>
+          docs.some((doc) => pathname === `/${productSlug}/${doc.slug.current}`),
+        );
+
+        if (hasActiveDoc) {
+          initial.add(group.id);
+        }
+      });
+
+      return initial;
+    },
+  );
 
   const toggleSection = (slug: string) => {
     setOpenSections((prev) => {
@@ -69,31 +89,51 @@ export default function SidebarNav({
     });
   };
 
+  const toggleExternalGroup = (groupId: string) => {
+    setOpenExternalGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
   // Sort categories by order
   const sortedCategories = Object.values(groupedDocs).sort(
     (a, b) => (a.category.order || 0) - (b.category.order || 0),
   );
 
-  return (
-    <nav className="space-y-6">
-      {sortedCategories.map(({ category, docs }) => {
-        // Separate root docs (no parent) from child docs
-        const rootDocs = docs.filter((doc) => !doc.parentSlug);
-        const childDocsByParent = docs.reduce(
-          (acc, doc) => {
-            if (doc.parentSlug) {
-              if (!acc[doc.parentSlug]) {
-                acc[doc.parentSlug] = [];
-              }
-              acc[doc.parentSlug].push(doc);
+  const renderCategoryList = (
+    docsByCategory: Array<{
+      category: {
+        _id: string;
+        name: string;
+        slug: { current: string };
+        order: number;
+      };
+      docs: DocPageForNav[];
+    }>,
+  ) =>
+    docsByCategory.map(({ category, docs }) => {
+      const rootDocs = docs.filter((doc) => !doc.parentSlug);
+      const childDocsByParent = docs.reduce(
+        (acc, doc) => {
+          if (doc.parentSlug) {
+            if (!acc[doc.parentSlug]) {
+              acc[doc.parentSlug] = [];
             }
-            return acc;
-          },
-          {} as Record<string, DocPageForNav[]>,
-        );
+            acc[doc.parentSlug].push(doc);
+          }
+          return acc;
+        },
+        {} as Record<string, DocPageForNav[]>,
+      );
 
-        return (
-          <div key={category._id}>
+      return (
+        <div key={category._id}>
             <h3
               className="text-xs font-semibold tracking-widest uppercase mb-2 px-2"
               style={{ color: "var(--text-muted)" }}
@@ -255,6 +295,55 @@ export default function SidebarNav({
                 );
               })}
             </ul>
+        </div>
+      );
+    });
+
+  return (
+    <nav className="space-y-6">
+      {renderCategoryList(sortedCategories)}
+      {externalDocGroups.map((group) => {
+        if (!group.title) {
+          return (
+            <div key={group.id} className="space-y-6">
+              {renderCategoryList(group.categories)}
+            </div>
+          );
+        }
+
+        const isOpen = openExternalGroups.has(group.id);
+
+        return (
+          <div
+            key={group.id}
+            className="space-y-4 pt-2 border-t"
+            style={{ borderColor: "var(--sidebar-border)" }}
+          >
+            <button
+              type="button"
+              onClick={() => toggleExternalGroup(group.id)}
+              className="w-full px-2 flex items-center justify-between text-left"
+            >
+              <span
+                className="text-[11px] font-semibold tracking-[0.18em] uppercase"
+                style={{ color: "var(--foreground)" }}
+              >
+                {group.title}
+              </span>
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={`w-3 h-3 transition-transform duration-200 ${
+                  isOpen ? "rotate-90" : ""
+                }`}
+                style={{ color: "var(--text-muted)" }}
+              >
+                <path d="M6 4l4 4-4 4" />
+              </svg>
+            </button>
+            {isOpen && <div className="space-y-6">{renderCategoryList(group.categories)}</div>}
           </div>
         );
       })}

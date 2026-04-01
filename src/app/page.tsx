@@ -5,6 +5,7 @@ import {PRODUCTS_QUERY, HOMEPAGE_QUERY} from '@/sanity/lib/queries'
 import type {Product} from '@/sanity/types'
 import ThemeToggle from '@/components/ThemeToggle'
 import ExpandableSearch from '@/components/ExpandableSearch'
+import {getExternalProducts} from '@/lib/external-docs'
 
 type FeaturedGuide = {
   _id: string
@@ -67,12 +68,21 @@ const productIcons: Record<string, React.ReactNode> = {
       <path d="M16.24 7.76l2.83-2.83" />
     </svg>
   ),
+  'dw-cli': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+      <path d="M4 6h16" />
+      <path d="M4 12h10" />
+      <path d="M4 18h7" />
+      <path d="M15 12l3 3 5-5" />
+    </svg>
+  ),
 }
 
 // Quick links for each product
 const quickLinks: Record<string, { label: string; href: string }> = {
   'inference-api': { label: 'Get started', href: '/inference-api/intro-to-doubleword-inference' },
   'control-layer': { label: 'Getting started', href: '/control-layer/getting-started' },
+  'dw-cli': { label: 'Introduction', href: '/dw-cli/introduction' },
 }
 
 export default async function HomePage() {
@@ -86,6 +96,13 @@ export default async function HomePage() {
       tags: ['homepage'],
     }) as Promise<Homepage>,
   ])
+
+  const mergedProducts = [...products, ...getExternalProducts()].filter(
+    (product, index, allProducts) =>
+      index === allProducts.findIndex(
+        (candidate) => candidate.slug.current === product.slug.current,
+      ),
+  )
 
   return (
     <div
@@ -174,8 +191,8 @@ export default async function HomePage() {
             Products
           </h2>
 
-          <div className={`grid gap-4 sm:gap-6 ${products?.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
-            {products?.map((product, index) => {
+          <div className={`grid gap-4 sm:gap-6 ${mergedProducts.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+            {mergedProducts.map((product, index) => {
               const slug = product.slug.current
               const icon = productIcons[slug]
               const quick = quickLinks[slug]
