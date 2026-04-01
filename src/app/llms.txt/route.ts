@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { defineQuery } from "next-sanity";
 import { sanityFetch } from "@/sanity/lib/client";
+import { getModelArtifacts } from "@/lib/model-artifacts";
 
 const ALL_DOCS_QUERY = defineQuery(`{
   "homepage": *[_type == "homepage"][0]{
@@ -56,6 +57,7 @@ export async function GET() {
   };
 
   const { homepage, products, docs } = data;
+  const modelArtifacts = await getModelArtifacts();
 
   // Build the llms.txt content
   const lines: string[] = [];
@@ -105,6 +107,17 @@ export async function GET() {
       const url = `/${product.slug}/${doc.slug}.md`;
       const description = doc.description ? `: ${doc.description}` : "";
       lines.push(`- [${doc.title}](${url})${description}`);
+    }
+    lines.push("");
+  }
+
+  if (modelArtifacts.length > 0) {
+    lines.push("## Models");
+    lines.push("");
+    lines.push("Full documentation: [Models](/models.md)");
+    lines.push("");
+    for (const artifact of modelArtifacts) {
+      lines.push(`- [${artifact.name}](/models/${artifact.slug}.md)`);
     }
     lines.push("");
   }

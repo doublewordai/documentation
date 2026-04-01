@@ -57,6 +57,28 @@ export default async function ProductLayout({
     groupedDocs[categoryId].docs.push(doc)
   })
 
+  if (productSlug === 'inference-api') {
+    const referenceEntry = Object.values(groupedDocs).find(
+      ({category}) => category.slug.current === 'reference',
+    )
+
+    if (referenceEntry) {
+      referenceEntry.docs.push({
+        _id: 'external:dw-cli',
+        title: 'Doubleword CLI',
+        slug: {current: 'dw-cli'},
+        href: '/dw-cli',
+        order: 10_000,
+        sidebarLabel: 'Doubleword CLI',
+        externalLinkIcon: true,
+        categorySlug: 'reference',
+        categoryName: 'Reference',
+        parentSlug: null,
+        category: referenceEntry.category,
+      })
+    }
+  }
+
   return (
     <div className="min-h-screen" style={{background: 'var(--background)'}}>
       <MobileSidebar

@@ -33,6 +33,7 @@ export default function SidebarNav({
   onNavigate,
 }: SidebarNavProps) {
   const pathname = usePathname();
+  const getHref = (doc: DocPageForNav) => doc.href || `/${productSlug}/${doc.slug.current}`;
 
   // Track which collapsible sections are open
   const [openSections, setOpenSections] = useState<Set<string>>(() => {
@@ -40,7 +41,7 @@ export default function SidebarNav({
     const initial = new Set<string>();
     Object.values(groupedDocs).forEach(({ docs }) => {
       docs.forEach((doc) => {
-        const href = `/${productSlug}/${doc.slug.current}`;
+        const href = getHref(doc);
         // If current path starts with this doc's path, it might be a parent
         if (pathname.startsWith(href + "/") || pathname === href) {
           // Check if this doc has children
@@ -143,21 +144,22 @@ export default function SidebarNav({
             <ul className="space-y-0.5">
               {rootDocs.map((doc) => {
                 const href = `/${productSlug}/${doc.slug.current}`;
-                const isActive = pathname === href;
+                const resolvedHref = getHref(doc);
+                const isActive = pathname === resolvedHref;
                 const children = childDocsByParent[doc.slug.current] || [];
                 const hasChildren = children.length > 0;
                 const isOpen = openSections.has(doc.slug.current);
                 const isChildActive = children.some(
                   (child) =>
-                    pathname === `/${productSlug}/${child.slug.current}`,
+                    pathname === getHref(child),
                 );
 
                 if (hasChildren) {
                   return (
                     <li key={doc._id}>
                       <div className="flex items-center">
-                        <Link
-                          href={href}
+                          <Link
+                          href={resolvedHref}
                           onClick={onNavigate}
                           className={`flex-1 flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
                             isActive ? "" : "hover:translate-x-0.5"
@@ -216,7 +218,7 @@ export default function SidebarNav({
                         style={{ borderColor: "var(--sidebar-border)" }}
                       >
                         {children.map((child) => {
-                          const childHref = `/${productSlug}/${child.slug.current}`;
+                          const childHref = getHref(child);
                           const isChildItemActive = pathname === childHref;
 
                           return (
@@ -263,7 +265,7 @@ export default function SidebarNav({
                 return (
                   <li key={doc._id}>
                     <Link
-                      href={href}
+                      href={resolvedHref}
                       onClick={onNavigate}
                       className={`flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
                         isActive ? "" : "hover:translate-x-0.5"

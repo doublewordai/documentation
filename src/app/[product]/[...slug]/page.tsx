@@ -15,6 +15,7 @@ import {
   findExternalDocBySlug,
   getExternalDocStaticParams,
 } from "@/lib/external-docs";
+import { getModelsIndexMarkdown } from "@/lib/model-artifacts";
 
 const SITE_URL = "https://docs.doubleword.ai";
 
@@ -172,6 +173,9 @@ export default async function DocPage({ params }: Props) {
     }
   } else {
     content = resolvedDoc.body;
+  }
+  if (productSlug === "inference-api" && docSlug === "model-pricing" && content) {
+    content = await getModelsIndexMarkdown();
   }
   const images = resolvedDoc.linkedPost?.images || resolvedDoc.images;
   const videoUrl = resolvedDoc.linkedPost?.videoUrl;
