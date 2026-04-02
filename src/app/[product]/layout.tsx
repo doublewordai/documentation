@@ -4,6 +4,7 @@ import {PRODUCT_QUERY, DOCS_BY_PRODUCT_QUERY} from '@/sanity/lib/queries'
 import type {Product, DocPageForNav} from '@/sanity/types'
 import MobileSidebar from '@/components/MobileSidebar'
 import {getExternalDocsGroups, getExternalProduct} from '@/lib/external-docs'
+import {organizeInferenceApiSidebar} from '@/lib/inference-api-sidebar'
 
 
 export default async function ProductLayout({
@@ -39,45 +40,23 @@ export default async function ProductLayout({
 
   const externalDocGroups = await getExternalDocsGroups(productSlug)
 
-  // Group docs by category
   const groupedDocs: Record<
     string,
     {category: DocPageForNav['category']; docs: DocPageForNav[]}
-  > = {}
-
-  docs.forEach((doc) => {
-    if (!doc.category) return
-    const categoryId = doc.category._id
-    if (!groupedDocs[categoryId]) {
-      groupedDocs[categoryId] = {
-        category: doc.category,
-        docs: [],
+  > = productSlug === 'inference-api'
+    ? organizeInferenceApiSidebar(docs)
+    : docs.reduce((acc, doc) => {
+      if (!doc.category) return acc
+      const categoryId = doc.category._id
+      if (!acc[categoryId]) {
+        acc[categoryId] = {
+          category: doc.category,
+          docs: [],
+        }
       }
-    }
-    groupedDocs[categoryId].docs.push(doc)
-  })
-
-  if (productSlug === 'inference-api') {
-    const referenceEntry = Object.values(groupedDocs).find(
-      ({category}) => category.slug.current === 'reference',
-    )
-
-    if (referenceEntry) {
-      referenceEntry.docs.push({
-        _id: 'external:dw-cli',
-        title: 'Doubleword CLI',
-        slug: {current: 'dw-cli'},
-        href: '/dw-cli',
-        order: 10_000,
-        sidebarLabel: 'Doubleword CLI',
-        externalLinkIcon: true,
-        categorySlug: 'reference',
-        categoryName: 'Reference',
-        parentSlug: null,
-        category: referenceEntry.category,
-      })
-    }
-  }
+      acc[categoryId].docs.push(doc)
+      return acc
+    }, {} as Record<string, {category: DocPageForNav['category']; docs: DocPageForNav[]}>)
 
   return (
     <div className="min-h-screen" style={{background: 'var(--background)'}}>
