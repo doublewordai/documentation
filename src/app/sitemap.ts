@@ -1,5 +1,6 @@
 import type {MetadataRoute} from 'next'
 import {sanityFetch} from '@/sanity/lib/client'
+import {getModelArtifacts} from '@/lib/model-artifacts'
 
 const SITE_URL = 'https://docs.doubleword.ai'
 
@@ -29,9 +30,10 @@ type ProductResult = {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Fetch all docs and products from Sanity
-  const [docs, products] = await Promise.all([
+  const [docs, products, modelArtifacts] = await Promise.all([
     sanityFetch({query: ALL_DOCS_QUERY, tags: ['docPage']}) as Promise<DocPageResult[]>,
     sanityFetch({query: ALL_PRODUCTS_QUERY, tags: ['product']}) as Promise<ProductResult[]>,
+    getModelArtifacts(),
   ])
 
   // Homepage
@@ -60,5 +62,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }))
 
-  return [...staticRoutes, ...productRoutes, ...docRoutes]
+  const modelRoutes: MetadataRoute.Sitemap = [
+    {
+      url: `${SITE_URL}/models`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.85,
+    },
+    ...modelArtifacts.map((artifact) => ({
+      url: `${SITE_URL}/models/${artifact.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.75,
+    })),
+  ]
+
+  return [...staticRoutes, ...productRoutes, ...docRoutes, ...modelRoutes]
 }

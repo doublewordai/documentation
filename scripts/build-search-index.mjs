@@ -161,6 +161,56 @@ async function getExternalDocsSearchItems() {
   return groups.flat();
 }
 
+async function getModelArtifactSearchItems() {
+  const markdown = await fetchExternalContent(
+    "https://docs.doubleword.ai/inference-api/model-pricing.md",
+  );
+  if (!markdown) return [];
+
+  const pricingRowsByIndex = new Map();
+  const tableRowPattern =
+    /^\| \[([^\]]+)\]\(#model-(\d+)\) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$/gm;
+  for (const match of markdown.matchAll(tableRowPattern)) {
+    const index = Number(match[2]);
+    const rows = pricingRowsByIndex.get(index) || [];
+    rows.push({
+      priority: match[3].trim(),
+      input: match[4].trim(),
+      output: match[5].trim(),
+    });
+    pricingRowsByIndex.set(index, rows);
+  }
+
+  const detailsPattern =
+    /<details id="model-(\d+)">\s*<summary><h3>(.*?)<\/h3>([\s\S]*?)<\/summary>\s*([\s\S]*?)<\/details>/g;
+
+  return Array.from(markdown.matchAll(detailsPattern)).map((match) => {
+    const index = Number(match[1]);
+    const name = match[2].trim();
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    const pricingRows = pricingRowsByIndex.get(index) || [];
+    const pricingSummary = pricingRows
+      .map((row) => `${row.priority}: ${row.input} input / ${row.output} output`)
+      .join("; ");
+
+    return {
+      _id: `model:${slug}`,
+      title: name,
+      description: pricingSummary || undefined,
+      body: match[4].trim(),
+      slug,
+      productSlug: "models",
+      productName: "Models",
+      categorySlug: "model-details",
+      categoryName: "Model Details",
+      sourceType: "external",
+    };
+  });
+}
+
 async function main() {
   console.log("Building search index...");
 
@@ -168,6 +218,8 @@ async function main() {
   console.log(`Fetched ${docs.length} doc pages from Sanity`);
   const externalDocs = await getExternalDocsSearchItems();
   console.log(`Fetched ${externalDocs.length} external docs`);
+  const modelArtifacts = await getModelArtifactSearchItems();
+  console.log(`Fetched ${modelArtifacts.length} model artifact docs`);
 
   let externalFetches = 0;
   let failures = 0;
@@ -198,10 +250,10 @@ async function main() {
   );
 
   mkdirSync(OUTPUT_DIR, { recursive: true });
-  writeFileSync(OUTPUT_PATH, JSON.stringify([...index, ...externalDocs]));
+  writeFileSync(OUTPUT_PATH, JSON.stringify([...index, ...externalDocs, ...modelArtifacts]));
 
   console.log(
-    `Wrote ${index.length + externalDocs.length} docs to ${OUTPUT_PATH} (${externalFetches} external fetches, ${failures} failures)`,
+    `Wrote ${index.length + externalDocs.length + modelArtifacts.length} docs to ${OUTPUT_PATH} (${externalFetches} external fetches, ${failures} failures)`,
   );
 }
 
