@@ -44,8 +44,8 @@ export async function GET(
   );
   const docSlug = cleanSlug.join("/");
 
-  if (productSlug === "models") {
-    const artifact = await getModelArtifact(docSlug);
+  if (productSlug === "inference-api" && docSlug.startsWith("models/")) {
+    const artifact = await getModelArtifact(docSlug.slice("models/".length));
     if (!artifact) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }

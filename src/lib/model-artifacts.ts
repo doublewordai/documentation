@@ -1,24 +1,16 @@
-import { defineQuery } from "next-sanity";
-import { sanityFetch } from "@/sanity/lib/client";
-import { fetchModelsServer } from "@/lib/models";
-import { buildTemplateContext, templateMarkdown } from "@/lib/handlebars";
+import { fetchModelsFromApiRoute, type Model } from "@/lib/models";
 import type { DocSearchIndexItem } from "@/sanity/types";
 
-const MODEL_PRICING_SOURCE_QUERY = defineQuery(`*[
-  _type == "docPage" &&
-  product->slug.current == "inference-api" &&
-  slug.current == "model-pricing"
-][0]{
-  body,
-  title,
-  description
-}`);
+const MODELS_PRODUCT_SLUG = "inference-api";
+const MODELS_OVERVIEW_SLUG = "models";
 
-const MODEL_LINK_PATTERN = /\[([^\]]+)\]\(#model-(\d+)\)/g;
-const MODEL_TABLE_ROW_PATTERN =
-  /^\| \[([^\]]+)\]\(#model-(\d+)\) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$/gm;
-const MODEL_DETAILS_PATTERN =
-  /<details id="model-(\d+)">\s*<summary><h3>(.*?)<\/h3>([\s\S]*?)<\/summary>\s*([\s\S]*?)<\/details>/g;
+export function getModelsOverviewPath() {
+  return `/${MODELS_PRODUCT_SLUG}/${MODELS_OVERVIEW_SLUG}`;
+}
+
+export function getModelArtifactPath(slug: string) {
+  return `${getModelsOverviewPath()}/${slug}`;
+}
 
 export type ModelArtifactPricingRow = {
   priority: string;
@@ -27,19 +19,18 @@ export type ModelArtifactPricingRow = {
 };
 
 export type ModelArtifact = {
-  index: number;
   name: string;
   slug: string;
-  playgroundUrl?: string;
-  body: string;
+  id: string;
+  rawName: string;
+  iconUrl?: string;
+  providerName?: string;
+  type: string;
+  description?: string;
+  capabilities: string[];
+  playgroundUrl: string;
   pricing: ModelArtifactPricingRow[];
 };
-
-type ModelPricingSource = {
-  body?: string;
-  title?: string;
-  description?: string;
-} | null;
 
 function slugifyModelName(name: string): string {
   return name
@@ -48,54 +39,79 @@ function slugifyModelName(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export async function getResolvedModelPricingMarkdown(): Promise<string> {
-  const doc = (await sanityFetch({
-    query: MODEL_PRICING_SOURCE_QUERY,
-    tags: ["docPage", "models"],
-  })) as ModelPricingSource;
+function formatPricePer1M(pricePerToken: number): string {
+  return `$${(pricePerToken * 1_000_000).toFixed(2)}`;
+}
 
-  const body = doc?.body || "";
-  const modelsResponse = await fetchModelsServer();
-  const templateContext = buildTemplateContext(modelsResponse);
-  return templateMarkdown(body, templateContext);
+function getFromPrice(type: string, pricing: ModelArtifactPricingRow[]): string {
+  if (pricing.length === 0) return "—";
+
+  const useInputPricing = type.toLowerCase() === "embedding";
+  const cheapestPrice = pricing.reduce((lowest, row) => {
+    const source = useInputPricing ? row.inputTokensPer1M : row.outputTokensPer1M;
+    const value = Number(source.replace(/[^0-9.]/g, ""));
+    return Number.isFinite(value) ? Math.min(lowest, value) : lowest;
+  }, Number.POSITIVE_INFINITY);
+
+  if (!Number.isFinite(cheapestPrice)) return "—";
+  return `from $${cheapestPrice.toFixed(2)}/M`;
+}
+
+function renderProvider(providerName?: string): string {
+  if (!providerName) return "—";
+  return providerName || "—";
+}
+
+function buildPricing(model: Model): ModelArtifactPricingRow[] {
+  const rows: ModelArtifactPricingRow[] = [];
+
+  if (model.pricing.realtime) {
+    rows.push({
+      priority: "Realtime",
+      inputTokensPer1M: formatPricePer1M(model.pricing.realtime.input),
+      outputTokensPer1M: formatPricePer1M(model.pricing.realtime.output),
+    });
+  }
+
+  if (model.pricing.batch1h) {
+    rows.push({
+      priority: "High (1h)",
+      inputTokensPer1M: formatPricePer1M(model.pricing.batch1h.input),
+      outputTokensPer1M: formatPricePer1M(model.pricing.batch1h.output),
+    });
+  }
+
+  if (model.pricing.batch24h) {
+    rows.push({
+      priority: "Standard (24h)",
+      inputTokensPer1M: formatPricePer1M(model.pricing.batch24h.input),
+      outputTokensPer1M: formatPricePer1M(model.pricing.batch24h.output),
+    });
+  }
+
+  return rows;
+}
+
+function toModelArtifact(model: Model): ModelArtifact {
+  return {
+    id: model.id,
+    name: model.displayName,
+    rawName: model.name,
+    slug: slugifyModelName(model.name),
+    iconUrl: model.iconUrl,
+    providerName: model.providerName,
+    type: model.type,
+    description: model.description,
+    capabilities: model.capabilities,
+    playgroundUrl: `https://app.doubleword.ai/playground?model=${encodeURIComponent(model.id)}&from=%2Fmodels`,
+    pricing: buildPricing(model),
+  };
 }
 
 export async function getModelArtifacts(): Promise<ModelArtifact[]> {
-  const markdown = await getResolvedModelPricingMarkdown();
-  const pricingByIndex = new Map<number, ModelArtifactPricingRow[]>();
+  const { models } = await fetchModelsFromApiRoute();
 
-  for (const match of markdown.matchAll(MODEL_TABLE_ROW_PATTERN)) {
-    const index = Number(match[2]);
-    const rows = pricingByIndex.get(index) || [];
-    rows.push({
-      priority: match[3].trim(),
-      inputTokensPer1M: match[4].trim(),
-      outputTokensPer1M: match[5].trim(),
-    });
-    pricingByIndex.set(index, rows);
-  }
-
-  const artifacts: ModelArtifact[] = [];
-
-  for (const match of markdown.matchAll(MODEL_DETAILS_PATTERN)) {
-    const index = Number(match[1]);
-    const name = match[2].trim();
-    const summaryMeta = match[3];
-    const body = match[4].trim();
-    const playgroundUrl =
-      summaryMeta.match(/href="([^"]+)"/)?.[1]?.trim() || undefined;
-
-    artifacts.push({
-      index,
-      name,
-      slug: slugifyModelName(name),
-      playgroundUrl,
-      body,
-      pricing: pricingByIndex.get(index) || [],
-    });
-  }
-
-  return artifacts.sort((a, b) => a.index - b.index);
+  return models.map(toModelArtifact);
 }
 
 export async function getModelArtifact(slug: string): Promise<ModelArtifact | null> {
@@ -104,29 +120,37 @@ export async function getModelArtifact(slug: string): Promise<ModelArtifact | nu
 }
 
 export async function getModelsIndexMarkdown(): Promise<string> {
-  const markdown = await getResolvedModelPricingMarkdown();
   const artifacts = await getModelArtifacts();
-  const artifactByIndex = new Map(artifacts.map((artifact) => [artifact.index, artifact]));
 
-  const linkedMarkdown = markdown.replace(
-    MODEL_LINK_PATTERN,
-    (_match, label, indexString) => {
-      const artifact = artifactByIndex.get(Number(indexString));
-      return artifact ? `[${label}](/models/${artifact.slug})` : `[${label}](#model-${indexString})`;
-    },
-  );
+  const overviewTable = [
+    "| Model | Provider | Type | Pricing |",
+    "|-------|----------|------|---------|",
+    ...artifacts.map((artifact) => {
+      return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${renderProvider(artifact.providerName)} | ${artifact.type} | ${getFromPrice(artifact.type, artifact.pricing)} |`;
+    }),
+  ].join("\n");
 
-  const modelLinks = artifacts
-    .map((artifact) => `- [${artifact.name}](/models/${artifact.slug})`)
-    .join("\n");
+  return `Doubleword Batch API is priced per model based on token usage. Costs are calculated separately for input tokens (the content you send) and output tokens (the content generated by the model).
 
-  return linkedMarkdown.replace(
-    /\n## Model Details[\s\S]*$/m,
-    `\n## Model Details\n\nExplore individual model pages:\n\n${modelLinks}\n`,
-  );
+The table below outlines the models we have available and their pricing. If you are interested in understanding pricing for a model not listed below or if you'd like to request a new model - please reach out to support@doubleword.ai.
+
+## Model Catalog
+
+${overviewTable}
+`;
 }
 
 export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
+  const capabilities = artifact.capabilities || [];
+  const metadata = [
+    `- **Type:** ${artifact.type}`,
+    capabilities.length > 0
+      ? `- **Capabilities:** ${capabilities.map((capability) => `\`${capability}\``).join(", ")}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   const pricingTable =
     artifact.pricing.length > 0
       ? [
@@ -135,22 +159,38 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
           "| Priority | Input Tokens (per 1M) | Output Tokens (per 1M) |",
           "|----------|------------------------|------------------------|",
           ...artifact.pricing.map(
-            (row) =>
-              `| ${row.priority} | ${row.inputTokensPer1M} | ${row.outputTokensPer1M} |`,
+            (row) => {
+              const priority =
+                row.priority === "Realtime"
+                  ? 'Realtime[^realtime-availability]'
+                  : row.priority;
+
+              return `| ${priority} | ${row.inputTokensPer1M} | ${row.outputTokensPer1M} |`;
+            },
           ),
           "",
+          artifact.pricing.some((row) => row.priority === "Realtime")
+            ? "[^realtime-availability]: Realtime availability is limited. Doubleword is primarily a batch API."
+            : "",
+          artifact.pricing.some((row) => row.priority === "Realtime") ? "" : "",
         ].join("\n")
-      : "";
+      : "## Pricing\n\nPricing is not currently available for this model.\n";
 
-  const playground = artifact.playgroundUrl
-    ? `Open in the [Playground](${artifact.playgroundUrl}).\n\n`
+  const description = artifact.description
+    ? `## Overview\n\n${artifact.description}\n\n`
+    : "";
+
+  const icon = artifact.iconUrl
+    ? `![${artifact.name} icon](${artifact.iconUrl})\n\n`
     : "";
 
   return `# ${artifact.name}
 
-[Back to model pricing](/models)
+${icon}${metadata}
 
-${playground}${pricingTable}${artifact.body}
+${description}${pricingTable}## Playground
+
+Open this model in the [Playground](${artifact.playgroundUrl}).
 `;
 }
 
@@ -164,11 +204,11 @@ export async function getModelArtifactSearchItems(): Promise<DocSearchIndexItem[
       .map((row) => `${row.priority}: ${row.inputTokensPer1M} input / ${row.outputTokensPer1M} output`)
       .join("; "),
     body: renderModelArtifactMarkdown(artifact),
-    slug: artifact.slug,
-    productSlug: "models",
-    productName: "Models",
-    categorySlug: "model-details",
-    categoryName: "Model Details",
+    slug: `${MODELS_OVERVIEW_SLUG}/${artifact.slug}`,
+    productSlug: MODELS_PRODUCT_SLUG,
+    productName: "Doubleword Inference API",
+    categorySlug: "models",
+    categoryName: "Models",
     sourceType: "external",
   }));
 }

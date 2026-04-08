@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { defineQuery } from "next-sanity";
 import { sanityFetch } from "@/sanity/lib/client";
-import { getModelsIndexMarkdown } from "@/lib/model-artifacts";
+import { getModelArtifacts } from "@/lib/model-artifacts";
 
 const PRODUCT_DOCS_QUERY = defineQuery(`{
   "product": *[_type == "product" && slug.current == $productSlug][0]{
@@ -40,15 +40,6 @@ export async function GET(
 
   // Strip .md extension if present (from rewrite)
   productSlug = productSlug.replace(/\.md$/, "");
-
-  if (productSlug === "models") {
-    const content = await getModelsIndexMarkdown();
-    return new NextResponse(content, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-      },
-    });
-  }
 
   const data = (await sanityFetch({
     query: PRODUCT_DOCS_QUERY,
@@ -97,6 +88,17 @@ export async function GET(
   }
 
   lines.push("");
+
+  if (productSlug === "inference-api") {
+    const modelArtifacts = await getModelArtifacts();
+
+    lines.push("## Models");
+    lines.push("");
+    for (const artifact of modelArtifacts) {
+      lines.push(`- [${artifact.name}](/inference-api/models/${artifact.slug}.md)`);
+    }
+    lines.push("");
+  }
 
   const content = lines.join("\n");
 

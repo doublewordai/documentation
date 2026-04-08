@@ -6,7 +6,6 @@ import MobileSidebar from '@/components/MobileSidebar'
 import {getExternalDocsGroups, getExternalProduct} from '@/lib/external-docs'
 import {organizeInferenceApiSidebar} from '@/lib/inference-api-sidebar'
 
-
 export default async function ProductLayout({
   children,
   params,
@@ -44,7 +43,7 @@ export default async function ProductLayout({
     string,
     {category: DocPageForNav['category']; docs: DocPageForNav[]}
   > = productSlug === 'inference-api'
-    ? organizeInferenceApiSidebar(docs)
+    ? await organizeInferenceApiSidebar(docs)
     : docs.reduce((acc, doc) => {
       if (!doc.category) return acc
       const categoryId = doc.category._id

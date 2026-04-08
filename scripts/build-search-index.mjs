@@ -162,50 +162,51 @@ async function getExternalDocsSearchItems() {
 }
 
 async function getModelArtifactSearchItems() {
-  const markdown = await fetchExternalContent(
-    "https://docs.doubleword.ai/inference-api/model-pricing.md",
-  );
-  if (!markdown) return [];
+  const apiKey = process.env.DOUBLEWORD_SYSTEM_API_KEY;
+  if (!apiKey) return [];
 
-  const pricingRowsByIndex = new Map();
-  const tableRowPattern =
-    /^\| \[([^\]]+)\]\(#model-(\d+)\) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$/gm;
-  for (const match of markdown.matchAll(tableRowPattern)) {
-    const index = Number(match[2]);
-    const rows = pricingRowsByIndex.get(index) || [];
-    rows.push({
-      priority: match[3].trim(),
-      input: match[4].trim(),
-      output: match[5].trim(),
-    });
-    pricingRowsByIndex.set(index, rows);
-  }
+  const response = await fetch("https://app.doubleword.ai/admin/api/v1/models?include=pricing", {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Accept: "application/json",
+    },
+  });
+  if (!response.ok) return [];
 
-  const detailsPattern =
-    /<details id="model-(\d+)">\s*<summary><h3>(.*?)<\/h3>([\s\S]*?)<\/summary>\s*([\s\S]*?)<\/details>/g;
+  const rawData = await response.json();
+  const models = rawData.data || [];
 
-  return Array.from(markdown.matchAll(detailsPattern)).map((match) => {
-    const index = Number(match[1]);
-    const name = match[2].trim();
-    const slug = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    const pricingRows = pricingRowsByIndex.get(index) || [];
-    const pricingSummary = pricingRows
-      .map((row) => `${row.priority}: ${row.input} input / ${row.output} output`)
-      .join("; ");
+  const formatPricePer1M = (price) => `$${(Number(price) * 1_000_000).toFixed(2)}`;
+  const slugify = (value) =>
+    value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+  return models.map((model) => {
+    const tariffs = model.tariffs || [];
+    const pricingRows = [];
+    const realtime = tariffs.find((t) => t.api_key_purpose === "realtime");
+    const batch1h = tariffs.find((t) => t.api_key_purpose === "batch" && t.completion_window?.includes("1h"));
+    const batch24h = tariffs.find((t) => t.api_key_purpose === "batch" && t.completion_window?.includes("24h"));
+
+    if (realtime) {
+      pricingRows.push(`Realtime: ${formatPricePer1M(realtime.input_price_per_token)} input / ${formatPricePer1M(realtime.output_price_per_token)} output`);
+    }
+    if (batch1h) {
+      pricingRows.push(`High (1h): ${formatPricePer1M(batch1h.input_price_per_token)} input / ${formatPricePer1M(batch1h.output_price_per_token)} output`);
+    }
+    if (batch24h) {
+      pricingRows.push(`Standard (24h): ${formatPricePer1M(batch24h.input_price_per_token)} input / ${formatPricePer1M(batch24h.output_price_per_token)} output`);
+    }
 
     return {
-      _id: `model:${slug}`,
-      title: name,
-      description: pricingSummary || undefined,
-      body: match[4].trim(),
-      slug,
-      productSlug: "models",
-      productName: "Models",
-      categorySlug: "model-details",
-      categoryName: "Model Details",
+      _id: `model:${slugify(model.model_name)}`,
+      title: model.model_name,
+      description: pricingRows.join("; ") || undefined,
+      body: model.description || undefined,
+      slug: `models/${slugify(model.model_name)}`,
+      productSlug: "inference-api",
+      productName: "Doubleword Inference API",
+      categorySlug: "models",
+      categoryName: "Models",
       sourceType: "external",
     };
   });

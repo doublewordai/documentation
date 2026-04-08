@@ -108,16 +108,14 @@ export async function GET() {
       const description = doc.description ? `: ${doc.description}` : "";
       lines.push(`- [${doc.title}](${url})${description}`);
     }
-    lines.push("");
-  }
 
-  if (modelArtifacts.length > 0) {
-    lines.push("## Models");
-    lines.push("");
-    lines.push("Full documentation: [Models](/models.md)");
-    lines.push("");
-    for (const artifact of modelArtifacts) {
-      lines.push(`- [${artifact.name}](/models/${artifact.slug}.md)`);
+    if (product.slug === "inference-api" && modelArtifacts.length > 0) {
+      lines.push("");
+      lines.push("### Models");
+      lines.push("");
+      for (const artifact of modelArtifacts) {
+        lines.push(`- [${artifact.name}](/inference-api/models/${artifact.slug}.md)`);
+      }
     }
     lines.push("");
   }

@@ -63,14 +63,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }))
 
   const modelRoutes: MetadataRoute.Sitemap = [
-    {
-      url: `${SITE_URL}/models`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.85,
-    },
     ...modelArtifacts.map((artifact) => ({
-      url: `${SITE_URL}/models/${artifact.slug}`,
+      url: `${SITE_URL}/inference-api/models/${artifact.slug}`,
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.75,
