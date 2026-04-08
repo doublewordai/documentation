@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { DocPageForNav } from "@/sanity/types";
@@ -38,6 +38,34 @@ export default function SidebarNav({
 }: SidebarNavProps) {
   const pathname = usePathname();
   const getHref = (doc: DocPageForNav) => doc.href || `/${productSlug}/${doc.slug.current}`;
+  const getActiveSectionSlugs = () => {
+    const activeSections = new Set<string>();
+
+    Object.values(groupedDocs).forEach(({ docs }) => {
+      const childParentSlugs = new Set(
+        docs.filter((doc) => doc.parentSlug).map((doc) => doc.parentSlug as string),
+      );
+
+      docs.forEach((doc) => {
+        const href = getHref(doc);
+        const isCurrentDoc = pathname.startsWith(href + "/") || pathname === href;
+
+        if (!isCurrentDoc) {
+          return;
+        }
+
+        if (doc.parentSlug) {
+          activeSections.add(doc.parentSlug);
+        }
+
+        if (childParentSlugs.has(doc.slug.current)) {
+          activeSections.add(doc.slug.current);
+        }
+      });
+    });
+
+    return activeSections;
+  };
   const opensInNewTab = (categorySlug: string, doc: DocPageForNav) =>
     categorySlug === "bottom-links" &&
     (doc.slug.current === "dw-cli" || doc.slug.current === "api-reference");
@@ -55,32 +83,7 @@ export default function SidebarNav({
   ];
 
   // Track which collapsible sections are open
-  const [openSections, setOpenSections] = useState<Set<string>>(() => {
-    const initial = new Set<string>();
-    Object.values(groupedDocs).forEach(({ docs }) => {
-      const childParentSlugs = new Set(
-        docs.filter((doc) => doc.parentSlug).map((doc) => doc.parentSlug as string),
-      );
-
-      docs.forEach((doc) => {
-        const href = getHref(doc);
-        const isCurrentDoc = pathname.startsWith(href + "/") || pathname === href;
-
-        if (!isCurrentDoc) {
-          return;
-        }
-
-        if (doc.parentSlug) {
-          initial.add(doc.parentSlug);
-        }
-
-        if (childParentSlugs.has(doc.slug.current)) {
-          initial.add(doc.slug.current);
-        }
-      });
-    });
-    return initial;
-  });
+  const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSectionSlugs());
   const [openExternalGroups, setOpenExternalGroups] = useState<Set<string>>(
     () => {
       const initial = new Set<string>();
@@ -104,6 +107,14 @@ export default function SidebarNav({
     }
     return new Set<string>(defaultOpenCategoryIds);
   });
+
+  useEffect(() => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      getActiveSectionSlugs().forEach((slug) => next.add(slug));
+      return next;
+    });
+  }, [pathname, groupedDocs]);
 
   const toggleSection = (slug: string) => {
     setOpenSections((prev) => {
