@@ -149,7 +149,7 @@ export async function fetchModelsServer(): Promise<ModelsResponse> {
   }
 
   // Throw on errors so ISR keeps serving stale cached data instead of caching empty results
-  const response = await fetch(`${DOUBLEWORD_API_URL}?include=pricing&sort=released_at&sort_direction=desc`, {
+  const response = await fetch(`${DOUBLEWORD_API_URL}?include=pricing&sort=released_at&sort_direction=desc&limit=100`, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Accept': 'application/json',
