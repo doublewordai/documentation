@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { DocPageForNav } from "@/sanity/types";
@@ -24,6 +24,8 @@ type SidebarNavProps = {
   groupedDocs: GroupedDocs;
   externalDocGroups?: ExternalDocsGroup[];
   onNavigate?: () => void;
+  collapseCategoriesByDefault?: boolean;
+  defaultOpenCategoryIds?: string[];
 };
 
 export default function SidebarNav({
@@ -31,34 +33,57 @@ export default function SidebarNav({
   groupedDocs,
   externalDocGroups = [],
   onNavigate,
+  collapseCategoriesByDefault = false,
+  defaultOpenCategoryIds = [],
 }: SidebarNavProps) {
   const pathname = usePathname();
+  const getHref = (doc: DocPageForNav) => doc.href || `/${productSlug}/${doc.slug.current}`;
+  const getActiveSectionSlugs = () => {
+    const activeSections = new Set<string>();
 
-  // Track which collapsible sections are open
-  const [openSections, setOpenSections] = useState<Set<string>>(() => {
-    // Initialize with sections that contain the current path
-    const initial = new Set<string>();
     Object.values(groupedDocs).forEach(({ docs }) => {
+      const childParentSlugs = new Set(
+        docs.filter((doc) => doc.parentSlug).map((doc) => doc.parentSlug as string),
+      );
+
       docs.forEach((doc) => {
-        const href = `/${productSlug}/${doc.slug.current}`;
-        // If current path starts with this doc's path, it might be a parent
-        if (pathname.startsWith(href + "/") || pathname === href) {
-          // Check if this doc has children
-          const hasChildren = docs.some(
-            (d) => d.parentSlug === doc.slug.current,
-          );
-          if (hasChildren) {
-            initial.add(doc.slug.current);
-          }
-          // Also open parent if we're on a child page
-          if (doc.parentSlug) {
-            initial.add(doc.parentSlug);
-          }
+        const href = getHref(doc);
+        const isCurrentDoc = pathname.startsWith(href + "/") || pathname === href;
+
+        if (!isCurrentDoc) {
+          return;
+        }
+
+        if (doc.parentSlug) {
+          activeSections.add(doc.parentSlug);
+        }
+
+        if (childParentSlugs.has(doc.slug.current)) {
+          activeSections.add(doc.slug.current);
         }
       });
     });
-    return initial;
-  });
+
+    return activeSections;
+  };
+  const opensInNewTab = (categorySlug: string, doc: DocPageForNav) =>
+    categorySlug === "bottom-links" &&
+    (doc.slug.current === "dw-cli" || doc.slug.current === "api-reference");
+  const getItemStyle = (isActive: boolean) =>
+    isActive
+      ? {
+          color: "var(--foreground)",
+          backgroundColor: "var(--hover-bg)",
+          textShadow: "0 0 0.5px currentColor",
+        }
+      : { color: "var(--text-muted)" };
+  const allCategoryGroups = [
+    ...Object.values(groupedDocs),
+    ...externalDocGroups.flatMap((group) => group.categories),
+  ];
+
+  // Track which collapsible sections are open
+  const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSectionSlugs());
   const [openExternalGroups, setOpenExternalGroups] = useState<Set<string>>(
     () => {
       const initial = new Set<string>();
@@ -76,6 +101,20 @@ export default function SidebarNav({
       return initial;
     },
   );
+  const [openCategories, setOpenCategories] = useState<Set<string>>(() => {
+    if (!collapseCategoriesByDefault) {
+      return new Set(allCategoryGroups.map(({category}) => category._id));
+    }
+    return new Set<string>(defaultOpenCategoryIds);
+  });
+
+  useEffect(() => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      getActiveSectionSlugs().forEach((slug) => next.add(slug));
+      return next;
+    });
+  }, [pathname, groupedDocs]);
 
   const toggleSection = (slug: string) => {
     setOpenSections((prev) => {
@@ -101,6 +140,18 @@ export default function SidebarNav({
     });
   };
 
+  const toggleCategory = (categoryId: string) => {
+    setOpenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) {
+        next.delete(categoryId);
+      } else {
+        next.add(categoryId);
+      }
+      return next;
+    });
+  };
+
   // Sort categories by order
   const sortedCategories = Object.values(groupedDocs).sort(
     (a, b) => (a.category.order || 0) - (b.category.order || 0),
@@ -118,7 +169,9 @@ export default function SidebarNav({
     }>,
   ) =>
     docsByCategory.map(({ category, docs }) => {
+      const isCategoryOpen = openCategories.has(category._id);
       const rootDocs = docs.filter((doc) => !doc.parentSlug);
+      const isUnsectionedCategory = category.slug.current === "bottom-links";
       const childDocsByParent = docs.reduce(
         (acc, doc) => {
           if (doc.parentSlug) {
@@ -132,45 +185,104 @@ export default function SidebarNav({
         {} as Record<string, DocPageForNav[]>,
       );
 
+      if (isUnsectionedCategory) {
+        return (
+          <div key={category._id}>
+            <ul className="space-y-0.5">
+              {rootDocs.map((doc) => {
+                const resolvedHref = getHref(doc);
+                const isActive = pathname === resolvedHref;
+                const openInNewTab = opensInNewTab(category.slug.current, doc);
+
+                return (
+                  <li key={doc._id}>
+                    <Link
+                      href={resolvedHref}
+                      onClick={onNavigate}
+                      target={openInNewTab ? "_blank" : undefined}
+                      rel={openInNewTab ? "noreferrer" : undefined}
+                      className="flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 hover:bg-[var(--hover-bg)] hover:text-[var(--foreground)]"
+                      style={getItemStyle(isActive)}
+                    >
+                      {doc.sidebarLabel || doc.title}
+                      {doc.externalLinkIcon && (
+                        <svg
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className="w-3 h-3 opacity-60"
+                        >
+                          <path d="M4 12L12 4M12 4H6M12 4V10" />
+                        </svg>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      }
+
       return (
         <div key={category._id}>
+          {collapseCategoriesByDefault ? (
+            <button
+              type="button"
+              onClick={() => toggleCategory(category._id)}
+              className="w-full mb-2 px-2 flex items-center justify-between text-left"
+            >
+              <span
+                className="text-xs font-semibold tracking-widest uppercase"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {category.name}
+              </span>
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={`w-3 h-3 transition-transform duration-200 ${
+                  isCategoryOpen ? "rotate-90" : ""
+                }`}
+                style={{ color: "var(--text-muted)" }}
+              >
+                <path d="M6 4l4 4-4 4" />
+              </svg>
+            </button>
+          ) : category.name ? (
             <h3
               className="text-xs font-semibold tracking-widest uppercase mb-2 px-2"
               style={{ color: "var(--text-muted)" }}
             >
               {category.name}
             </h3>
+          ) : null}
+          {isCategoryOpen && (
             <ul className="space-y-0.5">
               {rootDocs.map((doc) => {
                 const href = `/${productSlug}/${doc.slug.current}`;
-                const isActive = pathname === href;
+                const resolvedHref = getHref(doc);
+                const isActive = pathname === resolvedHref;
                 const children = childDocsByParent[doc.slug.current] || [];
                 const hasChildren = children.length > 0;
                 const isOpen = openSections.has(doc.slug.current);
                 const isChildActive = children.some(
                   (child) =>
-                    pathname === `/${productSlug}/${child.slug.current}`,
+                    pathname === getHref(child),
                 );
 
                 if (hasChildren) {
                   return (
                     <li key={doc._id}>
-                      <div className="flex items-center">
-                        <Link
-                          href={href}
+                      <div className="group flex items-center">
+                          <Link
+                          href={resolvedHref}
                           onClick={onNavigate}
-                          className={`flex-1 flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
-                            isActive ? "" : "hover:translate-x-0.5"
-                          }`}
-                          style={
-                            isActive
-                              ? {
-                                  color: "var(--foreground)",
-                                  backgroundColor: "var(--hover-bg)",
-                                  textShadow: "0 0 0.5px currentColor",
-                                }
-                              : { color: "var(--text-muted)" }
-                          }
+                          className="flex-1 flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 hover:bg-[var(--hover-bg)] hover:text-[var(--foreground)]"
+                          style={getItemStyle(isActive)}
                         >
                           {doc.sidebarLabel || doc.title}
                           {doc.externalLinkIcon && (
@@ -187,7 +299,7 @@ export default function SidebarNav({
                         </Link>
                         <button
                           onClick={() => toggleSection(doc.slug.current)}
-                          className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
+                          className="p-1.5 rounded-lg opacity-70 group-hover:opacity-100 hover:bg-[var(--hover-bg)] transition-all duration-200"
                           aria-label={
                             isOpen ? "Collapse section" : "Expand section"
                           }
@@ -210,13 +322,13 @@ export default function SidebarNav({
                       <ul
                         className={`ml-3 pl-2 border-l space-y-0.5 overflow-hidden transition-all duration-200 ${
                           isOpen
-                            ? "max-h-96 opacity-100 mt-0.5"
+                            ? "max-h-[200rem] opacity-100 mt-0.5"
                             : "max-h-0 opacity-0"
                         }`}
                         style={{ borderColor: "var(--sidebar-border)" }}
                       >
                         {children.map((child) => {
-                          const childHref = `/${productSlug}/${child.slug.current}`;
+                          const childHref = getHref(child);
                           const isChildItemActive = pathname === childHref;
 
                           return (
@@ -224,20 +336,8 @@ export default function SidebarNav({
                               <Link
                                 href={childHref}
                                 onClick={onNavigate}
-                                className={`flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
-                                  isChildItemActive
-                                    ? ""
-                                    : "hover:translate-x-0.5"
-                                }`}
-                                style={
-                                  isChildItemActive
-                                    ? {
-                                        color: "var(--foreground)",
-                                        backgroundColor: "var(--hover-bg)",
-                                        textShadow: "0 0 0.5px currentColor",
-                                      }
-                                    : { color: "var(--text-muted)" }
-                                }
+                                className="flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 hover:bg-[var(--hover-bg)] hover:text-[var(--foreground)]"
+                                style={getItemStyle(isChildItemActive)}
                               >
                                 {child.sidebarLabel || child.title}
                                 {child.externalLinkIcon && (
@@ -263,20 +363,10 @@ export default function SidebarNav({
                 return (
                   <li key={doc._id}>
                     <Link
-                      href={href}
+                      href={resolvedHref}
                       onClick={onNavigate}
-                      className={`flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 ${
-                        isActive ? "" : "hover:translate-x-0.5"
-                      }`}
-                      style={
-                        isActive
-                          ? {
-                              color: "var(--foreground)",
-                              backgroundColor: "var(--hover-bg)",
-                              textShadow: "0 0 0.5px currentColor",
-                            }
-                          : { color: "var(--text-muted)" }
-                      }
+                      className="flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-all duration-200 hover:bg-[var(--hover-bg)] hover:text-[var(--foreground)]"
+                      style={getItemStyle(isActive)}
                     >
                       {doc.sidebarLabel || doc.title}
                       {doc.externalLinkIcon && (
@@ -295,6 +385,7 @@ export default function SidebarNav({
                 );
               })}
             </ul>
+          )}
         </div>
       );
     });

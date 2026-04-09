@@ -3,6 +3,7 @@ import { defineQuery } from "next-sanity";
 import { sanityFetch } from "@/sanity/lib/client";
 import { fetchModelsServer } from "@/lib/models";
 import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
+import { getModelArtifact, renderModelArtifactMarkdown } from "@/lib/model-artifacts";
 
 const MARKDOWN_BY_SLUG_QUERY = defineQuery(`*[
   _type == "docPage" &&
@@ -42,6 +43,19 @@ export async function GET(
     i === slug.length - 1 ? segment.replace(/\.md$/, "") : segment
   );
   const docSlug = cleanSlug.join("/");
+
+  if (productSlug === "inference-api" && docSlug.startsWith("models/")) {
+    const artifact = await getModelArtifact(docSlug.slice("models/".length));
+    if (!artifact) {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    return new NextResponse(renderModelArtifactMarkdown(artifact), {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
+  }
 
   const doc = (await sanityFetch({
     query: MARKDOWN_BY_SLUG_QUERY,

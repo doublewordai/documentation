@@ -87,6 +87,7 @@ export interface DocPageForNav {
   _id: string;
   title: string;
   slug: { current: string };
+  href?: string;
   order?: number;
   sidebarLabel?: string;
   externalLinkIcon?: boolean;

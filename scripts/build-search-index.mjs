@@ -161,6 +161,57 @@ async function getExternalDocsSearchItems() {
   return groups.flat();
 }
 
+async function getModelArtifactSearchItems() {
+  const apiKey = process.env.DOUBLEWORD_SYSTEM_API_KEY;
+  if (!apiKey) return [];
+
+  const response = await fetch("https://app.doubleword.ai/admin/api/v1/models?include=pricing", {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Accept: "application/json",
+    },
+  });
+  if (!response.ok) return [];
+
+  const rawData = await response.json();
+  const models = rawData.data || [];
+
+  const formatPricePer1M = (price) => `$${(Number(price) * 1_000_000).toFixed(2)}`;
+  const slugify = (value) =>
+    value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+  return models.map((model) => {
+    const tariffs = model.tariffs || [];
+    const pricingRows = [];
+    const realtime = tariffs.find((t) => t.api_key_purpose === "realtime");
+    const batch1h = tariffs.find((t) => t.api_key_purpose === "batch" && t.completion_window?.includes("1h"));
+    const batch24h = tariffs.find((t) => t.api_key_purpose === "batch" && t.completion_window?.includes("24h"));
+
+    if (realtime) {
+      pricingRows.push(`Realtime: ${formatPricePer1M(realtime.input_price_per_token)} input / ${formatPricePer1M(realtime.output_price_per_token)} output`);
+    }
+    if (batch1h) {
+      pricingRows.push(`High (1h): ${formatPricePer1M(batch1h.input_price_per_token)} input / ${formatPricePer1M(batch1h.output_price_per_token)} output`);
+    }
+    if (batch24h) {
+      pricingRows.push(`Standard (24h): ${formatPricePer1M(batch24h.input_price_per_token)} input / ${formatPricePer1M(batch24h.output_price_per_token)} output`);
+    }
+
+    return {
+      _id: `model:${slugify(model.model_name)}`,
+      title: model.model_name,
+      description: pricingRows.join("; ") || undefined,
+      body: model.description || undefined,
+      slug: `models/${slugify(model.model_name)}`,
+      productSlug: "inference-api",
+      productName: "Doubleword Inference API",
+      categorySlug: "models",
+      categoryName: "Models",
+      sourceType: "external",
+    };
+  });
+}
+
 async function main() {
   console.log("Building search index...");
 
@@ -168,6 +219,8 @@ async function main() {
   console.log(`Fetched ${docs.length} doc pages from Sanity`);
   const externalDocs = await getExternalDocsSearchItems();
   console.log(`Fetched ${externalDocs.length} external docs`);
+  const modelArtifacts = await getModelArtifactSearchItems();
+  console.log(`Fetched ${modelArtifacts.length} model artifact docs`);
 
   let externalFetches = 0;
   let failures = 0;
@@ -198,10 +251,10 @@ async function main() {
   );
 
   mkdirSync(OUTPUT_DIR, { recursive: true });
-  writeFileSync(OUTPUT_PATH, JSON.stringify([...index, ...externalDocs]));
+  writeFileSync(OUTPUT_PATH, JSON.stringify([...index, ...externalDocs, ...modelArtifacts]));
 
   console.log(
-    `Wrote ${index.length + externalDocs.length} docs to ${OUTPUT_PATH} (${externalFetches} external fetches, ${failures} failures)`,
+    `Wrote ${index.length + externalDocs.length + modelArtifacts.length} docs to ${OUTPUT_PATH} (${externalFetches} external fetches, ${failures} failures)`,
   );
 }
 

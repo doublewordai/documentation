@@ -10,6 +10,9 @@ export interface ModelPricing {
 export interface Model {
   id: string
   name: string
+  displayName: string
+  iconUrl?: string
+  providerName?: string
   description?: string
   type: string
   capabilities: string[]
@@ -26,6 +29,18 @@ export interface ModelsResponse {
 }
 
 const DEFAULT_MODEL_ID = 'Qwen/Qwen3-VL-235B-A22B-Instruct-FP8'
+const DOUBLEWORD_API_URL = 'https://app.doubleword.ai/admin/api/v1/models'
+function getInternalDocsBaseUrl(): string | null {
+  const configuredBaseUrl =
+    process.env.INTERNAL_DOCS_BASE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+
+  if (!configuredBaseUrl) return null
+  if (!/^https?:\/\//.test(configuredBaseUrl)) return null
+
+  return configuredBaseUrl.replace(/\/$/, '')
+}
 
 interface RawTariff {
   name: string
@@ -38,23 +53,69 @@ interface RawTariff {
 interface RawModel {
   model_name: string
   alias: string
+  display_name?: string
+  icon_url?: string
   description?: string
   model_type: string
+  overwrite_type?: string
+  provider_id?: string
+  provider_slug?: string
+  provider_name?: string
+  provider_key?: string
   capabilities?: string[]
   tariffs?: RawTariff[]
+  metadata?: {
+    display_category?: string
+    provider?: string
+    provider_id?: string
+    provider_slug?: string
+    provider_name?: string
+    provider_key?: string
+  }
+  provider?: {
+    id?: string
+    slug?: string
+    key?: string
+    name?: string
+    display_name?: string
+    icon_url?: string
+  } | string
+}
+function formatModelType(type: string): string {
+  const normalized = type.trim().toLowerCase()
+
+  if (normalized.includes('ocr')) return 'OCR'
+  if (normalized.includes('embed')) return 'Embedding'
+  if (
+    normalized.includes('generation') ||
+    normalized.includes('chat') ||
+    normalized.includes('completion') ||
+    normalized.includes('text')
+  ) {
+    return 'Generation'
+  }
+
+  return type
 }
 
-function transformModels(rawModels: RawModel[]): Model[] {
+function transformModels(
+  rawModels: RawModel[],
+): Model[] {
   return rawModels.map((m) => {
     const batch1hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window?.includes('1h'))
     const batch24hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window?.includes('24h'))
     const realtimeTariff = m.tariffs?.find(t => t.api_key_purpose === 'realtime')
+    const providerObject =
+      m.provider && typeof m.provider === 'object' ? m.provider : undefined
 
     return {
       id: m.alias || m.model_name,
       name: m.model_name,
+      displayName: providerObject?.display_name || m.display_name || m.model_name,
+      iconUrl: providerObject?.icon_url || m.icon_url,
+      providerName: providerObject?.name || m.metadata?.provider || m.provider_name,
       description: m.description,
-      type: m.model_type,
+      type: formatModelType(m.metadata?.display_category || m.overwrite_type || m.model_type),
       capabilities: m.capabilities || [],
       pricing: {
         batch1h: batch1hTariff ? {
@@ -88,9 +149,9 @@ export async function fetchModelsServer(): Promise<ModelsResponse> {
   }
 
   // Throw on errors so ISR keeps serving stale cached data instead of caching empty results
-  const response = await fetch('https://app.doubleword.ai/admin/api/v1/models?include=pricing', {
+  const response = await fetch(`${DOUBLEWORD_API_URL}?include=pricing&sort=released_at&sort_direction=desc&limit=100`, {
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       'Accept': 'application/json',
     },
     next: {
@@ -134,6 +195,44 @@ export async function fetchModelsClient(): Promise<ModelsResponse> {
   } catch (error) {
     console.error('Error fetching models:', error)
     return { models: [], fetchedAt: new Date().toISOString() }
+  }
+}
+
+/**
+ * Fetch models via the app's internal API route so page generation and UI
+ * consume the same response shape. Falls back to direct server fetch during
+ * build/local environments where the route URL is not available.
+ */
+export async function fetchModelsFromApiRoute(): Promise<ModelsResponse> {
+  const baseUrl = getInternalDocsBaseUrl()
+
+  if (!baseUrl) {
+    return fetchModelsServer()
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/api/models`, {
+      headers: {
+        Accept: 'application/json',
+      },
+      next: {
+        revalidate: 300,
+        tags: ['models'],
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch internal models API: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return {
+      models: data.models || [],
+      fetchedAt: new Date().toISOString(),
+    }
+  } catch (error) {
+    console.warn('Falling back to direct model fetch:', error)
+    return fetchModelsServer()
   }
 }
 

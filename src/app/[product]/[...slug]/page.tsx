@@ -11,10 +11,17 @@ import ApiKeyBanner from "@/components/ApiKeyBanner";
 import ApiKeyIndicator from "@/components/ApiKeyIndicator";
 import ModelSelector from "@/components/ModelSelector";
 import ExpandableSearch from "@/components/ExpandableSearch";
+import ModelIdentifier from "@/components/ModelIdentifier";
 import {
   findExternalDocBySlug,
   getExternalDocStaticParams,
 } from "@/lib/external-docs";
+import {
+  getModelArtifact,
+  getModelArtifacts,
+  getModelsIndexMarkdown,
+  renderModelArtifactMarkdown,
+} from "@/lib/model-artifacts";
 
 const SITE_URL = "https://docs.doubleword.ai";
 
@@ -65,6 +72,7 @@ export async function generateStaticParams() {
   })) as Array<{ productSlug: string; slug: string }>;
 
   const externalPaths = await getExternalDocStaticParams();
+  const modelPaths = await getModelArtifacts();
 
   return [
     ...paths.map((path) => ({
@@ -72,6 +80,11 @@ export async function generateStaticParams() {
       slug: path.slug.split("/"),
     })),
     ...externalPaths,
+    { product: "inference-api", slug: ["models"] },
+    ...modelPaths.map((artifact) => ({
+      product: "inference-api",
+      slug: ["models", artifact.slug],
+    })),
   ];
 }
 
@@ -86,6 +99,10 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { product: productSlug, slug } = await params;
   const docSlug = slug.join("/");
+  const modelSlug = productSlug === "inference-api" && docSlug.startsWith("models/")
+    ? docSlug.slice("models/".length)
+    : null;
+  const modelArtifact = modelSlug ? await getModelArtifact(modelSlug) : null;
 
   const doc = (await sanityFetch({
     query: DOC_PAGE_QUERY,
@@ -96,8 +113,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const externalDocMatch = !doc
     ? await findExternalDocBySlug(productSlug, docSlug)
     : null;
-  const resolvedDoc = doc || externalDocMatch?.doc;
-
+  const resolvedDoc =
+    doc ||
+    externalDocMatch?.doc ||
+    (productSlug === "inference-api" && docSlug === "models"
+      ? {
+          title: "Models",
+          description: "Browse Doubleword models and pricing.",
+          product: { _id: "inference-api", name: "Doubleword Inference API", slug: { current: "inference-api" } },
+        }
+      : modelArtifact
+        ? {
+            title: modelArtifact.name,
+            description: modelArtifact.description,
+            product: { _id: "inference-api", name: "Doubleword Inference API", slug: { current: "inference-api" } },
+          }
+        : null);
   if (!resolvedDoc || !resolvedDoc.product) {
     return {
       title: "Not Found",
@@ -147,7 +178,25 @@ export default async function DocPage({ params }: Props) {
   const externalDocMatch = !doc
     ? await findExternalDocBySlug(productSlug, docSlug)
     : null;
-  const resolvedDoc = doc || externalDocMatch?.doc;
+  const modelSlug = productSlug === "inference-api" && docSlug.startsWith("models/")
+    ? docSlug.slice("models/".length)
+    : null;
+  const modelArtifact = modelSlug ? await getModelArtifact(modelSlug) : null;
+  const resolvedDoc =
+    doc ||
+    externalDocMatch?.doc ||
+    (productSlug === "inference-api" && docSlug === "models"
+      ? {
+          title: "Models",
+          product: { _id: "inference-api", name: "Doubleword Inference API", slug: { current: "inference-api" } },
+        }
+      : modelArtifact
+        ? {
+            title: modelArtifact.name,
+            description: modelArtifact.description,
+            product: { _id: "inference-api", name: "Doubleword Inference API", slug: { current: "inference-api" } },
+          }
+        : null);
 
   if (!resolvedDoc || !resolvedDoc.product) {
     notFound();
@@ -172,6 +221,12 @@ export default async function DocPage({ params }: Props) {
     }
   } else {
     content = resolvedDoc.body;
+  }
+  if (productSlug === "inference-api" && docSlug === "models") {
+    content = await getModelsIndexMarkdown();
+  }
+  if (productSlug === "inference-api" && modelArtifact) {
+    content = renderModelArtifactMarkdown(modelArtifact);
   }
   const images = resolvedDoc.linkedPost?.images || resolvedDoc.images;
   const videoUrl = resolvedDoc.linkedPost?.videoUrl;
@@ -261,7 +316,7 @@ export default async function DocPage({ params }: Props) {
             </nav>
 
             <article>
-              {!resolvedDoc.hideTitle && (
+              {!resolvedDoc.hideTitle && !modelArtifact && (
                 <header className="mb-6">
                   <h1
                     className="text-3xl sm:text-4xl font-bold tracking-tight"
@@ -273,6 +328,8 @@ export default async function DocPage({ params }: Props) {
               )}
 
               <ApiKeyBanner hasApiKeyPlaceholder={hasApiKeyPlaceholder} />
+
+              {modelArtifact && <ModelIdentifier value={modelArtifact.rawName} />}
 
               {/* Video Embed */}
               {videoUrl && (

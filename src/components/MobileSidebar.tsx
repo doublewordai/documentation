@@ -24,6 +24,8 @@ type MobileSidebarProps = {
   productSlug: string;
   groupedDocs: GroupedDocs;
   externalDocGroups?: ExternalDocsGroup[];
+  collapseCategoriesByDefault?: boolean;
+  defaultOpenCategoryIds?: string[];
 };
 
 export default function MobileSidebar({
@@ -31,8 +33,24 @@ export default function MobileSidebar({
   productSlug,
   groupedDocs,
   externalDocGroups = [],
+  collapseCategoriesByDefault = false,
+  defaultOpenCategoryIds = [],
 }: MobileSidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mainGroupedDocs, bottomGroupedDocs] = (() => {
+    const main: GroupedDocs = {};
+    const bottom: GroupedDocs = {};
+
+    Object.entries(groupedDocs).forEach(([key, value]) => {
+      if (value.category.slug.current === 'bottom-links') {
+        bottom[key] = value;
+      } else {
+        main[key] = value;
+      }
+    });
+
+    return [main, bottom];
+  })();
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -125,7 +143,7 @@ export default function MobileSidebar({
       {/* Sidebar */}
       <aside
         className={`
-          w-64 overflow-y-auto fixed z-40 transition-transform duration-300
+          w-64 fixed z-40 transition-transform duration-300
           top-14 bottom-0 xl:top-0 xl:h-screen
           xl:translate-x-0
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -133,43 +151,62 @@ export default function MobileSidebar({
         style={{
           backgroundColor: 'var(--sidebar-bg)',
           borderRight: '1px solid var(--sidebar-border)',
-          overscrollBehavior: 'contain',
         }}
       >
-        <div className="p-6">
-          <div className="hidden xl:flex items-center justify-between mb-8">
-            <Link
-              href="/"
-              className="hover:opacity-80 transition-opacity"
-            >
-              <Image
-                src="/logo-full-black.png"
-                alt="Doubleword"
-                width={140}
-                height={32}
-                priority
-                className="logo-light"
-                style={{ height: 'auto' }}
-              />
-              <Image
-                src="/logo-full-white.png"
-                alt="Doubleword"
-                width={140}
-                height={32}
-                priority
-                className="logo-dark"
-                style={{ height: 'auto' }}
-              />
-            </Link>
-            <ThemeToggle />
+        <div className="h-full flex flex-col">
+          <div
+            className="flex-1 overflow-y-auto p-6"
+            style={{ overscrollBehavior: 'contain' }}
+          >
+            <div className="hidden xl:flex items-center justify-between mb-8">
+              <Link
+                href="/"
+                className="hover:opacity-80 transition-opacity"
+              >
+                <Image
+                  src="/logo-full-black.png"
+                  alt="Doubleword"
+                  width={140}
+                  height={32}
+                  priority
+                  className="logo-light"
+                  style={{ height: 'auto' }}
+                />
+                <Image
+                  src="/logo-full-white.png"
+                  alt="Doubleword"
+                  width={140}
+                  height={32}
+                  priority
+                  className="logo-dark"
+                  style={{ height: 'auto' }}
+                />
+              </Link>
+              <ThemeToggle />
+            </div>
+
+            <SidebarNav
+              productSlug={productSlug}
+              groupedDocs={mainGroupedDocs}
+              externalDocGroups={externalDocGroups}
+              collapseCategoriesByDefault={collapseCategoriesByDefault}
+              defaultOpenCategoryIds={defaultOpenCategoryIds}
+              onNavigate={() => setIsMobileMenuOpen(false)}
+            />
           </div>
 
-          <SidebarNav
-            productSlug={productSlug}
-            groupedDocs={groupedDocs}
-            externalDocGroups={externalDocGroups}
-            onNavigate={() => setIsMobileMenuOpen(false)}
-          />
+          {Object.keys(bottomGroupedDocs).length > 0 && (
+            <div
+              className="shrink-0 p-6 pt-4 border-t"
+              style={{ borderColor: 'var(--sidebar-border)' }}
+            >
+              <SidebarNav
+                productSlug={productSlug}
+                groupedDocs={bottomGroupedDocs}
+                onNavigate={() => setIsMobileMenuOpen(false)}
+              />
+            </div>
+          )}
         </div>
       </aside>
     </>
