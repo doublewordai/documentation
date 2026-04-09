@@ -1,6 +1,7 @@
 /**
  * Types and utilities for fetching model data from the Doubleword API
  */
+import { cache } from "react"
 
 export interface ModelPricing {
   input: number   // price per token
@@ -139,7 +140,7 @@ function transformModels(
  * Fetch models data server-side with caching
  * Used during SSR/SSG for templating
  */
-export async function fetchModelsServer(): Promise<ModelsResponse> {
+export const fetchModelsServer = cache(async (): Promise<ModelsResponse> => {
   const apiKey = process.env.DOUBLEWORD_SYSTEM_API_KEY
 
   if (!apiKey) {
@@ -171,7 +172,7 @@ export async function fetchModelsServer(): Promise<ModelsResponse> {
     models,
     fetchedAt: new Date().toISOString(),
   }
-}
+})
 
 /**
  * Fetch models data client-side
@@ -203,7 +204,7 @@ export async function fetchModelsClient(): Promise<ModelsResponse> {
  * consume the same response shape. Falls back to direct server fetch during
  * build/local environments where the route URL is not available.
  */
-export async function fetchModelsFromApiRoute(): Promise<ModelsResponse> {
+export const fetchModelsFromApiRoute = cache(async (): Promise<ModelsResponse> => {
   const baseUrl = getInternalDocsBaseUrl()
 
   if (!baseUrl) {
@@ -234,7 +235,7 @@ export async function fetchModelsFromApiRoute(): Promise<ModelsResponse> {
     console.warn('Falling back to direct model fetch:', error)
     return fetchModelsServer()
   }
-}
+})
 
 /**
  * Get the default model

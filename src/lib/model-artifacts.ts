@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { fetchModelsFromApiRoute, type Model } from "@/lib/models";
 import type { DocSearchIndexItem } from "@/sanity/types";
 
@@ -108,11 +109,11 @@ function toModelArtifact(model: Model): ModelArtifact {
   };
 }
 
-export async function getModelArtifacts(): Promise<ModelArtifact[]> {
+export const getModelArtifacts = cache(async (): Promise<ModelArtifact[]> => {
   const { models } = await fetchModelsFromApiRoute();
 
   return models.map(toModelArtifact);
-}
+});
 
 export async function getModelArtifact(slug: string): Promise<ModelArtifact | null> {
   const artifacts = await getModelArtifacts();
