@@ -3,6 +3,10 @@ import {sanityFetch} from '@/sanity/lib/client'
 import {PRODUCT_SLUGS_QUERY, FIRST_DOC_QUERY} from '@/sanity/lib/queries'
 import {getExternalDocStaticParams, getFirstExternalDocSlug} from '@/lib/external-docs'
 
+const PRODUCT_ROOT_REDIRECTS: Record<string, string> = {
+  'inference-api': 'intro-to-doubleword-inference',
+}
+
 /**
  * Generate static params for all products
  * This enables full static site generation (SSG)
@@ -32,6 +36,11 @@ interface Props {
 
 export default async function ProductPage({params}: Props) {
   const {product: productSlug} = await params
+
+  const preferredFirstDoc = PRODUCT_ROOT_REDIRECTS[productSlug]
+  if (preferredFirstDoc) {
+    redirect(`/${productSlug}/${preferredFirstDoc}`)
+  }
 
   const firstDoc = await sanityFetch({
     query: FIRST_DOC_QUERY,
