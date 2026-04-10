@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { sanityFetch } from "@/sanity/lib/client";
 import { DOC_PAGE_QUERY, ALL_DOC_PAGE_PATHS_QUERY } from "@/sanity/lib/queries";
 import type { DocPage } from "@/sanity/types";
@@ -24,6 +24,11 @@ import {
 } from "@/lib/model-artifacts";
 
 const SITE_URL = "https://docs.doubleword.ai";
+const INFERENCE_API_PARENT_REDIRECTS: Record<string, string> = {
+  "using-the-platform": "/inference-api/creating-an-api-key",
+  "account-and-billing": "/inference-api/adding-credits-to-your-account",
+  "sdks-and-cli": "/inference-api/autobatcher",
+};
 
 /**
  * Convert a raw GitHub URL to a browsable GitHub URL
@@ -167,6 +172,10 @@ export default async function DocPage({ params }: Props) {
   const { product: productSlug, slug } = await params;
   const docSlug = slug.join("/");
 
+  if (productSlug === "inference-api" && INFERENCE_API_PARENT_REDIRECTS[docSlug]) {
+    redirect(INFERENCE_API_PARENT_REDIRECTS[docSlug]);
+  }
+
 
   // Fetch the documentation page
   const doc = (await sanityFetch({
@@ -203,7 +212,7 @@ export default async function DocPage({ params }: Props) {
   }
 
   // Determine content source: externalSource > linkedPost > body
-  let content: string | undefined;
+  let content: unknown;
   if (resolvedDoc.externalSource) {
     let externalContent = await fetchExternalContent(resolvedDoc.externalSource);
     // Strip the first h1 heading from external content (we use Sanity's title instead)
@@ -230,7 +239,8 @@ export default async function DocPage({ params }: Props) {
   }
   const images = resolvedDoc.linkedPost?.images || resolvedDoc.images;
   const videoUrl = resolvedDoc.linkedPost?.videoUrl;
-  const hasApiKeyPlaceholder = content?.includes("{{apiKey}}") ?? false;
+  const hasApiKeyPlaceholder =
+    typeof content === "string" ? content.includes("{{apiKey}}") : false;
 
   // Generate GitHub repo URL from external source if available
   const githubUrl = resolvedDoc.externalSource
@@ -348,7 +358,7 @@ export default async function DocPage({ params }: Props) {
                 data-enhance-footnotes
                 data-enhance-code-tabs
               >
-                {content && (
+                {content != null && (
                   <MarkdownRenderer
                     content={content}
                     images={images}
@@ -356,6 +366,7 @@ export default async function DocPage({ params }: Props) {
                     productSlug={productSlug}
                     externalDocRoutePrefix={externalDocMatch?.source.routePrefix}
                     externalDocSourcePath={externalDocMatch?.sourcePath}
+                    disableHeadingLinks={!!modelArtifact}
                   />
                 )}
               </div>

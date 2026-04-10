@@ -32,7 +32,7 @@ export interface DocPage {
   _id: string;
   title: string;
   slug: { current: string };
-  body?: string;
+  body?: unknown;
   externalSource?: string;
   description?: string;
   hideTitle?: boolean;
@@ -66,7 +66,7 @@ export interface DocPage {
     _id: string;
     title: string;
     slug: { current: string };
-    body?: string;
+    body?: unknown;
     externalSource?: string;
     canonicalUrl?: string;
     videoUrl?: string;

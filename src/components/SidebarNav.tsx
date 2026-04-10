@@ -26,6 +26,7 @@ type SidebarNavProps = {
   onNavigate?: () => void;
   collapseCategoriesByDefault?: boolean;
   defaultOpenCategoryIds?: string[];
+  hideCategoryHeadings?: boolean;
 };
 
 export default function SidebarNav({
@@ -35,9 +36,18 @@ export default function SidebarNav({
   onNavigate,
   collapseCategoriesByDefault = false,
   defaultOpenCategoryIds = [],
+  hideCategoryHeadings = false,
 }: SidebarNavProps) {
   const pathname = usePathname();
   const getHref = (doc: DocPageForNav) => doc.href || `/${productSlug}/${doc.slug.current}`;
+  const getDocKey = (doc: DocPageForNav) =>
+    doc._id || doc.href || doc.slug.current || doc.sidebarLabel || doc.title;
+  const getCategoryKey = (category: {
+    _id: string;
+    name: string;
+    slug: { current: string };
+    order: number;
+  }) => category._id || category.slug.current || category.name;
   const getActiveSectionSlugs = () => {
     const activeSections = new Set<string>();
 
@@ -187,7 +197,7 @@ export default function SidebarNav({
 
       if (isUnsectionedCategory) {
         return (
-          <div key={category._id}>
+          <div key={getCategoryKey(category)}>
             <ul className="space-y-0.5">
               {rootDocs.map((doc) => {
                 const resolvedHref = getHref(doc);
@@ -195,7 +205,7 @@ export default function SidebarNav({
                 const openInNewTab = opensInNewTab(category.slug.current, doc);
 
                 return (
-                  <li key={doc._id}>
+                  <li key={getDocKey(doc)}>
                     <Link
                       href={resolvedHref}
                       onClick={onNavigate}
@@ -226,7 +236,7 @@ export default function SidebarNav({
       }
 
       return (
-        <div key={category._id}>
+        <div key={getCategoryKey(category)}>
           {collapseCategoriesByDefault ? (
             <button
               type="button"
@@ -252,7 +262,7 @@ export default function SidebarNav({
                 <path d="M6 4l4 4-4 4" />
               </svg>
             </button>
-          ) : category.name ? (
+          ) : category.name && !hideCategoryHeadings ? (
             <h3
               className="text-xs font-semibold tracking-widest uppercase mb-2 px-2"
               style={{ color: "var(--text-muted)" }}
@@ -276,7 +286,7 @@ export default function SidebarNav({
 
                 if (hasChildren) {
                   return (
-                    <li key={doc._id}>
+                    <li key={getDocKey(doc)}>
                       <div className="group flex items-center">
                           <Link
                           href={resolvedHref}
@@ -332,7 +342,7 @@ export default function SidebarNav({
                           const isChildItemActive = pathname === childHref;
 
                           return (
-                            <li key={child._id}>
+                            <li key={getDocKey(child)}>
                               <Link
                                 href={childHref}
                                 onClick={onNavigate}
@@ -361,7 +371,7 @@ export default function SidebarNav({
                 }
 
                 return (
-                  <li key={doc._id}>
+                  <li key={getDocKey(doc)}>
                     <Link
                       href={resolvedHref}
                       onClick={onNavigate}
@@ -391,12 +401,15 @@ export default function SidebarNav({
     });
 
   return (
-    <nav className="space-y-6">
+    <nav className={hideCategoryHeadings ? "space-y-0.5" : "space-y-6"}>
       {renderCategoryList(sortedCategories)}
       {externalDocGroups.map((group) => {
         if (!group.title) {
           return (
-            <div key={group.id} className="space-y-6">
+            <div
+              key={group.id}
+              className={hideCategoryHeadings ? "space-y-0.5" : "space-y-6"}
+            >
               {renderCategoryList(group.categories)}
             </div>
           );
