@@ -191,6 +191,7 @@ export default function MobileSidebar({
               externalDocGroups={externalDocGroups}
               collapseCategoriesByDefault={collapseCategoriesByDefault}
               defaultOpenCategoryIds={defaultOpenCategoryIds}
+              hideCategoryHeadings
               onNavigate={() => setIsMobileMenuOpen(false)}
             />
           </div>

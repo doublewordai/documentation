@@ -9,248 +9,101 @@ type GroupedDocs = Record<
   }
 >;
 
-type SidebarSection = {
-  id: string;
-  name: string;
-  order: number;
-  docs: Array<
-    | string
-    | {
-        slug: string;
-        title: string;
-        href: string;
-        externalLinkIcon?: boolean;
-        parentSlug?: string | null;
-      }
-  >;
-};
-
-const SECTIONS: SidebarSection[] = [
-  {
-    id: "docs",
-    name: "",
-    order: 10,
-    docs: [
-      "intro-to-doubleword-inference",
-      "realtime-inference",
-      "async-inference",
-      "batch-inference",
-      {
-        slug: "models",
-        title: "Models",
-        href: "/inference-api/models",
-      },
-      {
-        slug: "using-the-platform",
-        title: "Using the Platform",
-        href: "/inference-api/creating-an-api-key",
-      },
-      "creating-an-api-key",
-      "tool-calling",
-      "batch-notifications-and-webhooks",
-      "jsonl-files",
-      {
-        slug: "organizations",
-        title: "Organizations",
-        href: "/inference-api/organizations-overview",
-      },
-      "organizations-overview",
-      "inviting-team-members",
-      "organization-api-keys",
-      "organization-batches",
-      "organization-credits",
-      {
-        slug: "account-and-billing",
-        title: "Account & Billing",
-        href: "/inference-api/adding-credits-to-your-account",
-      },
-      "adding-credits-to-your-account",
-      "auto-topup",
-      "how-to-manage-payments",
-      {
-        slug: "libraries",
-        title: "SDKs & CLI",
-        href: "/inference-api/autobatcher",
-      },
-      "autobatcher",
-      "dw-cli",
-      "cli-examples",
-      "async-agents",
-      "data-processing-pipelines",
-      "structured-extraction",
-      "semantic-search-without-embeddings",
-      "research-summaries",
-      "image-summarization",
-      "embeddings",
-      "model-evals",
-      "synthetic-data-generation",
-      "dataset-compilation",
-      "bug-detection-ensemble",
-      "openclaw-setup",
-    ],
-  },
-  {
-    id: "bottom-links",
-    name: "",
-    order: 30,
-    docs: [
-      "api-reference",
-      "skill",
-      {
-        slug: "dw-cli",
-        title: "Doubleword CLI",
-        href: "/dw-cli",
-        externalLinkIcon: true,
-      },
-      "get-support",
-    ],
-  },
-];
-
-const SUPERSEDED_SLUGS = new Set([
-  "model-pricing",
-  "why-batch-inference-matters",
-  "parallel-primitives",
-  "behind-the-stack-batched-endpoints",
-  "zerodp-just-in-time-weight-offloading-over-nvlink-for-data-parallelism",
-]);
-const START_ROOT_SLUG = "intro-to-doubleword-inference";
+const FOOTER_SLUGS = new Set(["api-reference", "skill", "get-support"]);
+const IGNORED_CATEGORY_SLUGS = new Set(["archive"]);
 const MODELS_ROOT_SLUG = "models";
-const PLATFORM_ROOT_SLUG = "using-the-platform";
-const ORGANIZATIONS_ROOT_SLUG = "organizations";
-const ACCOUNT_BILLING_ROOT_SLUG = "account-and-billing";
-const LIBRARIES_ROOT_SLUG = "libraries";
-const EXAMPLES_ROOT_SLUG = "cli-examples";
 
-const CHILD_PARENT_BY_SLUG: Record<string, string> = {
-  "batch-inference": START_ROOT_SLUG,
-  "async-inference": START_ROOT_SLUG,
-  "realtime-inference": START_ROOT_SLUG,
-  "creating-an-api-key": PLATFORM_ROOT_SLUG,
-  "tool-calling": PLATFORM_ROOT_SLUG,
-  "batch-notifications-and-webhooks": PLATFORM_ROOT_SLUG,
-  "jsonl-files": PLATFORM_ROOT_SLUG,
-  "organizations-overview": ORGANIZATIONS_ROOT_SLUG,
-  "inviting-team-members": ORGANIZATIONS_ROOT_SLUG,
-  "organization-api-keys": ORGANIZATIONS_ROOT_SLUG,
-  "organization-batches": ORGANIZATIONS_ROOT_SLUG,
-  "organization-credits": ORGANIZATIONS_ROOT_SLUG,
-  "adding-credits-to-your-account": ACCOUNT_BILLING_ROOT_SLUG,
-  "auto-topup": ACCOUNT_BILLING_ROOT_SLUG,
-  "how-to-manage-payments": ACCOUNT_BILLING_ROOT_SLUG,
-  autobatcher: LIBRARIES_ROOT_SLUG,
-  "dw-cli": LIBRARIES_ROOT_SLUG,
-  "async-agents": EXAMPLES_ROOT_SLUG,
-  "data-processing-pipelines": EXAMPLES_ROOT_SLUG,
-  "structured-extraction": EXAMPLES_ROOT_SLUG,
-  "semantic-search-without-embeddings": EXAMPLES_ROOT_SLUG,
-  "research-summaries": EXAMPLES_ROOT_SLUG,
-  "image-summarization": EXAMPLES_ROOT_SLUG,
-  "embeddings": EXAMPLES_ROOT_SLUG,
-  "model-evals": EXAMPLES_ROOT_SLUG,
-  "synthetic-data-generation": EXAMPLES_ROOT_SLUG,
-  "dataset-compilation": EXAMPLES_ROOT_SLUG,
-  "bug-detection-ensemble": EXAMPLES_ROOT_SLUG,
-};
-
-const ROOT_LABEL_BY_SLUG: Record<string, string> = {
-  [START_ROOT_SLUG]: "Overview",
-  [EXAMPLES_ROOT_SLUG]: "Workbooks",
-  "dw-cli": "dw CLI",
-};
-
-function buildCategory(section: SidebarSection): DocPageForNav["category"] {
+function buildBottomCategory(): DocPageForNav["category"] {
   return {
-    _id: `inference-api:${section.id}`,
-    name: section.name,
-    slug: { current: section.id },
-    order: section.order,
+    _id: "inference-api:bottom-links",
+    name: "",
+    slug: { current: "bottom-links" },
+    order: 999,
   };
 }
 
+function groupDocsByCategory(docs: DocPageForNav[]): GroupedDocs {
+  return docs.reduce((acc, doc) => {
+    if (!doc.category) return acc;
+
+    const categoryId = doc.category._id;
+    if (!acc[categoryId]) {
+      acc[categoryId] = {
+        category: doc.category,
+        docs: [],
+      };
+    }
+
+    acc[categoryId].docs.push(doc);
+    return acc;
+  }, {} as GroupedDocs);
+}
+
 export async function organizeInferenceApiSidebar(docs: DocPageForNav[]): Promise<GroupedDocs> {
-  const docsBySlug = new Map(docs.map((doc) => [doc.slug.current, doc]));
-  const groupedDocs: GroupedDocs = {};
-  const usedSlugs = new Set<string>();
+  const mainDocs = docs.filter(
+    (doc) =>
+      !FOOTER_SLUGS.has(doc.slug.current) &&
+      !IGNORED_CATEGORY_SLUGS.has(doc.category?.slug.current || ""),
+  );
+  const groupedDocs = groupDocsByCategory(mainDocs);
+
+  const modelsRootDoc = mainDocs.find((doc) => doc.slug.current === MODELS_ROOT_SLUG);
   const modelArtifacts = await getModelArtifacts();
 
-  for (const section of SECTIONS) {
-    const category = buildCategory(section);
-    const sectionDocs: DocPageForNav[] = [];
+  if (modelsRootDoc?.category) {
+    const categoryId = modelsRootDoc.category._id;
+    const categoryGroup = groupedDocs[categoryId];
 
-    section.docs.forEach((entry, index) => {
-      if (typeof entry === "string") {
-        const doc = docsBySlug.get(entry);
-        if (!doc) return;
+    if (categoryGroup) {
+      const existingModelSlugs = new Set(categoryGroup.docs.map((doc) => doc.slug.current));
+      const modelDocs: DocPageForNav[] = modelArtifacts
+        .map((artifact, index) => ({
+          _id: `synthetic:model:${artifact.slug}`,
+          title: artifact.name,
+          sidebarLabel: artifact.name,
+          slug: { current: `models/${artifact.slug}` },
+          href: getModelArtifactPath(artifact.slug),
+          order: (modelsRootDoc.order ?? 0) + 1 + index,
+          categorySlug: categoryGroup.category.slug.current,
+          categoryName: categoryGroup.category.name,
+          category: categoryGroup.category,
+          parentSlug: MODELS_ROOT_SLUG,
+        }))
+        .filter((doc) => !existingModelSlugs.has(doc.slug.current));
 
-        usedSlugs.add(entry);
-        sectionDocs.push({
-          ...doc,
-          order: index,
-          parentSlug: CHILD_PARENT_BY_SLUG[doc.slug.current] || null,
-          sidebarLabel: ROOT_LABEL_BY_SLUG[doc.slug.current] || doc.sidebarLabel,
-          categorySlug: category.slug.current,
-          categoryName: category.name,
-          category,
-        });
-        return;
-      }
-
-      sectionDocs.push({
-        _id: `synthetic:${entry.slug}`,
-        title: entry.title,
-        slug: { current: entry.slug },
-        href: entry.href,
-        order: index,
-        sidebarLabel: entry.title,
-        externalLinkIcon: entry.externalLinkIcon,
-        categorySlug: category.slug.current,
-        categoryName: category.name,
-        parentSlug: entry.parentSlug ?? null,
-        category,
-      });
-    });
-
-    if (sectionDocs.length > 0) {
-      if (section.id === "docs") {
-        sectionDocs.push(
-          ...modelArtifacts.map((artifact, index) => ({
-            _id: `synthetic:model:${artifact.slug}`,
-            title: artifact.name,
-            slug: { current: `models/${artifact.slug}` },
-            href: getModelArtifactPath(artifact.slug),
-            order: 100 + index,
-            sidebarLabel: artifact.name,
-            categorySlug: category.slug.current,
-            categoryName: category.name,
-            parentSlug: MODELS_ROOT_SLUG,
-            category,
-          })),
-        );
-      }
-
-      if (sectionDocs.length > 0) {
-        groupedDocs[category._id] = {
-          category,
-          docs: sectionDocs,
-        };
-      }
+      categoryGroup.docs = [...categoryGroup.docs, ...modelDocs].sort(
+        (a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER),
+      );
     }
   }
 
-  const uncategorizedDocs = docs.filter(
-    (doc) =>
-      !usedSlugs.has(doc.slug.current) &&
-      !SUPERSEDED_SLUGS.has(doc.slug.current) &&
-      doc.slug.current !== "models",
-  );
+  const footerCategory = buildBottomCategory();
+  const footerDocs: DocPageForNav[] = [
+    ...docs.filter((doc) => FOOTER_SLUGS.has(doc.slug.current)).map((doc) => ({
+      ...doc,
+      categorySlug: footerCategory.slug.current,
+      categoryName: footerCategory.name,
+      category: footerCategory,
+    })),
+    {
+      _id: "synthetic:dw-cli-footer",
+      title: "Doubleword CLI",
+      sidebarLabel: "Doubleword CLI",
+      slug: { current: "dw-cli" },
+      href: "/dw-cli",
+      externalLinkIcon: true,
+      order: 100,
+      categorySlug: footerCategory.slug.current,
+      categoryName: footerCategory.name,
+      category: footerCategory,
+      parentSlug: null,
+    },
+  ].sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER));
 
-  if (uncategorizedDocs.length > 0) {
-    console.warn(
-      "Unmapped inference-api sidebar docs:",
-      uncategorizedDocs.map((doc) => doc.slug.current),
-    );
-  }
+  groupedDocs[footerCategory._id] = {
+    category: footerCategory,
+    docs: footerDocs,
+  };
 
   return groupedDocs;
 }
