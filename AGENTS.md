@@ -9,17 +9,17 @@ Docs content lives in **three places**. Know which one before making changes:
 | Source | What lives there | How to edit |
 |---|---|---|
 | **Sanity CMS** (`doubleword.sanity.studio`) | Most pages under `/inference-api`, `/control-layer`, `/inference-stack` | Sanity Studio UI (content authors) |
-| **External repo** (`doublewordai/dw` → `docs/src/*.md`) | All `/dw-cli/*` pages, pulled at build time | Edit the `dw` repo, not this one |
+| The [dw CLI repo](https://github.com/doublewordai/dw) (`docs/src/*.md`) | All `/dw-cli/*` pages, pulled at build time | Edit the dw CLI repo, not this one |
 | **Auto-generated** from Doubleword API | `/inference-api/models/*` (one page per live model) | Do not edit. Pages appear/disappear as models are added/removed from the API |
 
 This repo (`doublewordai/documentation`) is the **Next.js frontend** that renders all three. Most doc updates are purely content and happen in Sanity Studio, not here.
 
-## When to touch this repo vs. Sanity vs. `dw` repo
+## When to touch this repo vs. Sanity vs. the dw CLI repo
 
 Use this decision tree:
 
 - **Editing page copy, adding a new workbook, updating a category** → Sanity Studio. No code change.
-- **Editing a `/dw-cli/*` page** → `doublewordai/dw` repo, file `docs/src/<page>.md`. Update `docs/src/SUMMARY.md` if adding a new page.
+- **Editing a `/dw-cli/*` page** → [dw CLI repo](https://github.com/doublewordai/dw), file `docs/src/<page>.md`. Update `docs/src/SUMMARY.md` if adding a new page.
 - **Updating a model's pricing or description** → Nothing. Model pages are auto-generated from the Doubleword API on every request (ISR, 5-min cache). Fix it in the API if wrong.
 - **Changing a page URL (slug or location)** → Change it in Sanity **and** add a redirect in `next.config.ts` (see "Renaming or moving pages" below).
 - **Archiving a page** → See "Archiving pages" below.
@@ -73,7 +73,7 @@ To actually add a model, publish it in the Doubleword platform; it shows up with
 
 ### Update `dw-cli` docs
 
-1. Edit `docs/src/<page>.md` in the `doublewordai/dw` repo.
+1. Edit `docs/src/<page>.md` in the [dw CLI repo](https://github.com/doublewordai/dw).
 2. If adding a new page, also update `docs/src/SUMMARY.md` — that file is the sidebar source of truth for CLI docs. The structure of `SUMMARY.md` maps directly to the sidebar.
 3. Merge to `main`. The docs site fetches from the raw GitHub URL with a 1-hour cache (see `src/lib/external-docs.ts`).
 4. To cut the wait, trigger a redeploy of the docs site.
@@ -104,9 +104,9 @@ All redirects live in `next.config.ts` under `async redirects()`. Add to the app
 
 ## Downstream updates
 
-When a page URL or major concept changes, these things may also need updating. They are _not_ auto-synced:
+> **⚠️ IMPORTANT — do not skip this section.** When a page URL or major concept changes, the items below may also need updating. They are **not** auto-synced, and missing them is the single most common source of broken links and stale references across the Doubleword ecosystem. Run through this checklist on every non-trivial change.
 
-- **`doublewordai/batch-skill`** (agents skill): `SKILL.md` contains explicit links to doc pages. Grep it for the affected slug and update.
+- **[`doublewordai/batch-skill`](https://github.com/doublewordai/batch-skill)** (agents skill): `SKILL.md` contains explicit links to doc pages. Grep it for the affected slug and update.
 - **`llms.txt`**: Auto-generated from Sanity by `src/app/llms.txt/route.ts`. No manual action, but sanity-check the output after the change.
 - **Search index**: Rebuilt at build time by `scripts/build-search-index.mjs`. No manual action.
 - **External SDK docs and blog posts**: Search the `doublewordai` org on GitHub for the old slug. Update or rely on the redirect.
@@ -180,7 +180,7 @@ Without `DOUBLEWORD_SYSTEM_API_KEY`, model pages render empty.
 - **Renaming without a redirect is silent breakage.** The only indicator is analytics 404s.
 - **Currency in markdown.** Escape `$` as `\$` — bare `$` triggers math mode.
 - **Image filenames are case-sensitive.** `Diagram.png` and `diagram.png` are different.
-- **`dw-cli` edits in this repo do nothing.** That content comes from `doublewordai/dw`.
+- **`dw-cli` edits in this repo do nothing.** That content comes from the [dw CLI repo](https://github.com/doublewordai/dw).
 - **Model pages cannot be edited in Sanity.** They're synthesized. Edit the API.
 - **Handlebars errors surface only in the console**, not the page. Check dev server logs.
 - **The `.md` suffix is not universal.** Archive-category pages and auto-generated model pages serve markdown; custom Next.js route handlers (like `/inference-api/api-reference`) may not. Test before relying on it.
