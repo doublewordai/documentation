@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { defineQuery } from "next-sanity";
 import { sanityFetch } from "@/sanity/lib/client";
+import { getExternalDocsIndex, getExternalProducts } from "@/lib/external-docs";
 import { getModelArtifacts } from "@/lib/model-artifacts";
 
 const ALL_DOCS_QUERY = defineQuery(`{
@@ -58,6 +59,13 @@ export async function GET() {
 
   const { homepage, products, docs } = data;
   const modelArtifacts = await getModelArtifacts();
+  const externalProducts = getExternalProducts().map((product) => ({
+    ...product,
+    slug: product.slug.current,
+  }));
+  const allProducts = [...products, ...externalProducts].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
 
   // Build the llms.txt content
   const lines: string[] = [];
@@ -76,9 +84,13 @@ export async function GET() {
   lines.push("");
 
   // Group docs by product, then by category (docs are pre-sorted by query)
-  for (const product of products) {
+  for (const product of allProducts) {
     const productDocs = docs.filter((d) => d.productId === product._id);
-    if (productDocs.length === 0) continue;
+    const externalIndex = productDocs.length === 0
+      ? await getExternalDocsIndex(product.slug)
+      : null;
+
+    if (productDocs.length === 0 && !externalIndex) continue;
 
     lines.push(`## ${product.name}`);
     lines.push("");
@@ -90,23 +102,38 @@ export async function GET() {
       lines.push("");
     }
 
-    // Iterate through docs maintaining query order, grouping by category
-    let currentCategory: string | null = null;
+    if (productDocs.length > 0) {
+      let currentCategory: string | null = null;
 
-    for (const doc of productDocs) {
-      // Start new category section if needed
-      if (doc.categoryName && doc.categoryName !== currentCategory) {
-        if (currentCategory !== null) {
+      for (const doc of productDocs) {
+        if (doc.categoryName && doc.categoryName !== currentCategory) {
+          if (currentCategory !== null) {
+            lines.push("");
+          }
+          lines.push(`### ${doc.categoryName}`);
           lines.push("");
+          currentCategory = doc.categoryName;
         }
-        lines.push(`### ${doc.categoryName}`);
-        lines.push("");
-        currentCategory = doc.categoryName;
-      }
 
-      const url = `/${product.slug}/${doc.slug}.md`;
-      const description = doc.description ? `: ${doc.description}` : "";
-      lines.push(`- [${doc.title}](${url})${description}`);
+        const url = `/${product.slug}/${doc.slug}.md`;
+        const description = doc.description ? `: ${doc.description}` : "";
+        lines.push(`- [${doc.title}](${url})${description}`);
+      }
+    } else if (externalIndex) {
+      let currentCategory: string | null = null;
+
+      for (const doc of externalIndex.docs) {
+        if (doc.categoryName !== currentCategory) {
+          if (currentCategory !== null) {
+            lines.push("");
+          }
+          lines.push(`### ${doc.categoryName}`);
+          lines.push("");
+          currentCategory = doc.categoryName;
+        }
+
+        lines.push(`- [${doc.title}](/${product.slug}/${doc.slug}.md)`);
+      }
     }
 
     if (product.slug === "inference-api" && modelArtifacts.length > 0) {

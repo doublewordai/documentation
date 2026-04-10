@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { defineQuery } from "next-sanity";
 import { sanityFetch } from "@/sanity/lib/client";
+import { getExternalDocsIndex } from "@/lib/external-docs";
 import { getModelArtifacts } from "@/lib/model-artifacts";
 
 const PRODUCT_DOCS_QUERY = defineQuery(`{
@@ -51,7 +52,45 @@ export async function GET(
   };
 
   if (!data.product) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    const externalIndex = await getExternalDocsIndex(productSlug);
+
+    if (!externalIndex) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    const lines: string[] = [];
+    const { product, docs } = externalIndex;
+
+    lines.push(`# ${product.name}`);
+    lines.push("");
+
+    if (product.description) {
+      lines.push(product.description);
+      lines.push("");
+    }
+
+    let currentCategory: string | null = null;
+
+    for (const doc of docs) {
+      if (doc.categoryName !== currentCategory) {
+        if (currentCategory !== null) {
+          lines.push("");
+        }
+        lines.push(`## ${doc.categoryName}`);
+        lines.push("");
+        currentCategory = doc.categoryName;
+      }
+
+      lines.push(`- [${doc.title}](/${product.slug}/${doc.slug}.md)`);
+    }
+
+    lines.push("");
+
+    return new NextResponse(lines.join("\n"), {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
   }
 
   const { product, docs } = data;

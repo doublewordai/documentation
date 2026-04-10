@@ -6,6 +6,8 @@ import MobileSidebar from '@/components/MobileSidebar'
 import {getExternalDocsGroups, getExternalProduct} from '@/lib/external-docs'
 import {organizeInferenceApiSidebar} from '@/lib/inference-api-sidebar'
 
+const PRODUCTS_WITH_VISIBLE_CATEGORY_HEADINGS = new Set(['control-layer', 'dw-cli'])
+
 export default async function ProductLayout({
   children,
   params,
@@ -57,13 +59,22 @@ export default async function ProductLayout({
       return acc
     }, {} as Record<string, {category: DocPageForNav['category']; docs: DocPageForNav[]}>)
 
+  externalDocGroups.forEach((group) => {
+    group.categories.forEach(({category, docs}) => {
+      groupedDocs[category._id] = {
+        category,
+        docs,
+      }
+    })
+  })
+
   return (
     <div className="min-h-screen" style={{background: 'var(--background)'}}>
       <MobileSidebar
         productName={resolvedProduct.name}
         productSlug={productSlug}
         groupedDocs={groupedDocs}
-        externalDocGroups={externalDocGroups}
+        hideCategoryHeadings={!PRODUCTS_WITH_VISIBLE_CATEGORY_HEADINGS.has(productSlug)}
       />
       <main className="pt-14 xl:pt-0 xl:ml-64">{children}</main>
     </div>

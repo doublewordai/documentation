@@ -14,7 +14,7 @@ import CopyButton from "./CopyButton";
 import { fetchModelsServer } from "@/lib/models";
 import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
 import { StatusWidget } from './StatusWidget';
-import { resolveExternalMarkdownLink } from "@/lib/external-docs";
+import { rewriteExternalMarkdownLinks } from "@/lib/external-docs";
 
 
 /**
@@ -151,48 +151,6 @@ function getGitHubBaseUrl(rawUrl: string): string | null {
   return `https://github.com/${owner}/${repo}/tree/${branch}`;
 }
 
-/**
- * Convert relative directory links to docs page links
- * e.g., ./async-agents/ -> /inference-api/async-agents
- */
-function convertRelativeLinksToDocsPages(
-  markdown: string,
-  {
-    productSlug,
-    routePrefix,
-    sourcePath,
-  }: {
-    productSlug: string;
-    routePrefix?: string;
-    sourcePath?: string;
-  },
-): string {
-  // Match markdown links with relative directory paths: [text](./path/) or [text](./path)
-  return markdown.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    (match, text, href) => {
-      if (routePrefix && sourcePath) {
-        const resolvedHref = resolveExternalMarkdownLink({
-          href,
-          productSlug,
-          routePrefix,
-          sourcePath,
-        });
-        return `[${text}](${resolvedHref})`;
-      }
-
-      if (!href.startsWith("./")) return match;
-
-      const cleanPath = href.slice(2).replace(/\/$/, "");
-      if (!cleanPath.includes(".")) {
-        return `[${text}](/${productSlug}/${cleanPath})`;
-      }
-
-      return match;
-    },
-  );
-}
-
 export async function MarkdownRenderer({
   content,
   images,
@@ -235,14 +193,12 @@ export async function MarkdownRenderer({
 
   // Convert relative directory links to docs page links if we have a product slug
   if (externalSource && productSlug) {
-    processedContent = convertRelativeLinksToDocsPages(
-      processedContent,
-      {
-        productSlug,
-        routePrefix: externalDocRoutePrefix,
-        sourcePath: externalDocSourcePath,
-      },
-    );
+    processedContent = rewriteExternalMarkdownLinks({
+      markdown: processedContent,
+      productSlug,
+      routePrefix: externalDocRoutePrefix,
+      sourcePath: externalDocSourcePath,
+    });
   }
 
   // Replace image filenames with Sanity CDN URLs
