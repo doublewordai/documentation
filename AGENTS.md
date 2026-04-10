@@ -1,4 +1,4 @@
-# agents.md — Updating Doubleword Docs
+# AGENTS.md — Updating Doubleword Docs
 
 Guide for AI coding agents and developers making changes to the Doubleword documentation. This is the _mechanics_ of editing; for writing style, see the team's content guidelines.
 
