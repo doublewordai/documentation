@@ -26,6 +26,7 @@ type MobileSidebarProps = {
   externalDocGroups?: ExternalDocsGroup[];
   collapseCategoriesByDefault?: boolean;
   defaultOpenCategoryIds?: string[];
+  hideCategoryHeadings?: boolean;
 };
 
 export default function MobileSidebar({
@@ -35,6 +36,7 @@ export default function MobileSidebar({
   externalDocGroups = [],
   collapseCategoriesByDefault = false,
   defaultOpenCategoryIds = [],
+  hideCategoryHeadings = true,
 }: MobileSidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mainGroupedDocs, bottomGroupedDocs] = (() => {
@@ -191,7 +193,7 @@ export default function MobileSidebar({
               externalDocGroups={externalDocGroups}
               collapseCategoriesByDefault={collapseCategoriesByDefault}
               defaultOpenCategoryIds={defaultOpenCategoryIds}
-              hideCategoryHeadings
+              hideCategoryHeadings={hideCategoryHeadings}
               onNavigate={() => setIsMobileMenuOpen(false)}
             />
           </div>

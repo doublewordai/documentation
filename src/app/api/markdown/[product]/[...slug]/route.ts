@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { defineQuery } from "next-sanity";
 import { sanityFetch } from "@/sanity/lib/client";
+import {
+  findExternalDocBySlug,
+  rewriteExternalMarkdownLinks,
+} from "@/lib/external-docs";
 import { fetchModelsServer } from "@/lib/models";
 import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
 import { getModelArtifact, renderModelArtifactMarkdown } from "@/lib/model-artifacts";
@@ -69,7 +73,27 @@ export async function GET(
   } | null;
 
   if (!doc) {
-    return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    const externalDocMatch = await findExternalDocBySlug(productSlug, docSlug);
+
+    if (!externalDocMatch) {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    const rewrittenContent = rewriteExternalMarkdownLinks({
+      markdown:
+        typeof externalDocMatch.doc.body === "string"
+          ? externalDocMatch.doc.body
+          : "",
+      productSlug,
+      routePrefix: externalDocMatch.source.routePrefix,
+      sourcePath: externalDocMatch.sourcePath,
+    });
+
+    return new NextResponse(rewrittenContent, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
   }
 
   // Get the raw markdown content

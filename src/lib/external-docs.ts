@@ -19,6 +19,7 @@ export type ExternalDocEntry = {
   sourcePath: string;
   categoryName: string;
   order: number;
+  parentSlug: string | null;
 };
 
 export type ExternalDocsGroup = {
@@ -34,6 +35,15 @@ type ExternalDocMatch = {
   doc: DocPage;
   source: ExternalDocsSource;
   sourcePath: string;
+};
+
+export type ExternalDocsIndex = {
+  product: {
+    name: string;
+    slug: string;
+    description?: string;
+  };
+  docs: ExternalDocEntry[];
 };
 
 const EXTERNAL_DOCS_SOURCES: ExternalDocsSource[] = [
@@ -72,6 +82,7 @@ export function parseSummary(summary: string, source: ExternalDocsSource): Exter
   const entries: ExternalDocEntry[] = [];
   let categoryName = source.title;
   let order = 0;
+  const nestingStack: Array<{ indent: number; slug: string }> = [];
 
   for (const rawLine of summary.split("\n")) {
     const line = rawLine.trim();
@@ -84,17 +95,29 @@ export function parseSummary(summary: string, source: ExternalDocsSource): Exter
       continue;
     }
 
-    const linkMatch = line.match(/^-?\s*\[([^\]]+)\]\(([^)]+\.md)\)$/);
+    const linkMatch = rawLine.match(/^(\s*)(?:-\s*)?\[([^\]]+)\]\(([^)]+\.md)\)\s*$/);
     if (!linkMatch) continue;
 
-    const [, title, sourcePath] = linkMatch;
+    const [, indentation, title, sourcePath] = linkMatch;
+    const indent = indentation.length;
+
+    while (nestingStack.length > 0 && nestingStack[nestingStack.length - 1]!.indent >= indent) {
+      nestingStack.pop();
+    }
+
+    const parentSlug = nestingStack[nestingStack.length - 1]?.slug ?? null;
+    const slug = buildEntrySlug(source, sourcePath.trim());
+
     entries.push({
       title: title.trim(),
-      slug: buildEntrySlug(source, sourcePath.trim()),
+      slug,
       sourcePath: sourcePath.trim(),
       categoryName,
       order: order++,
+      parentSlug,
     });
+
+    nestingStack.push({ indent, slug });
   }
 
   return entries;
@@ -114,6 +137,27 @@ async function loadSummaryEntries(source: ExternalDocsSource): Promise<ExternalD
   const summary = await fetchText(source.summaryUrl);
   if (!summary) return [];
   return parseSummary(summary, source);
+}
+
+export async function getExternalDocsIndex(
+  productSlug: string,
+): Promise<ExternalDocsIndex | null> {
+  const source = EXTERNAL_DOCS_SOURCES.find(
+    (candidate) => candidate.productSlug === productSlug,
+  );
+
+  if (!source) return null;
+
+  const docs = await loadSummaryEntries(source);
+
+  return {
+    product: {
+      name: source.productName,
+      slug: source.productSlug,
+      description: source.productDescription,
+    },
+    docs,
+  };
 }
 
 export async function getExternalDocsGroups(
@@ -157,7 +201,7 @@ export async function getExternalDocsGroups(
           externalLinkIcon: false,
           categorySlug: sanitizeCategorySlug(entry.categoryName),
           categoryName: entry.categoryName,
-          parentSlug: null,
+          parentSlug: entry.parentSlug,
           category: categories.get(categoryId)!.category,
         });
       }
@@ -337,4 +381,37 @@ export function resolveExternalMarkdownLink({
   const slugPath = routePrefix ? `${routePrefix}/${cleanPath}` : cleanPath;
   const target = `/${productSlug}/${slugPath}`;
   return hash ? `${target}#${hash}` : target;
+}
+
+export function rewriteExternalMarkdownLinks({
+  markdown,
+  productSlug,
+  routePrefix,
+  sourcePath,
+}: {
+  markdown: string;
+  productSlug: string;
+  routePrefix?: string;
+  sourcePath?: string;
+}): string {
+  return markdown.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, href) => {
+    if (routePrefix != null && sourcePath) {
+      const resolvedHref = resolveExternalMarkdownLink({
+        href,
+        productSlug,
+        routePrefix,
+        sourcePath,
+      });
+      return `[${text}](${resolvedHref})`;
+    }
+
+    if (!href.startsWith("./")) return match;
+
+    const cleanPath = href.slice(2).replace(/\/$/, "");
+    if (!cleanPath.includes(".")) {
+      return `[${text}](/${productSlug}/${cleanPath})`;
+    }
+
+    return match;
+  });
 }
