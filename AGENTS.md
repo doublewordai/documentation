@@ -106,7 +106,7 @@ All redirects live in `next.config.ts` under `async redirects()`. Add to the app
 
 > **⚠️ IMPORTANT — do not skip this section.** When a page URL or major concept changes, the items below may also need updating. They are **not** auto-synced, and missing them is the single most common source of broken links and stale references across the Doubleword ecosystem. Run through this checklist on every non-trivial change.
 
-- **[`doublewordai/batch-skill`](https://github.com/doublewordai/batch-skill)** (agents skill): `SKILL.md` contains explicit links to doc pages. Grep it for the affected slug and update.
+- **[`doublewordai/batch-skill`](https://github.com/doublewordai/skill)** (agents skill): `SKILL.md` contains explicit links to doc pages. Grep it for the affected slug and update.
 - **`llms.txt`**: Auto-generated from Sanity by `src/app/llms.txt/route.ts`. No manual action, but sanity-check the output after the change.
 - **Search index**: Rebuilt at build time by `scripts/build-search-index.mjs`. No manual action.
 - **External SDK docs and blog posts**: Search the `doublewordai` org on GitHub for the old slug. Update or rely on the redirect.
