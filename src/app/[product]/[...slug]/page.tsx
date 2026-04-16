@@ -35,9 +35,14 @@ const INFERENCE_API_PARENT_REDIRECTS: Record<string, string> = {
  * e.g., https://raw.githubusercontent.com/doublewordai/use-cases/refs/heads/main/image-summarization/README.md
  *    -> https://github.com/doublewordai/use-cases/tree/main/image-summarization
  */
-function rawGitHubToRepoUrl(rawUrl: string): string | null {
-  // Match raw.githubusercontent.com URLs
-  const match = rawUrl.match(
+function toGitHubUrl(url: string): string | null {
+  // Pass through regular github.com URLs as-is
+  if (/^https:\/\/github\.com\//.test(url)) {
+    return url;
+  }
+
+  // Convert raw.githubusercontent.com URLs to browsable repo URLs
+  const match = url.match(
     /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\/(.+)$/,
   );
   if (!match) return null;
@@ -53,13 +58,16 @@ function rawGitHubToRepoUrl(rawUrl: string): string | null {
 }
 
 /**
- * Fetch markdown content from an external URL
- * Used when a linked blog post has externalSource set
+ * Fetch an external URL and return its text content only if the response
+ * is plain text or markdown. HTML responses (e.g. a GitHub repo page)
+ * return null so the caller falls back to the Sanity body.
  */
 async function fetchExternalContent(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, { next: { revalidate: 3600 } }); // Cache for 1 hour
     if (!response.ok) return null;
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("text/html")) return null;
     return await response.text();
   } catch {
     return null;
@@ -212,6 +220,8 @@ export default async function DocPage({ params }: Props) {
   }
 
   // Determine content source: externalSource > linkedPost > body
+  // fetchExternalContent returns null for HTML responses (e.g. GitHub repo pages),
+  // so those fall through to the Sanity body while still powering the sidebar link.
   let content: unknown;
   if (resolvedDoc.externalSource) {
     let externalContent = await fetchExternalContent(resolvedDoc.externalSource);
@@ -244,7 +254,7 @@ export default async function DocPage({ params }: Props) {
 
   // Generate GitHub repo URL from external source if available
   const githubUrl = resolvedDoc.externalSource
-    ? rawGitHubToRepoUrl(resolvedDoc.externalSource)
+    ? toGitHubUrl(resolvedDoc.externalSource)
     : null;
 
   return (
