@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { draftMode } from "next/headers";
+import Script from "next/script";
 import { VisualEditing } from "next-sanity/visual-editing";
 
 // Fonts via fontsource (self-hosted, full character sets)
@@ -28,24 +29,14 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                function getTheme() {
-                  const stored = localStorage.getItem('theme');
-                  if (stored) return stored;
-                  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                }
-
-                const theme = getTheme();
-                document.documentElement.setAttribute('data-theme', theme);
-                // Also set .dark class for Tailwind utilities
-                document.documentElement.classList.toggle('dark', theme === 'dark');
-              })();
-            `,
-          }}
-        />
+        {/*
+         * Theme bootstrap. Lives in /public/theme-init.js and runs before
+         * hydration so the correct data-theme/.dark class is on <html> at
+         * first paint, avoiding the dark-mode flash. Using <Script src>
+         * instead of an inline dangerouslySetInnerHTML keeps the lint and
+         * security review surface clean.
+         */}
+        <Script src="/theme-init.js" strategy="beforeInteractive" />
       </head>
       <body className="antialiased">
         <ThemeProvider>
