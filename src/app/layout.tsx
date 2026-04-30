@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { draftMode } from "next/headers";
-import Script from "next/script";
 import { VisualEditing } from "next-sanity/visual-editing";
 
 // Fonts via fontsource (self-hosted, full character sets)
@@ -31,12 +30,13 @@ export default async function RootLayout({
       <head>
         {/*
          * Theme bootstrap. Lives in /public/theme-init.js and runs before
-         * hydration so the correct data-theme/.dark class is on <html> at
-         * first paint, avoiding the dark-mode flash. Using <Script src>
-         * instead of an inline dangerouslySetInnerHTML keeps the lint and
-         * security review surface clean.
+         * paint so the correct data-theme/.dark class is on <html> at first
+         * render, avoiding the dark-mode flash. Render-blocking <script src>
+         * is required here (next/script's beforeInteractive does not reliably
+         * work for this case on Vercel); no-sync-scripts is intentional.
          */}
-        <Script src="/theme-init.js" strategy="beforeInteractive" />
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/theme-init.js" />
       </head>
       <body className="antialiased">
         <ThemeProvider>
