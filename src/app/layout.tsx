@@ -28,15 +28,24 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/*
-         * Theme bootstrap. Lives in /public/theme-init.js and runs before
-         * paint so the correct data-theme/.dark class is on <html> at first
-         * render, avoiding the dark-mode flash. Render-blocking <script src>
-         * is required here (next/script's beforeInteractive does not reliably
-         * work for this case on Vercel); no-sync-scripts is intentional.
-         */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="/theme-init.js" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                function getTheme() {
+                  const stored = localStorage.getItem('theme');
+                  if (stored) return stored;
+                  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+
+                const theme = getTheme();
+                document.documentElement.setAttribute('data-theme', theme);
+                // Also set .dark class for Tailwind utilities
+                document.documentElement.classList.toggle('dark', theme === 'dark');
+              })();
+            `,
+          }}
+        />
       </head>
       <body className="antialiased">
         <ThemeProvider>
