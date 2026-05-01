@@ -41,9 +41,15 @@ importers:
       handlebars:
         specifier: ^4.7.8
         version: 4.7.9
+      hastscript:
+        specifier: ^9.0.0
+        version: 9.0.1
       katex:
         specifier: ^0.16.27
         version: 0.16.44
+      mdast-util-directive:
+        specifier: ^3.0.0
+        version: 3.1.0
       next:
         specifier: 16.0.10
         version: 16.0.10(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -86,6 +92,9 @@ importers:
       remark-unwrap-images:
         specifier: ^4.0.1
         version: 4.0.1
+      unified:
+        specifier: ^11.0.0
+        version: 11.0.5
       unist-util-visit:
         specifier: ^5.0.0
         version: 5.1.0
