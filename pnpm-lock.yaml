@@ -17,6 +17,9 @@ importers:
       '@portabletext/react':
         specifier: ^6.0.0
         version: 6.0.3(react@19.2.4)
+      '@sanity/client':
+        specifier: ^7.13.2
+        version: 7.20.0(debug@4.4.3)
       '@sanity/image-url':
         specifier: ^2.0.2
         version: 2.1.1
