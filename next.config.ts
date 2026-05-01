@@ -168,6 +168,11 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: '/inference-api/model-pricing',
+        destination: '/inference-api/models',
+        permanent: true,
+      },
+      {
         source: '/inference-stack/deployment/first',
         destination: '/inference-stack/deployment/first-deployment',
         permanent: true,

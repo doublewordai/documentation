@@ -63,8 +63,6 @@ The sidebar code in `src/lib/inference-api-sidebar.ts` **explicitly ignores** th
 3. If there is a successor page, add a redirect in `next.config.ts` pointing old → new and let the archive category catch stale direct links. If the page is truly gone, just leave it archived — deleting breaks inbound links.
 4. Do **not** delete archived pages from Sanity unless you're certain nothing links to them.
 
-Example: `/inference-api/model-pricing` was archived this way when model pages moved to `/inference-api/models` (auto-generated). The page still returns markdown but is no longer in the sidebar.
-
 ### Add or update a model
 
 Nothing to do. Model pages at `/inference-api/models/<slug>` are synthesized by `src/lib/model-artifacts.ts` from the live Doubleword API response. Pricing, capabilities, description, playground link — all driven by the API.
