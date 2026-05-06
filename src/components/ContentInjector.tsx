@@ -12,8 +12,8 @@ import { useEffect, useRef } from 'react'
  * - {{selectedModel.id}} - Selected model ID
  * - {{selectedModel.name}} - Selected model name
  * - {{selectedModel.description}} - Selected model description
- * - {{selectedModel.pricing.batch1h.input}} - Model 1hr SLA batch input price per token
- * - {{selectedModel.pricing.batch1h.output}} - Model 1hr SLA batch output price per token
+ * - {{selectedModel.pricing.async.input}} - Model async batch input price per token
+ * - {{selectedModel.pricing.async.output}} - Model async batch output price per token
  * - {{selectedModel.pricing.batch24h.input}} - Model 24hr SLA batch input price per token
  * - {{selectedModel.pricing.batch24h.output}} - Model 24hr SLA batch output price per token
  * - {{selectedModel.pricing.realtime.input}} - Model realtime input price per token
@@ -68,16 +68,16 @@ export default function ContentInjector() {
           `<span style="color:#98C379">${selectedModel.name || selectedModel.id}</span>`
         )
 
-        // Handle pricing placeholders (1hr SLA batch pricing)
-        const batch1hPricing = selectedModel.pricing?.batch1h
-        if (batch1hPricing) {
+        // Handle pricing placeholders (async batch pricing)
+        const asyncPricing = selectedModel.pricing?.async
+        if (asyncPricing) {
           newHtml = newHtml.replace(
-            /\{\{selectedModel\.pricing\.batch1h\.input\}\}/g,
-            String(batch1hPricing.input)
+            /\{\{selectedModel\.pricing\.async\.input\}\}/g,
+            String(asyncPricing.input)
           )
           newHtml = newHtml.replace(
-            /\{\{selectedModel\.pricing\.batch1h\.output\}\}/g,
-            String(batch1hPricing.output)
+            /\{\{selectedModel\.pricing\.async\.output\}\}/g,
+            String(asyncPricing.output)
           )
         }
 

@@ -184,17 +184,17 @@ async function getModelArtifactSearchItems() {
     const tariffs = model.tariffs || [];
     const pricingRows = [];
     const realtime = tariffs.find((t) => t.api_key_purpose === "realtime");
-    const batch1h = tariffs.find((t) => t.api_key_purpose === "batch" && t.completion_window?.includes("1h"));
+    const asyncTariff = tariffs.find((t) => t.api_key_purpose === "batch" && t.completion_window?.includes("1h"));
     const batch24h = tariffs.find((t) => t.api_key_purpose === "batch" && t.completion_window?.includes("24h"));
 
     if (realtime) {
       pricingRows.push(`Realtime: ${formatPricePer1M(realtime.input_price_per_token)} input / ${formatPricePer1M(realtime.output_price_per_token)} output`);
     }
-    if (batch1h) {
-      pricingRows.push(`High (1h): ${formatPricePer1M(batch1h.input_price_per_token)} input / ${formatPricePer1M(batch1h.output_price_per_token)} output`);
+    if (asyncTariff) {
+      pricingRows.push(`Async: ${formatPricePer1M(asyncTariff.input_price_per_token)} input / ${formatPricePer1M(asyncTariff.output_price_per_token)} output`);
     }
     if (batch24h) {
-      pricingRows.push(`Standard (24h): ${formatPricePer1M(batch24h.input_price_per_token)} input / ${formatPricePer1M(batch24h.output_price_per_token)} output`);
+      pricingRows.push(`Batch (24h): ${formatPricePer1M(batch24h.input_price_per_token)} input / ${formatPricePer1M(batch24h.output_price_per_token)} output`);
     }
 
     return {

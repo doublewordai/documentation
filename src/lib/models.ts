@@ -18,7 +18,7 @@ export interface Model {
   type: string
   capabilities: string[]
   pricing: {
-    batch1h: ModelPricing | null   // 1 hour SLA batch
+    async: ModelPricing | null     // Async batch
     batch24h: ModelPricing | null  // 24 hour SLA batch
     realtime: ModelPricing | null  // Real-time API
   }
@@ -103,7 +103,7 @@ function transformModels(
   rawModels: RawModel[],
 ): Model[] {
   return rawModels.map((m) => {
-    const batch1hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window?.includes('1h'))
+    const asyncTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window?.includes('1h'))
     const batch24hTariff = m.tariffs?.find(t => t.api_key_purpose === 'batch' && t.completion_window?.includes('24h'))
     const realtimeTariff = m.tariffs?.find(t => t.api_key_purpose === 'realtime')
     const providerObject =
@@ -119,9 +119,9 @@ function transformModels(
       type: formatModelType(m.metadata?.display_category || m.overwrite_type || m.model_type),
       capabilities: m.capabilities || [],
       pricing: {
-        batch1h: batch1hTariff ? {
-          input: parseFloat(batch1hTariff.input_price_per_token),
-          output: parseFloat(batch1hTariff.output_price_per_token),
+        async: asyncTariff ? {
+          input: parseFloat(asyncTariff.input_price_per_token),
+          output: parseFloat(asyncTariff.output_price_per_token),
         } : null,
         batch24h: batch24hTariff ? {
           input: parseFloat(batch24hTariff.input_price_per_token),
