@@ -44,13 +44,13 @@
     "unist-util-visit": "^5.0.0"
   },
   "overrides": {
-    "basic-ftp": "^5.2.0",
-    "protobufjs": "^7.5.5"
+    "basic-ftp": "5.3.1",
+    "protobufjs": "7.5.6"
   },
   "pnpm": {
     "overrides": {
-      "basic-ftp": "^5.2.0",
-      "protobufjs": "^7.5.5"
+      "basic-ftp": "5.3.1",
+      "protobufjs": "7.5.6"
     }
   },
   "devDependencies": {
