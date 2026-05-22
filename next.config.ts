@@ -1,7 +1,62 @@
 import type {NextConfig} from 'next'
 
+// Browser security response headers applied to every route.
+//
+// CSP ships in REPORT-ONLY mode: a Next.js app emits inline bootstrap scripts,
+// so an enforced policy without per-request nonces would break the site.
+// Report-only lets us collect violations first, then promote to an enforced
+// Content-Security-Policy (ideally with nonce middleware) once it's clean.
+// PostHog is same-origin here (proxied via the /ingest rewrite below), so it
+// needs no extra connect-src/script-src host; images come from the Sanity CDN.
+const contentSecurityPolicyReportOnly = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  // 'unsafe-inline'/'unsafe-eval' reflect Next.js's current inline bootstrap;
+  // tighten with nonces before promoting out of report-only.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://cdn.sanity.io https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://eu.i.posthog.com https://eu-assets.i.posthog.com",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ')
+
+const securityHeaders = [
+  {key: 'X-Content-Type-Options', value: 'nosniff'},
+  {key: 'X-Frame-Options', value: 'DENY'},
+  {key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin'},
+  {
+    key: 'Permissions-Policy',
+    value:
+      'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), interest-cohort=()',
+  },
+  // HTTPS-only is served by Vercel. includeSubDomains + preload is a
+  // hard-to-reverse commitment for every *.doubleword.ai host — kept in step
+  // with the ingress-nginx HSTS config in the internal repo.
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=31536000; includeSubDomains; preload',
+  },
+  {
+    key: 'Content-Security-Policy-Report-Only',
+    value: contentSecurityPolicyReportOnly,
+  },
+]
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
+
+  // Apply security response headers to every route.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: securityHeaders,
+      },
+    ]
+  },
 
   // Enable detailed logging for cache debugging
   logging: {
