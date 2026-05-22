@@ -6,18 +6,31 @@ import type {NextConfig} from 'next'
 // so an enforced policy without per-request nonces would break the site.
 // Report-only lets us collect violations first, then promote to an enforced
 // Content-Security-Policy (ideally with nonce middleware) once it's clean.
-// PostHog is same-origin here (proxied via the /ingest rewrite below), so it
-// needs no extra connect-src/script-src host; images come from the Sanity CDN.
+//
+// Sources are kept as tight as the report stream allows — anything missing
+// surfaces as a violation report rather than a broken page, so we start strict
+// and widen only on evidence:
+//   - PostHog is same-origin (proxied via the /ingest rewrite below), so it
+//     needs no connect-src/script-src host of its own.
+//   - Images come from the Sanity CDN only (matches images.remotePatterns); no
+//     bare `https:` wildcard, which would allow exfiltration to any HTTPS host.
+//   - script-src deliberately omits 'unsafe-eval'; report-only will reveal if
+//     any runtime dependency actually needs it before we'd ever add it back.
+//   - frame-src covers the Sanity-authored video embeds (page.tsx). These
+//     providers are a best guess from the common embed set; reconcile against
+//     the actual `videoUrl` values in Sanity before enforcing.
 const contentSecurityPolicyReportOnly = [
   "default-src 'self'",
   "base-uri 'self'",
-  // 'unsafe-inline'/'unsafe-eval' reflect Next.js's current inline bootstrap;
-  // tighten with nonces before promoting out of report-only.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  // 'unsafe-inline' reflects Next.js's current inline bootstrap; replace with
+  // per-request nonces before promoting out of report-only.
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://cdn.sanity.io https:",
+  "img-src 'self' data: blob: https://cdn.sanity.io",
   "font-src 'self' data:",
-  "connect-src 'self' https://eu.i.posthog.com https://eu-assets.i.posthog.com",
+  "connect-src 'self'",
+  "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
+  "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "form-action 'self'",
   "object-src 'none'",
