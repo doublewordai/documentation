@@ -1,41 +1,14 @@
 import type {NextConfig} from 'next'
 
-// Browser security response headers applied to every route.
+// Static browser security response headers applied to every route.
 //
-// CSP ships in REPORT-ONLY mode: a Next.js app emits inline bootstrap scripts,
-// so an enforced policy without per-request nonces would break the site.
-// Report-only lets us collect violations first, then promote to an enforced
-// Content-Security-Policy (ideally with nonce middleware) once it's clean.
+// Content-Security-Policy is intentionally NOT here — it carries a per-request
+// nonce and is set in src/middleware.ts. These headers are static, so they stay
+// in the config where they can be CDN-cached with the rest of the response.
 //
-// Sources are kept as tight as the report stream allows — anything missing
-// surfaces as a violation report rather than a broken page, so we start strict
-// and widen only on evidence:
-//   - PostHog is same-origin (proxied via the /ingest rewrite below), so it
-//     needs no connect-src/script-src host of its own.
-//   - Images come from the Sanity CDN only (matches images.remotePatterns); no
-//     bare `https:` wildcard, which would allow exfiltration to any HTTPS host.
-//   - script-src deliberately omits 'unsafe-eval'; report-only will reveal if
-//     any runtime dependency actually needs it before we'd ever add it back.
-//   - frame-src covers the Sanity-authored video embeds (page.tsx). These
-//     providers are a best guess from the common embed set; reconcile against
-//     the actual `videoUrl` values in Sanity before enforcing.
-const contentSecurityPolicyReportOnly = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  // 'unsafe-inline' reflects Next.js's current inline bootstrap; replace with
-  // per-request nonces before promoting out of report-only.
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://cdn.sanity.io",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
-  "worker-src 'self' blob:",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  "object-src 'none'",
-].join('; ')
-
+// HSTS: HTTPS-only is served by Vercel. includeSubDomains + preload is a
+// hard-to-reverse commitment for every *.doubleword.ai host — kept in step with
+// the ingress-nginx HSTS config in the internal repo.
 const securityHeaders = [
   {key: 'X-Content-Type-Options', value: 'nosniff'},
   {key: 'X-Frame-Options', value: 'DENY'},
@@ -45,16 +18,9 @@ const securityHeaders = [
     value:
       'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), interest-cohort=()',
   },
-  // HTTPS-only is served by Vercel. includeSubDomains + preload is a
-  // hard-to-reverse commitment for every *.doubleword.ai host — kept in step
-  // with the ingress-nginx HSTS config in the internal repo.
   {
     key: 'Strict-Transport-Security',
     value: 'max-age=31536000; includeSubDomains; preload',
-  },
-  {
-    key: 'Content-Security-Policy-Report-Only',
-    value: contentSecurityPolicyReportOnly,
   },
 ]
 
