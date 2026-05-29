@@ -4,6 +4,10 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  basic-ftp: 5.3.1
+  protobufjs: 7.5.6
+
 importers:
 
   .:
