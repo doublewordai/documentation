@@ -41,7 +41,7 @@ function slugifyModelName(name: string): string {
 }
 
 function formatPricePer1M(pricePerToken: number): string {
-  return `$${(pricePerToken * 1_000_000).toFixed(2)}`;
+  return `\\$${(pricePerToken * 1_000_000).toFixed(2)}`;
 }
 
 function renderProvider(providerName?: string): string {

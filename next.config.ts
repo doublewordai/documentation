@@ -1,7 +1,41 @@
 import type {NextConfig} from 'next'
 
+// Static browser security response headers applied to every route.
+//
+// Content-Security-Policy is intentionally NOT here — it carries a per-request
+// nonce and is set in src/middleware.ts. These headers are static, so they stay
+// in the config where they can be CDN-cached with the rest of the response.
+//
+// HSTS: HTTPS-only is served by Vercel. includeSubDomains + preload is a
+// hard-to-reverse commitment for every *.doubleword.ai host — kept in step with
+// the ingress-nginx HSTS config in the internal repo.
+const securityHeaders = [
+  {key: 'X-Content-Type-Options', value: 'nosniff'},
+  {key: 'X-Frame-Options', value: 'DENY'},
+  {key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin'},
+  {
+    key: 'Permissions-Policy',
+    value:
+      'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), interest-cohort=()',
+  },
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=31536000; includeSubDomains; preload',
+  },
+]
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
+
+  // Apply security response headers to every route.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: securityHeaders,
+      },
+    ]
+  },
 
   // Enable detailed logging for cache debugging
   logging: {

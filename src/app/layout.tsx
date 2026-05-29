@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { draftMode } from "next/headers";
+import { draftMode, headers } from "next/headers";
 import { VisualEditing } from "next-sanity/visual-editing";
 
 // Fonts via fontsource (self-hosted, full character sets)
@@ -25,10 +25,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // CSP nonce set by middleware.ts. The anti-FOUC theme script below is a
+  // hand-authored inline <script>, so it must carry the nonce explicitly —
+  // Next.js only stamps the nonce onto the scripts it renders itself.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
