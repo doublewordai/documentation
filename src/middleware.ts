@@ -16,8 +16,13 @@ import {NextRequest, NextResponse} from 'next/server'
 //
 // `style-src` keeps `'unsafe-inline'`: Tailwind/Next emit inline styles, and
 // inline styles are not a script-execution vector. `frame-src` allows the
-// Sanity-authored video embeds; `connect-src 'self'` covers PostHog via the
-// /ingest rewrite.
+// Sanity-authored video embeds. `connect-src` includes `'self'` (covers
+// PostHog via the /ingest rewrite) plus `https://app.doubleword.ai` for the
+// sign-in flow — the auth callback page on docs.doubleword.ai fetches
+// `/admin/api/v1/users/current/api-keys` from app.doubleword.ai with
+// `credentials: 'include'` to verify the SSO session. CORS is already
+// allowed on the control-layer side (see internal/values/control-layer.yaml
+// `allowed_origins`).
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
@@ -26,7 +31,7 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://cdn.sanity.io",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    "connect-src 'self' https://app.doubleword.ai",
     'frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com',
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",
