@@ -6,8 +6,9 @@ import {
   rewriteExternalMarkdownLinks,
 } from "@/lib/external-docs";
 import { fetchModelsServer } from "@/lib/models";
-import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
+import { buildTemplateContext } from "@/lib/handlebars";
 import { getModelArtifact, renderModelArtifactMarkdown } from "@/lib/model-artifacts";
+import { renderDocBodyMarkdown } from "@/lib/doc-content";
 
 const MARKDOWN_BY_SLUG_QUERY = defineQuery(`*[
   _type == "docPage" &&
@@ -107,22 +108,10 @@ export async function GET(
     content = doc.linkedPost?.body || doc.body;
   }
 
-  // Apply Handlebars templating (same as MarkdownRenderer)
+  // Apply Handlebars templating + image rewriting (same as MarkdownRenderer)
   const modelsResponse = await fetchModelsServer();
   const templateContext = buildTemplateContext(modelsResponse);
-  content = templateMarkdown(content, templateContext);
-
-  // Replace image filenames with Sanity CDN URLs
-  const images = doc.images;
-  if (images && images.length > 0) {
-    const imageMap = new Map(
-      images.filter((img) => img.filename).map((img) => [img.filename, img])
-    );
-    imageMap.forEach((imageData, filename) => {
-      const regex = new RegExp(`!\\[([^\\]]*)\\]\\(${filename}\\)`, "g");
-      content = content.replace(regex, `![$1](${imageData.asset.url})`);
-    });
-  }
+  content = renderDocBodyMarkdown(content, doc.images, templateContext);
 
   return new NextResponse(content, {
     headers: {
