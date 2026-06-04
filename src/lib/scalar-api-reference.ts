@@ -1,10 +1,12 @@
 import { headers } from "next/headers";
 
-// Match the *opening* tag of a <script> element: `<script` followed by
-// whitespace (it has attributes) or `>` (it doesn't). The lookahead keeps us
-// from touching closing `</script>` tags or any future attribute that merely
-// contains the text "script".
-const SCRIPT_OPEN_TAG = /<script(?=[\s>])/g;
+// Match the *opening* tag of a <script> element that does not already carry a
+// `nonce` attribute. `(?=[\s>])` keeps us off closing `</script>` tags (and any
+// attribute that merely contains the text "script"); `(?![^>]*\snonce=)` makes
+// stamping idempotent and a no-op for scripts that are already nonced — e.g. if
+// Scalar ever emits its own — instead of producing invalid duplicate `nonce`
+// attributes.
+const UNNONCED_SCRIPT_OPEN_TAG = /<script(?=[\s>])(?![^>]*\snonce=)/g;
 
 /**
  * Stamp the per-request CSP nonce onto the `<script>` tags of a hand-built HTML
@@ -42,7 +44,7 @@ export function withCspNonce(
     }
 
     const html = (await response.text()).replace(
-      SCRIPT_OPEN_TAG,
+      UNNONCED_SCRIPT_OPEN_TAG,
       `<script nonce="${nonce}"`,
     );
 

@@ -53,6 +53,23 @@ describe("withCspNonce", () => {
     expect(res.headers.get("content-type")).toContain("text/html");
   });
 
+  it("does not double-stamp scripts that already carry a nonce", async () => {
+    const res = await withCspNonce(
+      htmlHandler(
+        `<script nonce="existing" src="a.js"></script><script src="b.js"></script>`,
+      ),
+    )();
+    const html = await res.text();
+
+    // The already-nonced tag is left untouched; only the bare one is stamped.
+    expect(html).toBe(
+      `<script nonce="existing" src="a.js"></script>` +
+        `<script nonce="${NONCE}" src="b.js"></script>`,
+    );
+    // Exactly one nonce per script — no invalid duplicate attributes.
+    expect(html.match(/nonce=/g)?.length).toBe(2);
+  });
+
   it("returns the response unchanged when no nonce is present", async () => {
     mock.nonce = null;
     const html = await (
