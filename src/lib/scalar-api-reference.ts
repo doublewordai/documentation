@@ -5,7 +5,8 @@ import { headers } from "next/headers";
 // attribute that merely contains the text "script"); `(?![^>]*\snonce=)` makes
 // stamping idempotent and a no-op for scripts that are already nonced — e.g. if
 // Scalar ever emits its own — instead of producing invalid duplicate `nonce`
-// attributes.
+// attributes. The match is case-sensitive, which is sufficient because Scalar
+// emits lowercase `<script>` tags.
 const UNNONCED_SCRIPT_OPEN_TAG = /<script(?=[\s>])(?![^>]*\snonce=)/g;
 
 /**
