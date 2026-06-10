@@ -33,8 +33,10 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# generated search index
-/data/search-index.json
+# Generated search index. The committed copy is an empty `[]` placeholder so the
+# static import in src/lib/search-index.ts resolves in dev / CI; `npm run build`
+# (and the Vercel build) regenerate it with real content before next build.
+# It is intentionally tracked — do not commit the regenerated (non-empty) copy.
 
 # vercel
 .vercel

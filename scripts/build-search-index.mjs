@@ -15,10 +15,9 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// NOT public/ — on Vercel, files under public/ are served as static CDN assets
-// and are stripped from the serverless function bundle, so the search route
-// (which reads this at runtime via fs) would 500. A plain data/ dir is bundled
-// into the function via outputFileTracingIncludes in next.config.ts.
+// Written to data/ and imported statically by src/lib/search-index.ts (webpack
+// inlines it into the /api/search function bundle). Must run before `next build`
+// so the import resolves to real content rather than the committed `[]` seed.
 const OUTPUT_DIR = join(__dirname, "..", "data");
 const OUTPUT_PATH = join(OUTPUT_DIR, "search-index.json");
 
