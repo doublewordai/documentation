@@ -10,6 +10,8 @@ vi.mock("next/headers", () => ({
 }));
 
 import { withCspNonce } from "./scalar-api-reference";
+import { GET as inferenceApiReference } from "@/app/inference-api/api-reference/route";
+import { GET as controlLayerApiReference } from "@/app/control-layer/api-reference/route";
 
 const NONCE = "test-nonce-Zm9vYmFy";
 
@@ -79,5 +81,21 @@ describe("withCspNonce", () => {
     // No CSP means nothing to stamp; fall back to the handler's raw output.
     expect(html).toBe(`<script src="x.js"></script>`);
     expect(html).not.toContain("nonce=");
+  });
+});
+
+// Scalar's client otherwise pulls its default web fonts from Google Fonts, which
+// our `font-src 'self' data:` CSP blocks ("Refused to load the font"). Both
+// API-reference routes must opt out (`withDefaultFonts: false`) so Scalar uses
+// the system font stack instead of an external font host. Scalar serializes the
+// config as JSON into its inline init script, so the flag appears verbatim in the
+// rendered HTML.
+describe("Scalar API-reference routes opt out of external fonts", () => {
+  it.each([
+    ["inference-api", inferenceApiReference],
+    ["control-layer", controlLayerApiReference],
+  ])("%s reference disables Scalar's default fonts", async (_name, handler) => {
+    const html = await (await handler()).text();
+    expect(html).toContain('"withDefaultFonts": false');
   });
 });

@@ -7,6 +7,9 @@ import { withCspNonce } from "@/lib/scalar-api-reference";
 export const GET = withCspNonce(
   ApiReference({
     url: "/api/control-layer-openapi",
+    // See inference-api/api-reference: avoid the Google Fonts load blocked by
+    // our `font-src 'self' data:` CSP.
+    withDefaultFonts: false,
     metaData: {
       title: "API Reference | Control Layer | Doubleword Docs",
       description: "Complete API reference for the Doubleword Control Layer API",

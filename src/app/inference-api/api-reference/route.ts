@@ -7,6 +7,10 @@ import { withCspNonce } from "@/lib/scalar-api-reference";
 export const GET = withCspNonce(
   ApiReference({
     url: "/api/openapi",
+    // Scalar otherwise loads its default web fonts from Google Fonts, which our
+    // `font-src 'self' data:` CSP blocks ("Refused to load the font"). Use the
+    // system font stack instead of allowlisting an external font host.
+    withDefaultFonts: false,
     metaData: {
       title: "API Reference | Doubleword Inference API | Doubleword Docs",
       description: "Complete API reference for the Doubleword API",
