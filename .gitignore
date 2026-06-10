@@ -34,7 +34,7 @@ yarn-error.log*
 .env*
 
 # generated search index
-/public/search-index.json
+/data/search-index.json
 
 # vercel
 .vercel

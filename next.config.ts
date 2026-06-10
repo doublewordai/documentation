@@ -27,15 +27,15 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactCompiler: true,
 
-  // The /api/search route reads public/search-index.json at runtime with fs
-  // (see src/lib/search-index.ts). On Vercel, files under public/ are deployed
-  // as CDN static assets and are NOT included in a route handler's serverless
-  // function bundle, so the runtime read throws ENOENT and the route 500s with
-  // an empty body. Force Next's output file tracing to bundle the generated
-  // index (written by the build script, which runs build-search-index.mjs
-  // before `next build`) into the search function.
+  // The /api/search route reads data/search-index.json at runtime with fs (see
+  // src/lib/search-index.ts). It lives in data/ rather than public/ on purpose:
+  // Vercel serves public/ as static CDN assets and strips it from the route's
+  // serverless function bundle, so a public/ read 500s with an empty body even
+  // with a tracing include. Force the generated index (written by the build
+  // script, which runs build-search-index.mjs before `next build`) into the
+  // search function's bundle.
   outputFileTracingIncludes: {
-    '/api/search': ['./public/search-index.json'],
+    '/api/search': ['./data/search-index.json'],
   },
 
   // Apply security response headers to every route.
