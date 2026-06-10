@@ -32,7 +32,8 @@ const nextConfig: NextConfig = {
   // as CDN static assets and are NOT included in a route handler's serverless
   // function bundle, so the runtime read throws ENOENT and the route 500s with
   // an empty body. Force Next's output file tracing to bundle the generated
-  // index (written by the prebuild step) into the search function.
+  // index (written by the build script, which runs build-search-index.mjs
+  // before `next build`) into the search function.
   outputFileTracingIncludes: {
     '/api/search': ['./public/search-index.json'],
   },
