@@ -165,15 +165,28 @@ async function getModelArtifactSearchItems() {
   const apiKey = process.env.DOUBLEWORD_SYSTEM_API_KEY;
   if (!apiKey) return [];
 
-  const response = await fetch("https://app.doubleword.ai/admin/api/v1/models?include=pricing", {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      Accept: "application/json",
-    },
-  });
-  if (!response.ok) return [];
+  // Model pricing is optional enrichment. The Vercel build box can't always
+  // reach app.doubleword.ai (network egress / WAF), and a fetch failure here
+  // must NOT fail the whole docs build — the core index (Sanity + external
+  // docs) is what matters. Swallow any error and skip these entries.
+  let rawData;
+  try {
+    const response = await fetch("https://app.doubleword.ai/admin/api/v1/models?include=pricing", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      console.warn(`Skipping model artifacts: HTTP ${response.status}`);
+      return [];
+    }
+    rawData = await response.json();
+  } catch (err) {
+    console.warn(`Skipping model artifacts: ${err.message}`);
+    return [];
+  }
 
-  const rawData = await response.json();
   const models = rawData.data || [];
 
   const formatPricePer1M = (price) => `$${(Number(price) * 1_000_000).toFixed(2)}`;
