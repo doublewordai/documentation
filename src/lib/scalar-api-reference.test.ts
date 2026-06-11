@@ -96,6 +96,6 @@ describe("Scalar API-reference routes opt out of external fonts", () => {
     ["control-layer", controlLayerApiReference],
   ])("%s reference disables Scalar's default fonts", async (_name, handler) => {
     const html = await (await handler()).text();
-    expect(html).toContain('"withDefaultFonts": false');
+    expect(html).toMatch(/"withDefaultFonts"\s*:\s*false/);
   });
 });

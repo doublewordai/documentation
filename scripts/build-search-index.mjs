@@ -186,7 +186,8 @@ async function getModelArtifactSearchItems() {
     }
     rawData = await response.json();
   } catch (err) {
-    console.warn(`Skipping model artifacts: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`Skipping model artifacts: ${message}`);
     return [];
   }
 
