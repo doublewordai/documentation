@@ -8,6 +8,7 @@ import {
 import { fetchModelsServer } from "@/lib/models";
 import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
 import { getModelArtifact, renderModelArtifactMarkdown } from "@/lib/model-artifacts";
+import { coerceMarkdownContent } from "@/lib/portable-text";
 
 const MARKDOWN_BY_SLUG_QUERY = defineQuery(`*[
   _type == "docPage" &&
@@ -16,6 +17,7 @@ const MARKDOWN_BY_SLUG_QUERY = defineQuery(`*[
 ][0]{
   title,
   body,
+  externalSource,
   linkedPost->{body, externalSource},
   images[]{
     filename,
@@ -24,12 +26,16 @@ const MARKDOWN_BY_SLUG_QUERY = defineQuery(`*[
 }`);
 
 /**
- * Fetch markdown content from an external URL
+ * Fetch markdown content from an external URL. HTML responses (e.g. an
+ * `externalSource` pointing at a GitHub repo page just to power the
+ * "View source" link) return null so the caller falls back to the Sanity body.
  */
 async function fetchExternalContent(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, { next: { revalidate: 3600 } });
     if (!response.ok) return null;
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("text/html")) return null;
     return await response.text();
   } catch {
     return null;
@@ -67,8 +73,9 @@ export async function GET(
     tags: ["docPage"],
   })) as {
     title: string;
-    body: string;
-    linkedPost?: { body: string; externalSource?: string };
+    body: unknown;
+    externalSource?: string;
+    linkedPost?: { body: unknown; externalSource?: string };
     images?: { filename: string; asset: { _id: string; url: string } }[];
   } | null;
 
@@ -96,16 +103,21 @@ export async function GET(
     });
   }
 
-  // Get the raw markdown content
-  let content: string;
-  if (doc.linkedPost?.externalSource) {
-    const externalContent = await fetchExternalContent(
-      doc.linkedPost.externalSource
-    );
-    content = externalContent || doc.linkedPost.body || doc.body;
-  } else {
-    content = doc.linkedPost?.body || doc.body;
+  // Get the raw markdown content, resolved in the same order as the HTML
+  // page route: externalSource > linkedPost > body
+  let externalContent: string | null = null;
+  if (doc.externalSource) {
+    externalContent = await fetchExternalContent(doc.externalSource);
+  } else if (doc.linkedPost?.externalSource) {
+    externalContent = await fetchExternalContent(doc.linkedPost.externalSource);
   }
+
+  // Sanity bodies may be Portable Text blocks rather than markdown strings;
+  // coerce so the response is always markdown, never a stringified object
+  let content =
+    externalContent ??
+    (coerceMarkdownContent(doc.linkedPost?.body) ||
+      coerceMarkdownContent(doc.body));
 
   // Apply Handlebars templating (same as MarkdownRenderer)
   const modelsResponse = await fetchModelsServer();
