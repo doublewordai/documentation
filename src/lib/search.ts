@@ -6,7 +6,10 @@ export function normalize(text: string): string {
   return text.toLowerCase().trim();
 }
 
-export function stripMarkdown(markdown: string): string {
+export function stripMarkdown(markdown: unknown): string {
+  // Defensive: the index can carry non-string bodies (e.g. Sanity Portable Text
+  // arrays). Never let that crash search — coerce anything non-string to "".
+  if (typeof markdown !== "string") return "";
   return markdown
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/`[^`]*`/g, " ")

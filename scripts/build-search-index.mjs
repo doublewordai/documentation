@@ -73,6 +73,26 @@ async function fetchExternalContent(url) {
   }
 }
 
+// Sanity bodies are Portable Text (an array of blocks), not strings. The search
+// index must store plain strings — the runtime ranking calls .replace() on body
+// (see src/lib/search.ts), and an array there throws. Flatten blocks to text;
+// pass strings through unchanged; anything else becomes "".
+function toPlainText(value) {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+  return value
+    .map((block) => {
+      if (!block || block._type !== "block" || !Array.isArray(block.children)) {
+        return "";
+      }
+      return block.children
+        .map((child) => (typeof child?.text === "string" ? child.text : ""))
+        .join("");
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function resolveBody(doc) {
   if (doc.externalSource) {
     const content = await fetchExternalContent(doc.externalSource);
@@ -249,7 +269,7 @@ async function main() {
       );
       if (needsFetch) externalFetches++;
 
-      const body = await resolveBody(doc);
+      const body = toPlainText(await resolveBody(doc));
       if (needsFetch && !body) failures++;
 
       return {
