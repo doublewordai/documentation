@@ -197,6 +197,8 @@ DOUBLEWORD_SYSTEM_API_KEY=<api key for model data>
 
 Without `DOUBLEWORD_SYSTEM_API_KEY`, model pages render empty.
 
+Optional: `SANITY_API_HOST` points the app at a stand-in Sanity API (e.g. `http://localhost:3210` serving canned GROQ results) for dev/verification in environments that can't reach `*.sanity.io`. Setting it disables per-project hostname routing; leave it unset normally.
+
 ## Traps and gotchas
 
 - **Deleting a Sanity page breaks inbound links.** Archive (move to `archive` category) unless you're certain nothing points to it.

@@ -5,6 +5,10 @@ import {apiVersion, dataset, projectId} from '../env'
 
 const token = process.env.SANITY_API_READ_TOKEN
 const isDev = process.env.NODE_ENV === 'development'
+// Optional override pointing the client at a stand-in Sanity API (e.g.
+// http://localhost:3210) for offline dev and verification in sandboxed
+// environments that can't reach *.sanity.io. Unset in production.
+const apiHost = process.env.SANITY_API_HOST
 
 export const client = createClient({
   projectId,
@@ -12,6 +16,11 @@ export const client = createClient({
   apiVersion,
   // Set to false for static site generation (SSG) and ISR
   useCdn: false,
+  ...(apiHost && {
+    apiHost,
+    // Plain host URLs (no per-project subdomain) so localhost works
+    useProjectHostname: false,
+  }),
   // Enable draft access in development with a token
   ...(isDev && token && {
     token,
