@@ -15,7 +15,10 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUTPUT_DIR = join(__dirname, "..", "public");
+// Written to data/ and imported statically by src/lib/search-index.ts (webpack
+// inlines it into the /api/search function bundle). Must run before `next build`
+// so the import resolves to real content rather than the committed `[]` seed.
+const OUTPUT_DIR = join(__dirname, "..", "data");
 const OUTPUT_PATH = join(OUTPUT_DIR, "search-index.json");
 
 const client = createClient({
@@ -68,6 +71,26 @@ async function fetchExternalContent(url) {
   } catch {
     return null;
   }
+}
+
+// Sanity bodies are Portable Text (an array of blocks), not strings. The search
+// index must store plain strings — the runtime ranking calls .replace() on body
+// (see src/lib/search.ts), and an array there throws. Flatten blocks to text;
+// pass strings through unchanged; anything else becomes "".
+function toPlainText(value) {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+  return value
+    .map((block) => {
+      if (!block || block._type !== "block" || !Array.isArray(block.children)) {
+        return "";
+      }
+      return block.children
+        .map((child) => (typeof child?.text === "string" ? child.text : ""))
+        .join("");
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 async function resolveBody(doc) {
@@ -165,15 +188,29 @@ async function getModelArtifactSearchItems() {
   const apiKey = process.env.DOUBLEWORD_SYSTEM_API_KEY;
   if (!apiKey) return [];
 
-  const response = await fetch("https://app.doubleword.ai/admin/api/v1/models?include=pricing", {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      Accept: "application/json",
-    },
-  });
-  if (!response.ok) return [];
+  // Model pricing is optional enrichment. The Vercel build box can't always
+  // reach app.doubleword.ai (network egress / WAF), and a fetch failure here
+  // must NOT fail the whole docs build — the core index (Sanity + external
+  // docs) is what matters. Swallow any error and skip these entries.
+  let rawData;
+  try {
+    const response = await fetch("https://app.doubleword.ai/admin/api/v1/models?include=pricing", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      console.warn(`Skipping model artifacts: HTTP ${response.status}`);
+      return [];
+    }
+    rawData = await response.json();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`Skipping model artifacts: ${message}`);
+    return [];
+  }
 
-  const rawData = await response.json();
   const models = rawData.data || [];
 
   const formatPricePer1M = (price) => `$${(Number(price) * 1_000_000).toFixed(2)}`;
@@ -232,7 +269,7 @@ async function main() {
       );
       if (needsFetch) externalFetches++;
 
-      const body = await resolveBody(doc);
+      const body = toPlainText(await resolveBody(doc));
       if (needsFetch && !body) failures++;
 
       return {

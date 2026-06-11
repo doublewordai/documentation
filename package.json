@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/build-search-index.mjs",
-    "build": "next build",
+    "build:search-index": "node scripts/build-search-index.mjs",
+    "build": "node scripts/build-search-index.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",

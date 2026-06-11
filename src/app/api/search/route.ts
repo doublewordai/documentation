@@ -14,23 +14,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({matches: []});
   }
 
-  const allDocs = loadSearchIndex();
-  const docs = productSlug
-    ? allDocs.filter((d) => d.productSlug === productSlug)
-    : allDocs;
+  try {
+    const allDocs = loadSearchIndex();
+    const docs = productSlug
+      ? allDocs.filter((d) => d.productSlug === productSlug)
+      : allDocs;
 
-  const matches = searchDocs(docs, query)
-    .slice(0, limit)
-    .map((result) => ({
-      id: result._id,
-      title: result.sidebarLabel || result.title,
-      productName: result.productName,
-      categoryName: result.categoryName || "",
-      snippet: result.snippet,
-      score: result.score,
-      href: `/${result.productSlug}/${result.slug}`,
-      path: `/${result.productSlug}/${result.slug}`,
-    }));
+    const matches = searchDocs(docs, query)
+      .slice(0, limit)
+      .map((result) => ({
+        id: result._id,
+        title: result.sidebarLabel || result.title,
+        productName: result.productName,
+        categoryName: result.categoryName || "",
+        snippet: result.snippet,
+        score: result.score,
+        href: `/${result.productSlug}/${result.slug}`,
+        path: `/${result.productSlug}/${result.slug}`,
+      }));
 
-  return NextResponse.json({matches});
+    return NextResponse.json({matches});
+  } catch (err) {
+    // Don't let a single malformed doc take down search with an opaque 500.
+    console.error("search route error:", err);
+    return NextResponse.json({error: "search failed"}, {status: 500});
+  }
 }

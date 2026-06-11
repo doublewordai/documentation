@@ -24,6 +24,12 @@ import {NextRequest, NextResponse} from 'next/server'
 //     `credentials: 'include'` to verify the SSO session. CORS is already
 //     allowed on the control-layer side (see
 //     internal/values/control-layer.yaml `allowed_origins`).
+//   - `https://api.doubleword.ai` for the Scalar API-reference "Test Request"
+//     feature at /inference-api/api-reference. The OpenAPI spec's server is
+//     `https://api.doubleword.ai/v1`, so Scalar fires the try-it `fetch` at that
+//     host from the browser; without it CSP blocks the request ("Failed to
+//     fetch"). CORS is already allowed on the api side — docs.doubleword.ai is
+//     in the same `allowed_origins` list (which covers the api proxy too).
 //   - `https://status.doubleword.ai` for the StatusWidget component, which
 //     fetches `/api/v1/summary` from the public status page to render
 //     live incident status inline in docs pages.
@@ -35,7 +41,7 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://cdn.sanity.io",
     "font-src 'self' data:",
-    "connect-src 'self' https://app.doubleword.ai https://status.doubleword.ai",
+    "connect-src 'self' https://app.doubleword.ai https://api.doubleword.ai https://status.doubleword.ai",
     'frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com',
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",
