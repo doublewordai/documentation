@@ -99,7 +99,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
     "jsdom": "^27.4.0",
-    "sanity": "^5.31.1",
+    "sanity": "^6.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.0"
