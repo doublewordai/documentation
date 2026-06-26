@@ -146,7 +146,7 @@ export default function MobileSidebar({
       <aside
         className={`
           w-64 fixed z-40 transition-transform duration-300
-          top-14 bottom-0 xl:top-0 xl:h-screen
+          top-[6.5rem] bottom-0 xl:top-12 xl:h-[calc(100vh-3rem)]
           xl:translate-x-0
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
