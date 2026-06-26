@@ -78,27 +78,15 @@ export async function organizeInferenceApiSidebar(docs: DocPageForNav[]): Promis
   }
 
   const footerCategory = buildBottomCategory();
-  const footerDocs: DocPageForNav[] = [
-    ...docs.filter((doc) => FOOTER_SLUGS.has(doc.slug.current)).map((doc) => ({
+  const footerDocs: DocPageForNav[] = docs
+    .filter((doc) => FOOTER_SLUGS.has(doc.slug.current))
+    .map((doc) => ({
       ...doc,
       categorySlug: footerCategory.slug.current,
       categoryName: footerCategory.name,
       category: footerCategory,
-    })),
-    {
-      _id: "synthetic:dw-cli-footer",
-      title: "Doubleword CLI",
-      sidebarLabel: "Doubleword CLI",
-      slug: { current: "dw-cli" },
-      href: "/dw-cli",
-      externalLinkIcon: true,
-      order: 100,
-      categorySlug: footerCategory.slug.current,
-      categoryName: footerCategory.name,
-      category: footerCategory,
-      parentSlug: null,
-    },
-  ].sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER));
+    }))
+    .sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER));
 
   groupedDocs[footerCategory._id] = {
     category: footerCategory,

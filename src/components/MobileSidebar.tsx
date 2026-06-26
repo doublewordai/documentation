@@ -160,33 +160,6 @@ export default function MobileSidebar({
             className="flex-1 overflow-y-auto p-6"
             style={{ overscrollBehavior: 'contain' }}
           >
-            <div className="hidden xl:flex items-center justify-between mb-8">
-              <Link
-                href="/"
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Image
-                  src="/logo-full-black.png"
-                  alt="Doubleword"
-                  width={140}
-                  height={32}
-                  priority
-                  className="logo-light"
-                  style={{ height: 'auto' }}
-                />
-                <Image
-                  src="/logo-full-white.png"
-                  alt="Doubleword"
-                  width={140}
-                  height={32}
-                  priority
-                  className="logo-dark"
-                  style={{ height: 'auto' }}
-                />
-              </Link>
-              <ThemeToggle />
-            </div>
-
             <SidebarNav
               productSlug={productSlug}
               groupedDocs={mainGroupedDocs}

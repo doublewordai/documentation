@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {usePathname} from "next/navigation";
 import {PRODUCT_TABS} from "@/lib/product-nav";
+import ThemeToggle from "./ThemeToggle";
 
 type ProductTabsProps = {
   activeProductSlug: string;
@@ -20,32 +22,65 @@ export default function ProductTabs({activeProductSlug}: ProductTabsProps) {
 
   return (
     <nav
-      className="fixed left-0 right-0 z-50 h-12 top-14 xl:top-0 flex items-stretch gap-1 px-3 sm:px-4 overflow-x-auto"
+      className="fixed left-0 right-0 z-50 h-12 top-14 xl:top-0 flex items-center gap-1 px-3 sm:px-4"
       style={{
         backgroundColor: "var(--sidebar-bg)",
         borderBottom: "1px solid var(--sidebar-border)",
       }}
       aria-label="Product sections"
     >
-      {PRODUCT_TABS.map((tab) => {
-        const isActive = tab.slug === active;
-        return (
-          <Link
-            key={tab.slug}
-            href={`/${tab.slug}`}
-            aria-current={isActive ? "page" : undefined}
-            className="flex items-center px-3 text-sm font-medium whitespace-nowrap transition-colors"
-            style={{
-              color: isActive ? "var(--foreground)" : "var(--text-muted)",
-              borderBottom: isActive
-                ? "2px solid var(--link-color)"
-                : "2px solid transparent",
-            }}
-          >
-            {tab.label}
-          </Link>
-        );
-      })}
+      {/* Global logo — desktop only (mobile keeps it in its own top bar) */}
+      <Link
+        href="/"
+        className="hidden xl:flex items-center shrink-0 mr-4 hover:opacity-80 transition-opacity"
+      >
+        <Image
+          src="/logo-full-black.png"
+          alt="Doubleword"
+          width={120}
+          height={28}
+          priority
+          className="logo-light"
+          style={{ height: "auto" }}
+        />
+        <Image
+          src="/logo-full-white.png"
+          alt="Doubleword"
+          width={120}
+          height={28}
+          priority
+          className="logo-dark"
+          style={{ height: "auto" }}
+        />
+      </Link>
+
+      {/* Section tabs — visible on all breakpoints */}
+      <div className="flex items-stretch h-full gap-1 overflow-x-auto">
+        {PRODUCT_TABS.map((tab) => {
+          const isActive = tab.slug === active;
+          return (
+            <Link
+              key={tab.slug}
+              href={`/${tab.slug}`}
+              aria-current={isActive ? "page" : undefined}
+              className="flex items-center px-3 text-sm font-medium whitespace-nowrap transition-colors"
+              style={{
+                color: isActive ? "var(--foreground)" : "var(--text-muted)",
+                borderBottom: isActive
+                  ? "2px solid var(--link-color)"
+                  : "2px solid transparent",
+              }}
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Global theme toggle — desktop only */}
+      <div className="hidden xl:flex items-center ml-auto pl-4 shrink-0">
+        <ThemeToggle />
+      </div>
     </nav>
   );
 }
