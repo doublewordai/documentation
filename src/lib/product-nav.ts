@@ -15,7 +15,6 @@ export type ProductTab = {
 // Ordered left-to-right. This array defines both tab order and labels.
 export const PRODUCT_TABS: ProductTab[] = [
   {slug: 'inference-api', label: 'Inference API'},
-  {slug: 'control-layer', label: 'Control Layer'},
   {slug: 'dw-cli', label: 'CLI'},
 ]
 
