@@ -127,6 +127,10 @@ export async function getModelsIndexMarkdown(): Promise<string> {
 
 The table below outlines the models we have available and their pricing per 1M tokens. If you are interested in understanding pricing for a model not listed below or if you'd like to request a new model - please reach out to support@doubleword.ai.
 
+:::info
+Prompt caching can cut input costs dramatically: cached input tokens are billed at ~10% of the standard input rate (a 90% discount), with a small one-time write premium (1.25× for the 5-minute cache, 2× for 1-hour). See the [Prompt caching guide](/inference-api/prompt-caching) to enable it.
+:::
+
 ## Model Catalog
 
 ${overviewTable}
