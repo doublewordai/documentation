@@ -6,9 +6,9 @@ import {
   rewriteExternalMarkdownLinks,
 } from "@/lib/external-docs";
 import { fetchModelsServer } from "@/lib/models";
-import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
 import { getModelArtifact, renderModelArtifactMarkdown } from "@/lib/model-artifacts";
 import { coerceMarkdownContent } from "@/lib/portable-text";
+import { renderServerMarkdownTemplates } from "@/lib/server-markdown";
 
 const MARKDOWN_BY_SLUG_QUERY = defineQuery(`*[
   _type == "docPage" &&
@@ -121,8 +121,7 @@ export async function GET(
 
   // Apply Handlebars templating (same as MarkdownRenderer)
   const modelsResponse = await fetchModelsServer();
-  const templateContext = buildTemplateContext(modelsResponse);
-  content = templateMarkdown(content, templateContext);
+  content = await renderServerMarkdownTemplates(content, modelsResponse);
 
   // Replace image filenames with Sanity CDN URLs
   const images = doc.images;

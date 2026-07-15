@@ -1,5 +1,9 @@
 import { cache } from "react";
 import { fetchModelsFromApiRoute, type Model } from "@/lib/models";
+import {
+  fetchReasoningCapabilitiesServer,
+  type ModelReasoningCapabilities,
+} from "@/lib/reasoning-capabilities";
 import type { DocSearchIndexItem } from "@/sanity/types";
 
 const MODELS_PRODUCT_SLUG = "inference-api";
@@ -29,6 +33,10 @@ export type ModelArtifact = {
   type: string;
   description?: string;
   capabilities: string[];
+  reasoningEfforts?: {
+    chatCompletions: string[];
+    responses: string[];
+  };
   playgroundUrl: string;
   pricing: ModelArtifactPricingRow[];
 };
@@ -38,6 +46,43 @@ function slugifyModelName(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function escapeMarkdownTableCell(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+}
+
+function formatReasoningEfforts(efforts: string[]): string {
+  if (efforts.length === 0) return "—";
+  return efforts.map((effort) => `\`${escapeMarkdownTableCell(effort)}\``).join(", ");
+}
+
+export function renderReasoningCapabilitiesMatrix(
+  capabilities: ModelReasoningCapabilities[],
+  models: Model[],
+): string {
+  if (capabilities.length === 0) {
+    return "Reasoning capability data is not currently available.";
+  }
+
+  const modelsById = new Map(models.map((model) => [model.id, model]));
+  const rows = capabilities.map((capability) => {
+    const model = modelsById.get(capability.id);
+    const displayName = escapeMarkdownTableCell(model?.displayName || capability.id);
+    const modelCell = model
+      ? `[${displayName}](${getModelArtifactPath(slugifyModelName(model.name))})`
+      : displayName;
+
+    return `| ${modelCell} | ${formatReasoningEfforts(capability.chatCompletions)} | ${formatReasoningEfforts(capability.responses)} |`;
+  });
+
+  return [
+    "| Model | Chat Completions | Responses |",
+    "|-------|------------------|-----------|",
+    ...rows,
+    "",
+    "Models not listed do not currently advertise reasoning effort controls.",
+  ].join("\n");
 }
 
 function formatPricePer1M(pricePerToken: number): string {
@@ -95,15 +140,39 @@ function toModelArtifact(model: Model): ModelArtifact {
   };
 }
 
+export function buildModelArtifacts(models: Model[]): ModelArtifact[] {
+  return models.map(toModelArtifact);
+}
+
+export function enrichModelArtifactReasoning(
+  artifact: ModelArtifact,
+  reasoningCapabilities: ModelReasoningCapabilities[],
+): ModelArtifact {
+  const capability = reasoningCapabilities.find((entry) => entry.id === artifact.id);
+  if (!capability) return artifact;
+
+  return {
+    ...artifact,
+    reasoningEfforts: {
+      chatCompletions: capability.chatCompletions,
+      responses: capability.responses,
+    },
+  };
+}
+
 export const getModelArtifacts = cache(async (): Promise<ModelArtifact[]> => {
   const { models } = await fetchModelsFromApiRoute();
 
-  return models.map(toModelArtifact);
+  return buildModelArtifacts(models);
 });
 
 export async function getModelArtifact(slug: string): Promise<ModelArtifact | null> {
   const artifacts = await getModelArtifacts();
-  return artifacts.find((artifact) => artifact.slug === slug) || null;
+  const artifact = artifacts.find((entry) => entry.slug === slug);
+  if (!artifact) return null;
+
+  const reasoningCapabilities = await fetchReasoningCapabilitiesServer();
+  return enrichModelArtifactReasoning(artifact, reasoningCapabilities);
 }
 
 export async function getModelsIndexMarkdown(): Promise<string> {
@@ -177,6 +246,21 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
     ? `## Overview\n\n${artifact.description}\n\n`
     : "";
 
+  const reasoningEfforts = artifact.reasoningEfforts;
+  const reasoningRows = reasoningEfforts
+    ? [
+        reasoningEfforts.chatCompletions.length > 0
+          ? `- **Chat Completions:** ${reasoningEfforts.chatCompletions.map((effort) => `\`${effort}\``).join(", ")}`
+          : "",
+        reasoningEfforts.responses.length > 0
+          ? `- **Responses:** ${reasoningEfforts.responses.map((effort) => `\`${effort}\``).join(", ")}`
+          : "",
+      ].filter(Boolean)
+    : [];
+  const reasoning = reasoningRows.length > 0
+    ? `## Reasoning efforts\n\n${reasoningRows.join("\n")}\n\nSee the [reasoning effort guide](/inference-api/reasoning-controls) for request examples.\n\n`
+    : "";
+
   const icon = artifact.iconUrl
     ? `![${artifact.name} icon](${artifact.iconUrl})\n\n`
     : "";
@@ -185,7 +269,7 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
 
 ${icon}${metadata}
 
-${description}${pricingTable}## Playground
+${description}${reasoning}${pricingTable}## Playground
 
 Open this model in the [Playground](${artifact.playgroundUrl}).
 `;
