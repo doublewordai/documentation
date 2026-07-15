@@ -1,9 +1,5 @@
 import { cache } from "react";
 import { fetchModelsFromApiRoute, type Model } from "@/lib/models";
-import {
-  fetchReasoningCapabilitiesServer,
-  type ModelReasoningCapabilities,
-} from "@/lib/reasoning-capabilities";
 import type { DocSearchIndexItem } from "@/sanity/types";
 
 const MODELS_PRODUCT_SLUG = "inference-api";
@@ -58,23 +54,20 @@ function formatReasoningEfforts(efforts: string[]): string {
 }
 
 export function renderReasoningCapabilitiesMatrix(
-  capabilities: ModelReasoningCapabilities[],
   models: Model[],
 ): string {
-  if (capabilities.length === 0) {
+  const rows = models.flatMap((model) => {
+    const efforts = model.supportedReasoningEfforts;
+    if (!efforts) return [];
+
+    const displayName = escapeMarkdownTableCell(model.displayName);
+    const modelCell = `[${displayName}](${getModelArtifactPath(slugifyModelName(model.name))})`;
+
+    return [`| ${modelCell} | ${formatReasoningEfforts(efforts.chatCompletions)} | ${formatReasoningEfforts(efforts.responses)} |`];
+  });
+  if (rows.length === 0) {
     return "Reasoning capability data is not currently available.";
   }
-
-  const modelsById = new Map(models.map((model) => [model.id, model]));
-  const rows = capabilities.map((capability) => {
-    const model = modelsById.get(capability.id);
-    const displayName = escapeMarkdownTableCell(model?.displayName || capability.id);
-    const modelCell = model
-      ? `[${displayName}](${getModelArtifactPath(slugifyModelName(model.name))})`
-      : displayName;
-
-    return `| ${modelCell} | ${formatReasoningEfforts(capability.chatCompletions)} | ${formatReasoningEfforts(capability.responses)} |`;
-  });
 
   return [
     "| Model | Chat Completions | Responses |",
@@ -135,6 +128,7 @@ function toModelArtifact(model: Model): ModelArtifact {
     type: model.type,
     description: model.description,
     capabilities: model.capabilities,
+    reasoningEfforts: model.supportedReasoningEfforts,
     playgroundUrl: `https://app.doubleword.ai/playground?model=${encodeURIComponent(model.id)}&from=%2Fmodels`,
     pricing: buildPricing(model),
   };
@@ -142,22 +136,6 @@ function toModelArtifact(model: Model): ModelArtifact {
 
 export function buildModelArtifacts(models: Model[]): ModelArtifact[] {
   return models.map(toModelArtifact);
-}
-
-export function enrichModelArtifactReasoning(
-  artifact: ModelArtifact,
-  reasoningCapabilities: ModelReasoningCapabilities[],
-): ModelArtifact {
-  const capability = reasoningCapabilities.find((entry) => entry.id === artifact.id);
-  if (!capability) return artifact;
-
-  return {
-    ...artifact,
-    reasoningEfforts: {
-      chatCompletions: capability.chatCompletions,
-      responses: capability.responses,
-    },
-  };
 }
 
 export const getModelArtifacts = cache(async (): Promise<ModelArtifact[]> => {
@@ -168,11 +146,7 @@ export const getModelArtifacts = cache(async (): Promise<ModelArtifact[]> => {
 
 export async function getModelArtifact(slug: string): Promise<ModelArtifact | null> {
   const artifacts = await getModelArtifacts();
-  const artifact = artifacts.find((entry) => entry.slug === slug);
-  if (!artifact) return null;
-
-  const reasoningCapabilities = await fetchReasoningCapabilitiesServer();
-  return enrichModelArtifactReasoning(artifact, reasoningCapabilities);
+  return artifacts.find((artifact) => artifact.slug === slug) || null;
 }
 
 export async function getModelsIndexMarkdown(): Promise<string> {

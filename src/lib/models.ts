@@ -8,6 +8,11 @@ export interface ModelPricing {
   output: number  // price per token
 }
 
+export interface ModelReasoningEfforts {
+  chatCompletions: string[]
+  responses: string[]
+}
+
 export interface Model {
   id: string
   name: string
@@ -17,6 +22,7 @@ export interface Model {
   description?: string
   type: string
   capabilities: string[]
+  supportedReasoningEfforts?: ModelReasoningEfforts
   pricing: {
     async: ModelPricing | null     // Async batch
     batch24h: ModelPricing | null  // 24 hour SLA batch
@@ -31,6 +37,7 @@ export interface ModelsResponse {
 
 const DEFAULT_MODEL_ID = 'Qwen/Qwen3-VL-235B-A22B-Instruct-FP8'
 const DOUBLEWORD_API_URL = 'https://app.doubleword.ai/admin/api/v1/models'
+const EVERYONE_GROUP_ID = '00000000-0000-0000-0000-000000000000'
 function getInternalDocsBaseUrl(): string | null {
   const configuredBaseUrl =
     process.env.INTERNAL_DOCS_BASE_URL ||
@@ -81,6 +88,10 @@ interface RawModel {
     display_name?: string
     icon_url?: string
   } | string
+  supported_reasoning_efforts?: {
+    chat_completions?: string[]
+    responses?: string[]
+  }
 }
 function formatModelType(type: string): string {
   const normalized = type.trim().toLowerCase()
@@ -108,6 +119,11 @@ function transformModels(
     const realtimeTariff = m.tariffs?.find(t => t.api_key_purpose === 'realtime')
     const providerObject =
       m.provider && typeof m.provider === 'object' ? m.provider : undefined
+    const chatCompletions = m.supported_reasoning_efforts?.chat_completions || []
+    const responses = m.supported_reasoning_efforts?.responses || []
+    const supportedReasoningEfforts = chatCompletions.length > 0 || responses.length > 0
+      ? { chatCompletions, responses }
+      : undefined
 
     return {
       id: m.alias || m.model_name,
@@ -118,6 +134,7 @@ function transformModels(
       description: m.description,
       type: formatModelType(m.metadata?.display_category || m.overwrite_type || m.model_type),
       capabilities: m.capabilities || [],
+      supportedReasoningEfforts,
       pricing: {
         async: asyncTariff ? {
           input: parseFloat(asyncTariff.input_price_per_token),
@@ -150,7 +167,7 @@ export const fetchModelsServer = cache(async (): Promise<ModelsResponse> => {
   }
 
   // Throw on errors so ISR keeps serving stale cached data instead of caching empty results
-  const response = await fetch(`${DOUBLEWORD_API_URL}?include=pricing&sort=released_at&sort_direction=desc&limit=100`, {
+  const response = await fetch(`${DOUBLEWORD_API_URL}?group=${EVERYONE_GROUP_ID}&include=pricing,reasoning_capabilities&sort=released_at&sort_direction=desc&limit=100`, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Accept': 'application/json',

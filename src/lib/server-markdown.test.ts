@@ -1,11 +1,5 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@/lib/reasoning-capabilities", () => ({
-  fetchReasoningCapabilitiesServer: vi.fn(),
-}));
-
-import { fetchReasoningCapabilitiesServer } from "@/lib/reasoning-capabilities";
 import { renderServerMarkdownTemplates } from "./server-markdown";
 
 afterEach(() => {
@@ -18,12 +12,6 @@ describe("renderServerMarkdownTemplates", () => {
   });
 
   it("expands the reasoning matrix from live capability data", async () => {
-    vi.mocked(fetchReasoningCapabilitiesServer).mockResolvedValueOnce([{
-      id: "qwen-3",
-      chatCompletions: ["none", "high"],
-      responses: ["high", "max"],
-    }]);
-
     const output = await renderServerMarkdownTemplates(
       "## Supported models\n\n{{#if reasoningCapabilitiesMatrix}}\n{{reasoningCapabilitiesMatrix}}\n{{else}}\nReasoning capability data is not currently available.\n{{/if}}",
       {
@@ -34,6 +22,10 @@ describe("renderServerMarkdownTemplates", () => {
           displayName: "Qwen 3",
           type: "Generation",
           capabilities: ["reasoning"],
+          supportedReasoningEfforts: {
+            chatCompletions: ["none", "high"],
+            responses: ["high", "max"],
+          },
           pricing: { async: null, batch24h: null, realtime: null },
         }],
       },
@@ -44,7 +36,6 @@ describe("renderServerMarkdownTemplates", () => {
       "| [Qwen 3](/inference-api/models/qwen-qwen3) | `none`, `high` | `high`, `max` |",
     );
     expect(output).not.toContain("Reasoning capability data is not currently available.");
-    expect(fetchReasoningCapabilitiesServer).toHaveBeenCalledOnce();
   });
 
   it("does not fetch capability data for pages without the matrix placeholder", async () => {
@@ -64,6 +55,5 @@ describe("renderServerMarkdownTemplates", () => {
     );
 
     expect(output).toBe("plain-model");
-    expect(fetchReasoningCapabilitiesServer).not.toHaveBeenCalled();
   });
 });

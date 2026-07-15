@@ -3,12 +3,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 let renderModelArtifactMarkdown: typeof import("./model-artifacts").renderModelArtifactMarkdown;
 let renderReasoningCapabilitiesMatrix: typeof import("./model-artifacts").renderReasoningCapabilitiesMatrix;
 let buildModelArtifacts: typeof import("./model-artifacts").buildModelArtifacts;
-let enrichModelArtifactReasoning: typeof import("./model-artifacts").enrichModelArtifactReasoning;
 
 beforeAll(async () => {
   process.env.NEXT_PUBLIC_SANITY_PROJECT_ID = "g1zo7y59";
   process.env.NEXT_PUBLIC_SANITY_DATASET = "production";
-  ({ buildModelArtifacts, enrichModelArtifactReasoning, renderModelArtifactMarkdown, renderReasoningCapabilitiesMatrix } = await import("./model-artifacts"));
+  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderReasoningCapabilitiesMatrix } = await import("./model-artifacts"));
 });
 
 describe("renderReasoningCapabilitiesMatrix", () => {
@@ -17,22 +16,14 @@ describe("renderReasoningCapabilitiesMatrix", () => {
       [
         {
           id: "qwen-3",
-          chatCompletions: ["none", "medium", "high"],
-          responses: ["low", "high", "max"],
-        },
-        {
-          id: "api-only-model",
-          chatCompletions: [],
-          responses: ["high"],
-        },
-      ],
-      [
-        {
-          id: "qwen-3",
           name: "Qwen/Qwen3",
           displayName: "Qwen 3",
           type: "Generation",
           capabilities: ["reasoning"],
+          supportedReasoningEfforts: {
+            chatCompletions: ["none", "medium", "high"],
+            responses: ["low", "high", "max"],
+          },
           pricing: { async: null, batch24h: null, realtime: null },
         },
       ],
@@ -42,21 +33,20 @@ describe("renderReasoningCapabilitiesMatrix", () => {
     expect(markdown).toContain(
       "| [Qwen 3](/inference-api/models/qwen-qwen3) | `none`, `medium`, `high` | `low`, `high`, `max` |",
     );
-    expect(markdown).toContain("| api-only-model | — | `high` |");
     expect(markdown).toContain(
       "Models not listed do not currently advertise reasoning effort controls.",
     );
   });
 
   it("renders a useful fallback when no capability data is available", () => {
-    expect(renderReasoningCapabilitiesMatrix([], [])).toContain(
+    expect(renderReasoningCapabilitiesMatrix([])).toContain(
       "Reasoning capability data is not currently available.",
     );
   });
 });
 
 describe("buildModelArtifacts", () => {
-  it("keeps base artifacts independent and enriches one selected model by ID", () => {
+  it("carries reasoning efforts into generated model pages", () => {
     const artifacts = buildModelArtifacts([
       {
         id: "qwen-3",
@@ -64,6 +54,10 @@ describe("buildModelArtifacts", () => {
         displayName: "Qwen 3",
         type: "Generation",
         capabilities: ["reasoning"],
+        supportedReasoningEfforts: {
+          chatCompletions: ["none", "high"],
+          responses: ["high"],
+        },
         pricing: { async: null, batch24h: null, realtime: null },
       },
       {
@@ -75,17 +69,11 @@ describe("buildModelArtifacts", () => {
         pricing: { async: null, batch24h: null, realtime: null },
       },
     ]);
-    const enriched = enrichModelArtifactReasoning(artifacts[0], [{
-      id: "qwen-3",
-      chatCompletions: ["none", "high"],
-      responses: ["high"],
-    }]);
 
-    expect(enriched.reasoningEfforts).toEqual({
+    expect(artifacts[0].reasoningEfforts).toEqual({
       chatCompletions: ["none", "high"],
       responses: ["high"],
     });
-    expect(artifacts[0].reasoningEfforts).toBeUndefined();
     expect(artifacts[1].reasoningEfforts).toBeUndefined();
   });
 });
