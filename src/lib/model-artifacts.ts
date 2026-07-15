@@ -53,12 +53,16 @@ function formatReasoningEfforts(efforts: string[]): string {
   return efforts.map((effort) => `\`${escapeMarkdownTableCell(effort)}\``).join(", ");
 }
 
+function supportsReasoning(model: Model): boolean {
+  return model.capabilities.includes("reasoning");
+}
+
 export function renderReasoningCapabilitiesMatrix(
   models: Model[],
 ): string {
   const rows = models.flatMap((model) => {
     const efforts = model.supportedReasoningEfforts;
-    if (!efforts) return [];
+    if (!supportsReasoning(model) || !efforts) return [];
 
     const displayName = escapeMarkdownTableCell(model.displayName);
     const modelCell = `[${displayName}](${getModelArtifactPath(slugifyModelName(model.name))})`;
@@ -128,7 +132,9 @@ function toModelArtifact(model: Model): ModelArtifact {
     type: model.type,
     description: model.description,
     capabilities: model.capabilities,
-    reasoningEfforts: model.supportedReasoningEfforts,
+    reasoningEfforts: supportsReasoning(model)
+      ? model.supportedReasoningEfforts
+      : undefined,
     playgroundUrl: `https://app.doubleword.ai/playground?model=${encodeURIComponent(model.id)}&from=%2Fmodels`,
     pricing: buildPricing(model),
   };

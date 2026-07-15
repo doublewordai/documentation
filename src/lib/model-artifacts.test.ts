@@ -26,6 +26,18 @@ describe("renderReasoningCapabilitiesMatrix", () => {
           },
           pricing: { async: null, batch24h: null, realtime: null },
         },
+        {
+          id: "qwen-3-vl-instruct",
+          name: "Qwen/Qwen3-VL-Instruct",
+          displayName: "Qwen 3 VL Instruct",
+          type: "Generation",
+          capabilities: ["vision"],
+          supportedReasoningEfforts: {
+            chatCompletions: ["none"],
+            responses: ["none"],
+          },
+          pricing: { async: null, batch24h: null, realtime: null },
+        },
       ],
     );
 
@@ -33,6 +45,7 @@ describe("renderReasoningCapabilitiesMatrix", () => {
     expect(markdown).toContain(
       "| [Qwen 3](/inference-api/models/qwen-qwen3) | `none`, `medium`, `high` | `low`, `high`, `max` |",
     );
+    expect(markdown).not.toContain("Qwen 3 VL Instruct");
     expect(markdown).toContain(
       "Models not listed do not currently advertise reasoning effort controls.",
     );
@@ -66,6 +79,10 @@ describe("buildModelArtifacts", () => {
         displayName: "Plain Model",
         type: "Generation",
         capabilities: [],
+        supportedReasoningEfforts: {
+          chatCompletions: ["none"],
+          responses: ["none"],
+        },
         pricing: { async: null, batch24h: null, realtime: null },
       },
     ]);
