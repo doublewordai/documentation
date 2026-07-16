@@ -38,12 +38,38 @@ describe("renderReasoningCapabilitiesMatrix", () => {
           },
           pricing: { async: null, batch24h: null, realtime: null },
         },
+        {
+          id: "qwen-3-14b",
+          name: "Qwen/Qwen3-14B-FP8",
+          displayName: "Qwen 3 14B",
+          type: "Generation",
+          capabilities: [],
+          supportedReasoningEfforts: {
+            chatCompletions: ["minimal", "medium", "high"],
+            responses: ["minimal", "medium", "high"],
+          },
+          pricing: { async: null, batch24h: null, realtime: null },
+        },
+        {
+          id: "glm-5-1",
+          name: "zai-org/GLM-5.1-FP8",
+          displayName: "GLM 5.1",
+          type: "Generation",
+          capabilities: ["reasoning"],
+          pricing: { async: null, batch24h: null, realtime: null },
+        },
       ],
     );
 
     expect(markdown).toContain("| Model | Chat Completions | Responses |");
     expect(markdown).toContain(
       "| [Qwen 3](/inference-api/models/qwen-qwen3) | `none`, `medium`, `high` | `low`, `high`, `max` |",
+    );
+    expect(markdown).toContain(
+      "| [Qwen 3 14B](/inference-api/models/qwen-qwen3-14b-fp8) | `minimal`, `medium`, `high` | `minimal`, `medium`, `high` |",
+    );
+    expect(markdown).toContain(
+      "| [GLM 5.1](/inference-api/models/zai-org-glm-5-1-fp8) | Not advertised | Not advertised |",
     );
     expect(markdown).not.toContain("Qwen 3 VL Instruct");
     expect(markdown).toContain(

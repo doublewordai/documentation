@@ -57,6 +57,8 @@ export async function sanityFetch<const QueryString extends string>({
   } catch {
     // draftMode() throws when called outside request scope (e.g., during build)
   }
+  // Production is invalidated by the Sanity webhook; preview deployments are not.
+  const skipCache = isDraftMode || process.env.VERCEL_ENV === 'preview'
 
   // Use drafts perspective when in draft mode (Sanity Presentation preview)
   const fetchClient = isDraftMode && token
@@ -64,8 +66,8 @@ export async function sanityFetch<const QueryString extends string>({
     : client
 
   return fetchClient.fetch(query, params, {
-    cache: isDraftMode ? 'no-store' : 'force-cache',
-    next: isDraftMode ? undefined : {
+    cache: skipCache ? 'no-store' : 'force-cache',
+    next: skipCache ? undefined : {
       // For tag-based revalidation, set revalidate to false (cache indefinitely until tag is invalidated)
       revalidate: tags.length ? false : revalidate,
       // Tags for on-demand revalidation via webhook
