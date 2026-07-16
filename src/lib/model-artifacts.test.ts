@@ -65,12 +65,8 @@ describe("renderReasoningCapabilitiesMatrix", () => {
     expect(markdown).toContain(
       "| [Qwen 3](/inference-api/models/qwen-qwen3) | `none`, `medium`, `high` | `low`, `high`, `max` |",
     );
-    expect(markdown).toContain(
-      "| [Qwen 3 14B](/inference-api/models/qwen-qwen3-14b-fp8) | `minimal`, `medium`, `high` | `minimal`, `medium`, `high` |",
-    );
-    expect(markdown).toContain(
-      "| [GLM 5.1](/inference-api/models/zai-org-glm-5-1-fp8) | Not advertised | Not advertised |",
-    );
+    expect(markdown).not.toContain("Qwen 3 14B");
+    expect(markdown).not.toContain("GLM 5.1");
     expect(markdown).not.toContain("Qwen 3 VL Instruct");
     expect(markdown).toContain(
       "Models not listed do not currently advertise reasoning effort controls.",

@@ -48,24 +48,13 @@ function escapeMarkdownTableCell(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 }
 
-function formatReasoningEfforts(efforts?: string[]): string {
-  if (!efforts || efforts.length === 0) return "Not advertised";
+function formatReasoningEfforts(efforts: string[]): string {
+  if (efforts.length === 0) return "—";
   return efforts.map((effort) => `\`${escapeMarkdownTableCell(effort)}\``).join(", ");
 }
 
-function advertisesReasoningEffort(model: Model): boolean {
-  const efforts = model.supportedReasoningEfforts;
-  if (!efforts) return false;
-
-  return [...efforts.chatCompletions, ...efforts.responses].some(
-    (effort) => effort !== "none",
-  );
-}
-
 function supportsReasoning(model: Model): boolean {
-  return (
-    model.capabilities.includes("reasoning") || advertisesReasoningEffort(model)
-  );
+  return model.capabilities.includes("reasoning");
 }
 
 export function renderReasoningCapabilitiesMatrix(
@@ -73,12 +62,12 @@ export function renderReasoningCapabilitiesMatrix(
 ): string {
   const rows = models.flatMap((model) => {
     const efforts = model.supportedReasoningEfforts;
-    if (!supportsReasoning(model)) return [];
+    if (!supportsReasoning(model) || !efforts) return [];
 
     const displayName = escapeMarkdownTableCell(model.displayName);
     const modelCell = `[${displayName}](${getModelArtifactPath(slugifyModelName(model.name))})`;
 
-    return [`| ${modelCell} | ${formatReasoningEfforts(efforts?.chatCompletions)} | ${formatReasoningEfforts(efforts?.responses)} |`];
+    return [`| ${modelCell} | ${formatReasoningEfforts(efforts.chatCompletions)} | ${formatReasoningEfforts(efforts.responses)} |`];
   });
   if (rows.length === 0) {
     return "Reasoning capability data is not currently available.";
