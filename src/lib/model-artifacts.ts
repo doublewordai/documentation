@@ -4,6 +4,15 @@ import type { DocSearchIndexItem } from "@/sanity/types";
 
 const MODELS_PRODUCT_SLUG = "inference-api";
 const MODELS_OVERVIEW_SLUG = "models";
+const REASONING_EFFORTS = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const;
 
 export function getModelsOverviewPath() {
   return `/${MODELS_PRODUCT_SLUG}/${MODELS_OVERVIEW_SLUG}`;
@@ -29,6 +38,10 @@ export type ModelArtifact = {
   type: string;
   description?: string;
   capabilities: string[];
+  reasoningEfforts?: {
+    chatCompletions: string[];
+    responses: string[];
+  };
   playgroundUrl: string;
   pricing: ModelArtifactPricingRow[];
 };
@@ -38,6 +51,60 @@ function slugifyModelName(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function escapeMarkdownTableCell(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+}
+
+function formatReasoningEfforts(efforts: string[]): string {
+  if (efforts.length === 0) return "—";
+  return efforts.map((effort) => `\`${escapeMarkdownTableCell(effort)}\``).join(", ");
+}
+
+function flattenReasoningEfforts(efforts: {
+  chatCompletions: string[];
+  responses: string[];
+}): string[] {
+  const supported = new Set([
+    ...efforts.chatCompletions,
+    ...efforts.responses,
+  ]);
+
+  return REASONING_EFFORTS.filter((effort) => supported.has(effort));
+}
+
+function supportsReasoning(model: Model): boolean {
+  return model.capabilities.includes("reasoning");
+}
+
+export function renderReasoningCapabilitiesMatrix(
+  models: Model[],
+): string {
+  const rows = models.flatMap((model) => {
+    const efforts = model.supportedReasoningEfforts;
+    if (!supportsReasoning(model) || !efforts) return [];
+
+    const displayName = escapeMarkdownTableCell(model.displayName);
+    const modelCell = `[${displayName}](${getModelArtifactPath(slugifyModelName(model.name))})`;
+    const supported = new Set(flattenReasoningEfforts(efforts));
+    const cells = REASONING_EFFORTS.map((effort) =>
+      supported.has(effort) ? "✅" : ""
+    );
+
+    return [`| ${modelCell} | ${cells.join(" | ")} |`];
+  });
+  if (rows.length === 0) {
+    return "Reasoning capability data is not currently available.";
+  }
+
+  return [
+    `| Model | ${REASONING_EFFORTS.map((effort) => `\`${effort}\``).join(" | ")} |`,
+    `|-------|${REASONING_EFFORTS.map(() => ":---:").join("|")}|`,
+    ...rows,
+    "",
+    "Models not listed do not currently advertise reasoning effort controls.",
+  ].join("\n");
 }
 
 function formatPricePer1M(pricePerToken: number): string {
@@ -90,15 +157,22 @@ function toModelArtifact(model: Model): ModelArtifact {
     type: model.type,
     description: model.description,
     capabilities: model.capabilities,
+    reasoningEfforts: supportsReasoning(model)
+      ? model.supportedReasoningEfforts
+      : undefined,
     playgroundUrl: `https://app.doubleword.ai/playground?model=${encodeURIComponent(model.id)}&from=%2Fmodels`,
     pricing: buildPricing(model),
   };
 }
 
+export function buildModelArtifacts(models: Model[]): ModelArtifact[] {
+  return models.map(toModelArtifact);
+}
+
 export const getModelArtifacts = cache(async (): Promise<ModelArtifact[]> => {
   const { models } = await fetchModelsFromApiRoute();
 
-  return models.map(toModelArtifact);
+  return buildModelArtifacts(models);
 });
 
 export async function getModelArtifact(slug: string): Promise<ModelArtifact | null> {
@@ -177,6 +251,17 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
     ? `## Overview\n\n${artifact.description}\n\n`
     : "";
 
+  const reasoningEfforts = artifact.reasoningEfforts;
+  const flattenedReasoningEfforts = reasoningEfforts
+    ? flattenReasoningEfforts(reasoningEfforts)
+    : [];
+  const reasoningRows = flattenedReasoningEfforts.length > 0
+    ? [`- **Supported:** ${formatReasoningEfforts(flattenedReasoningEfforts)}`]
+    : [];
+  const reasoning = reasoningRows.length > 0
+    ? `## Reasoning efforts\n\n${reasoningRows.join("\n")}\n\nSee the [reasoning effort guide](/inference-api/reasoning-controls) for request examples.\n\n`
+    : "";
+
   const icon = artifact.iconUrl
     ? `![${artifact.name} icon](${artifact.iconUrl})\n\n`
     : "";
@@ -185,7 +270,7 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
 
 ${icon}${metadata}
 
-${description}${pricingTable}## Playground
+${description}${reasoning}${pricingTable}## Playground
 
 Open this model in the [Playground](${artifact.playgroundUrl}).
 `;
