@@ -11,7 +11,7 @@ beforeAll(async () => {
 });
 
 describe("renderReasoningCapabilitiesMatrix", () => {
-  it("joins capability records to model names and detail pages", () => {
+  it("flattens endpoint capabilities into checkbox columns", () => {
     const markdown = renderReasoningCapabilitiesMatrix(
       [
         {
@@ -61,10 +61,14 @@ describe("renderReasoningCapabilitiesMatrix", () => {
       ],
     );
 
-    expect(markdown).toContain("| Model | Chat Completions | Responses |");
     expect(markdown).toContain(
-      "| [Qwen 3](/inference-api/models/qwen-qwen3) | `none`, `medium`, `high` | `low`, `high`, `max` |",
+      "| Model | `none` | `minimal` | `low` | `medium` | `high` | `xhigh` | `max` |",
     );
+    expect(markdown).toContain(
+      "| [Qwen 3](/inference-api/models/qwen-qwen3) | ✅ |  | ✅ | ✅ | ✅ |  | ✅ |",
+    );
+    expect(markdown).not.toContain("Chat Completions");
+    expect(markdown).not.toContain("Responses");
     expect(markdown).not.toContain("Qwen 3 14B");
     expect(markdown).not.toContain("GLM 5.1");
     expect(markdown).not.toContain("Qwen 3 VL Instruct");
@@ -151,8 +155,9 @@ describe("renderModelArtifactMarkdown", () => {
     expect(markdown).toContain("**Type:** chat");
     expect(markdown).toContain("Model body content");
     expect(markdown).toContain("## Reasoning efforts");
-    expect(markdown).toContain("**Chat Completions:** `none`, `medium`, `high`");
-    expect(markdown).toContain("**Responses:** `low`, `high`");
+    expect(markdown).toContain("**Supported:** `none`, `low`, `medium`, `high`");
+    expect(markdown).not.toContain("Chat Completions");
+    expect(markdown).not.toContain("Responses");
     expect(markdown).toContain("[reasoning effort guide](/inference-api/reasoning-controls)");
     expect(markdown).toContain("## Playground");
   });

@@ -31,9 +31,11 @@ describe("renderServerMarkdownTemplates", () => {
       },
     );
 
-    expect(output).toContain("| Model | Chat Completions | Responses |");
     expect(output).toContain(
-      "| [Qwen 3](/inference-api/models/qwen-qwen3) | `none`, `high` | `high`, `max` |",
+      "| Model | `none` | `minimal` | `low` | `medium` | `high` | `xhigh` | `max` |",
+    );
+    expect(output).toContain(
+      "| [Qwen 3](/inference-api/models/qwen-qwen3) | ✅ |  |  |  | ✅ |  | ✅ |",
     );
     expect(output).not.toContain("Reasoning capability data is not currently available.");
   });

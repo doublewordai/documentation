@@ -4,6 +4,15 @@ import type { DocSearchIndexItem } from "@/sanity/types";
 
 const MODELS_PRODUCT_SLUG = "inference-api";
 const MODELS_OVERVIEW_SLUG = "models";
+const REASONING_EFFORTS = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const;
 
 export function getModelsOverviewPath() {
   return `/${MODELS_PRODUCT_SLUG}/${MODELS_OVERVIEW_SLUG}`;
@@ -53,6 +62,18 @@ function formatReasoningEfforts(efforts: string[]): string {
   return efforts.map((effort) => `\`${escapeMarkdownTableCell(effort)}\``).join(", ");
 }
 
+function flattenReasoningEfforts(efforts: {
+  chatCompletions: string[];
+  responses: string[];
+}): string[] {
+  const supported = new Set([
+    ...efforts.chatCompletions,
+    ...efforts.responses,
+  ]);
+
+  return REASONING_EFFORTS.filter((effort) => supported.has(effort));
+}
+
 function supportsReasoning(model: Model): boolean {
   return model.capabilities.includes("reasoning");
 }
@@ -66,16 +87,20 @@ export function renderReasoningCapabilitiesMatrix(
 
     const displayName = escapeMarkdownTableCell(model.displayName);
     const modelCell = `[${displayName}](${getModelArtifactPath(slugifyModelName(model.name))})`;
+    const supported = new Set(flattenReasoningEfforts(efforts));
+    const cells = REASONING_EFFORTS.map((effort) =>
+      supported.has(effort) ? "✅" : ""
+    );
 
-    return [`| ${modelCell} | ${formatReasoningEfforts(efforts.chatCompletions)} | ${formatReasoningEfforts(efforts.responses)} |`];
+    return [`| ${modelCell} | ${cells.join(" | ")} |`];
   });
   if (rows.length === 0) {
     return "Reasoning capability data is not currently available.";
   }
 
   return [
-    "| Model | Chat Completions | Responses |",
-    "|-------|------------------|-----------|",
+    `| Model | ${REASONING_EFFORTS.map((effort) => `\`${effort}\``).join(" | ")} |`,
+    `|-------|${REASONING_EFFORTS.map(() => ":---:").join("|")}|`,
     ...rows,
     "",
     "Models not listed do not currently advertise reasoning effort controls.",
@@ -227,15 +252,11 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
     : "";
 
   const reasoningEfforts = artifact.reasoningEfforts;
-  const reasoningRows = reasoningEfforts
-    ? [
-        reasoningEfforts.chatCompletions.length > 0
-          ? `- **Chat Completions:** ${reasoningEfforts.chatCompletions.map((effort) => `\`${effort}\``).join(", ")}`
-          : "",
-        reasoningEfforts.responses.length > 0
-          ? `- **Responses:** ${reasoningEfforts.responses.map((effort) => `\`${effort}\``).join(", ")}`
-          : "",
-      ].filter(Boolean)
+  const flattenedReasoningEfforts = reasoningEfforts
+    ? flattenReasoningEfforts(reasoningEfforts)
+    : [];
+  const reasoningRows = flattenedReasoningEfforts.length > 0
+    ? [`- **Supported:** ${formatReasoningEfforts(flattenedReasoningEfforts)}`]
     : [];
   const reasoning = reasoningRows.length > 0
     ? `## Reasoning efforts\n\n${reasoningRows.join("\n")}\n\nSee the [reasoning effort guide](/inference-api/reasoning-controls) for request examples.\n\n`

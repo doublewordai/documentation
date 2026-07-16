@@ -26,7 +26,7 @@ vi.mock("@/lib/server-markdown", () => ({
   renderServerMarkdownTemplates: vi.fn(async (content: string) =>
     content.replace(
       "{{reasoningCapabilitiesMatrix}}",
-      "| Model | Chat Completions | Responses |\n|---|---|---|",
+      "| Model | `none` | `minimal` | `low` | `medium` | `high` | `xhigh` | `max` |\n|---|---|---|---|---|---|---|---|",
     )),
 }));
 
@@ -163,7 +163,9 @@ describe("GET /api/markdown/[product]/[...slug]", () => {
     const response = await getMarkdown("inference-api", ["reasoning-controls.md"]);
     const text = await response.text();
 
-    expect(text).toContain("| Model | Chat Completions | Responses |");
+    expect(text).toContain(
+      "| Model | `none` | `minimal` | `low` | `medium` | `high` | `xhigh` | `max` |",
+    );
     expect(text).not.toContain("{{reasoningCapabilitiesMatrix}}");
     expect(renderServerMarkdownTemplates).toHaveBeenCalledOnce();
   });
