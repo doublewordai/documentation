@@ -216,7 +216,7 @@ export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
     ...artifacts.map((artifact) => {
       const cacheRead = artifact.cacheReadMultiplier !== undefined
         ? `${artifact.cacheReadMultiplier}×`
-        : "○";
+        : "-";
       return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${renderProvider(artifact.providerName)} | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} | ${cacheRead} |`;
     }),
   ].join("\n");

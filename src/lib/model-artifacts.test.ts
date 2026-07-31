@@ -159,7 +159,7 @@ describe("renderModelsIndexMarkdown", () => {
     expect(markdown).toContain("| Model | Provider | Realtime | Async | Batch (24h) | Cache&nbsp;read |");
     expect(markdown).toContain("|-------|----------|----------|-------|-------------|:----------:|");
     expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | — | — | — | — | 0.1× |");
-    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | — | — | — | ○ |");
+    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | — | — | — | - |");
     expect(markdown).not.toContain("❌ Prompt caching is not supported for this model.");
     expect(markdown).not.toContain("90% discount");
   });
