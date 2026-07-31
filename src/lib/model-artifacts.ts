@@ -26,6 +26,7 @@ export type ModelArtifactPricingRow = {
   priority: string;
   inputTokensPer1M: string;
   outputTokensPer1M: string;
+  cacheReadPricePer1M?: string;
 };
 
 export type ModelArtifact = {
@@ -113,36 +114,38 @@ function formatPricePer1M(pricePerToken: number): string {
   return `\\$${(pricePerToken * 1_000_000).toFixed(2)}`;
 }
 
-function renderProvider(providerName?: string): string {
-  if (!providerName) return "—";
-  return providerName || "—";
-}
-
-function buildPricing(model: Model): ModelArtifactPricingRow[] {
+function buildPricing(
+  model: Model,
+  cacheReadMultiplier?: number,
+): ModelArtifactPricingRow[] {
   const rows: ModelArtifactPricingRow[] = [];
 
+  const buildRow = (
+    priority: string,
+    pricing: { input: number; output: number },
+  ): ModelArtifactPricingRow => ({
+    priority,
+    inputTokensPer1M: formatPricePer1M(pricing.input),
+    outputTokensPer1M: formatPricePer1M(pricing.output),
+    ...(cacheReadMultiplier !== undefined
+      ? {
+          cacheReadPricePer1M: formatPricePer1M(
+            pricing.input * cacheReadMultiplier,
+          ),
+        }
+      : {}),
+  });
+
   if (model.pricing.realtime) {
-    rows.push({
-      priority: "Realtime",
-      inputTokensPer1M: formatPricePer1M(model.pricing.realtime.input),
-      outputTokensPer1M: formatPricePer1M(model.pricing.realtime.output),
-    });
+    rows.push(buildRow("Realtime", model.pricing.realtime));
   }
 
   if (model.pricing.async) {
-    rows.push({
-      priority: "Async",
-      inputTokensPer1M: formatPricePer1M(model.pricing.async.input),
-      outputTokensPer1M: formatPricePer1M(model.pricing.async.output),
-    });
+    rows.push(buildRow("Async", model.pricing.async));
   }
 
   if (model.pricing.batch24h) {
-    rows.push({
-      priority: "Batch (24h)",
-      inputTokensPer1M: formatPricePer1M(model.pricing.batch24h.input),
-      outputTokensPer1M: formatPricePer1M(model.pricing.batch24h.output),
-    });
+    rows.push(buildRow("Batch (24h)", model.pricing.batch24h));
   }
 
   return rows;
@@ -151,7 +154,6 @@ function buildPricing(model: Model): ModelArtifactPricingRow[] {
 function toModelArtifact(model: Model): ModelArtifact {
   const cacheReadMultiplier = model.cachePricing?.enabled
     && model.cachePricing.readMultiplier !== null
-    && model.pricing.realtime
       ? model.cachePricing.readMultiplier
       : undefined;
 
@@ -177,7 +179,7 @@ function toModelArtifact(model: Model): ModelArtifact {
       ? model.supportedReasoningEfforts
       : undefined,
     playgroundUrl: `https://app.doubleword.ai/playground?model=${encodeURIComponent(model.id)}&from=%2Fmodels`,
-    pricing: buildPricing(model),
+    pricing: buildPricing(model, cacheReadMultiplier),
   };
 }
 
@@ -210,14 +212,22 @@ export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
     return `${row.inputTokensPer1M} in / ${row.outputTokensPer1M} out`;
   };
 
+  const formatCacheReadCell = (
+    artifact: ModelArtifact,
+    priority: string,
+  ): string => {
+    const row = artifact.pricing.find((p) => p.priority === priority);
+    if (!row?.cacheReadPricePer1M || artifact.cacheReadMultiplier === undefined) {
+      return "-";
+    }
+    return `${row.cacheReadPricePer1M}<br><small>${artifact.cacheReadMultiplier}× input</small>`;
+  };
+
   const overviewTable = [
-    "| Model | Provider | Realtime | Async | Batch (24h) | Cache&nbsp;read |",
-    "|-------|----------|----------|-------|-------------|:----------:|",
+    "| Model | Realtime | Cache&nbsp;read | Async | Cache&nbsp;read | Batch (24h) | Cache&nbsp;read |",
+    "|-------|----------|:----------:|-------|:----------:|-------------|:----------:|",
     ...artifacts.map((artifact) => {
-      const cacheRead = artifact.cacheReadMultiplier !== undefined
-        ? `${artifact.cacheReadMultiplier}×`
-        : "-";
-      return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${renderProvider(artifact.providerName)} | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} | ${cacheRead} |`;
+      return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${formatTierCell(artifact, "Realtime")} | ${formatCacheReadCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatCacheReadCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} | ${formatCacheReadCell(artifact, "Batch (24h)")} |`;
     }),
   ].join("\n");
 
@@ -226,7 +236,7 @@ export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
 The table below outlines the models we have available and their pricing per 1M tokens. If you are interested in understanding pricing for a model not listed below or if you'd like to request a new model - please reach out to support@doubleword.ai.
 
 :::info{title="Prompt caching"}
-Prompt-caching availability and rates are model-specific. The **Cache read** column shows the current multiplier on the model's standard input price. See the [prompt caching guide](/inference-api/prompt-caching) for setup, TTLs, and write pricing.
+Prompt-caching availability and rates are model-specific. Each **Cache read** column shows the price per 1M cached input tokens for that modality, with the multiplier on its standard input price beneath it. See the [prompt caching guide](/inference-api/prompt-caching) for setup, TTLs, and write pricing.
 :::
 
 ## Model Catalog
