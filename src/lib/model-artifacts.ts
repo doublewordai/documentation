@@ -211,13 +211,13 @@ export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
   };
 
   const overviewTable = [
-    "| Model | Provider | Type | Realtime | Async | Batch (24h) | Cache&nbsp;read |",
-    "|-------|----------|------|----------|-------|-------------|:----------:|",
+    "| Model | Provider | Realtime | Async | Batch (24h) | Cache&nbsp;read |",
+    "|-------|----------|----------|-------|-------------|:----------:|",
     ...artifacts.map((artifact) => {
       const cacheRead = artifact.cacheReadMultiplier !== undefined
         ? `${artifact.cacheReadMultiplier}×`
-        : "❌";
-      return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${renderProvider(artifact.providerName)} | ${artifact.type} | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} | ${cacheRead} |`;
+        : "○";
+      return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${renderProvider(artifact.providerName)} | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} | ${cacheRead} |`;
     }),
   ].join("\n");
 
