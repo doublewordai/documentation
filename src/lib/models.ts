@@ -8,6 +8,17 @@ export interface ModelPricing {
   output: number  // price per token
 }
 
+export interface ModelCachePricing {
+  enabled: boolean
+  readMultiplier: number | null
+  writeMultiplier5m: number | null
+  writeMultiplier1h: number | null
+  writeMultiplier24h: number | null
+  minPrefixTokens: number | null
+  validFrom: string | null
+  validUntil: string | null
+}
+
 export interface ModelReasoningEfforts {
   chatCompletions: string[]
   responses: string[]
@@ -28,6 +39,7 @@ export interface Model {
     batch24h: ModelPricing | null  // 24 hour SLA batch
     realtime: ModelPricing | null  // Real-time API
   }
+  cachePricing?: ModelCachePricing | null
 }
 
 export interface ModelsResponse {
@@ -58,6 +70,23 @@ interface RawTariff {
   completion_window?: string
 }
 
+interface RawCachePricing {
+  enabled: boolean
+  read_multiplier: number | string | null
+  write_multiplier_5m: number | string | null
+  write_multiplier_1h: number | string | null
+  write_multiplier_24h: number | string | null
+  min_prefix_tokens: number | string | null
+  valid_from: string | null
+  valid_until: string | null
+}
+
+function parseNullableNumber(value: number | string | null): number | null {
+  if (value === null) return null
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 interface RawModel {
   model_name: string
   alias: string
@@ -72,6 +101,7 @@ interface RawModel {
   provider_key?: string
   capabilities?: string[]
   tariffs?: RawTariff[]
+  cache_pricing?: RawCachePricing
   metadata?: {
     display_category?: string
     provider?: string
@@ -110,7 +140,7 @@ function formatModelType(type: string): string {
   return type
 }
 
-function transformModels(
+export function transformModels(
   rawModels: RawModel[],
 ): Model[] {
   return rawModels.map((m) => {
@@ -149,6 +179,16 @@ function transformModels(
           output: parseFloat(realtimeTariff.output_price_per_token),
         } : null,
       },
+      cachePricing: m.cache_pricing ? {
+        enabled: m.cache_pricing.enabled,
+        readMultiplier: parseNullableNumber(m.cache_pricing.read_multiplier),
+        writeMultiplier5m: parseNullableNumber(m.cache_pricing.write_multiplier_5m),
+        writeMultiplier1h: parseNullableNumber(m.cache_pricing.write_multiplier_1h),
+        writeMultiplier24h: parseNullableNumber(m.cache_pricing.write_multiplier_24h),
+        minPrefixTokens: parseNullableNumber(m.cache_pricing.min_prefix_tokens),
+        validFrom: m.cache_pricing.valid_from ?? null,
+        validUntil: m.cache_pricing.valid_until ?? null,
+      } : null,
     }
   })
 }

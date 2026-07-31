@@ -3,11 +3,12 @@ import { beforeAll, describe, expect, it } from "vitest";
 let renderModelArtifactMarkdown: typeof import("./model-artifacts").renderModelArtifactMarkdown;
 let renderReasoningCapabilitiesMatrix: typeof import("./model-artifacts").renderReasoningCapabilitiesMatrix;
 let buildModelArtifacts: typeof import("./model-artifacts").buildModelArtifacts;
+let renderModelsIndexMarkdown: typeof import("./model-artifacts").renderModelsIndexMarkdown;
 
 beforeAll(async () => {
   process.env.NEXT_PUBLIC_SANITY_PROJECT_ID = "g1zo7y59";
   process.env.NEXT_PUBLIC_SANITY_DATASET = "production";
-  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderReasoningCapabilitiesMatrix } = await import("./model-artifacts"));
+  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderModelsIndexMarkdown, renderReasoningCapabilitiesMatrix } = await import("./model-artifacts"));
 });
 
 describe("renderReasoningCapabilitiesMatrix", () => {
@@ -119,6 +120,47 @@ describe("buildModelArtifacts", () => {
     });
     expect(artifacts[1].reasoningEfforts).toBeUndefined();
   });
+
+  it("calculates cache-read pricing only when caching and realtime pricing are available", () => {
+    const [enabled, disabled, incomplete] = buildModelArtifacts([
+      {
+        id: "enabled", name: "Provider/Enabled", displayName: "Enabled",
+        type: "Generation", capabilities: [],
+        pricing: { async: null, batch24h: null, realtime: { input: 0.000001, output: 0.000002 } },
+        cachePricing: { enabled: true, readMultiplier: 0.1, writeMultiplier5m: 1.25, writeMultiplier1h: 2, writeMultiplier24h: 3, minPrefixTokens: 1024, validFrom: null, validUntil: null },
+      },
+      {
+        id: "disabled", name: "Provider/Disabled", displayName: "Disabled",
+        type: "Generation", capabilities: [],
+        pricing: { async: null, batch24h: null, realtime: { input: 0.000001, output: 0.000002 } },
+        cachePricing: { enabled: false, readMultiplier: 0.1, writeMultiplier5m: 1.25, writeMultiplier1h: 2, writeMultiplier24h: 3, minPrefixTokens: 1024, validFrom: null, validUntil: null },
+      },
+      {
+        id: "incomplete", name: "Provider/Incomplete", displayName: "Incomplete",
+        type: "Generation", capabilities: [],
+        pricing: { async: null, batch24h: null, realtime: null },
+        cachePricing: { enabled: true, readMultiplier: 0.1, writeMultiplier5m: 1.25, writeMultiplier1h: 2, writeMultiplier24h: 3, minPrefixTokens: 1024, validFrom: null, validUntil: null },
+      },
+    ]);
+
+    expect(enabled).toMatchObject({ cacheReadPricePer1M: "\\$0.10", cacheReadMultiplier: 0.1 });
+    expect(disabled.cacheReadPricePer1M).toBeUndefined();
+    expect(incomplete.cacheReadPricePer1M).toBeUndefined();
+  });
+});
+
+describe("renderModelsIndexMarkdown", () => {
+  it("shows model-specific cache-read prices and unsupported fallbacks", () => {
+    const markdown = renderModelsIndexMarkdown([
+      { name: "Enabled", slug: "enabled", id: "enabled", rawName: "Enabled", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/enabled", pricing: [], cacheReadPricePer1M: "\\$0.10", cacheReadMultiplier: 0.1 },
+      { name: "Unsupported", slug: "unsupported", id: "unsupported", rawName: "Unsupported", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/unsupported", pricing: [] },
+    ]);
+
+    expect(markdown).toContain("| Model | Provider | Type | Realtime | Async | Batch (24h) | Cache read |");
+    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | — | Generation | — | — | — | \\$0.10 / 1M |");
+    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | Generation | — | — | — | — |");
+    expect(markdown).not.toContain("90% discount");
+  });
 });
 
 describe("renderModelArtifactMarkdown", () => {
@@ -135,6 +177,8 @@ describe("renderModelArtifactMarkdown", () => {
         chatCompletions: ["none", "medium", "high"],
         responses: ["low", "high"],
       },
+      cacheReadPricePer1M: "\\$0.10",
+      cacheReadMultiplier: 0.1,
       playgroundUrl: "https://example.com/playground",
       description: "Model body content",
       pricing: [
@@ -153,6 +197,7 @@ describe("renderModelArtifactMarkdown", () => {
     expect(markdown).toContain("| Async | $0.05 | $0.08 |");
     expect(markdown).not.toContain("**Model ID:** `Qwen/Test`");
     expect(markdown).toContain("**Type:** chat");
+    expect(markdown).toContain("**Cache read:** \\$0.10 per 1M input tokens (0.1× standard input price)");
     expect(markdown).toContain("Model body content");
     expect(markdown).toContain("## Reasoning efforts");
     expect(markdown).toContain("**Supported:** `none`, `low`, `medium`, `high`");
@@ -175,5 +220,6 @@ describe("renderModelArtifactMarkdown", () => {
     });
 
     expect(markdown).not.toContain("## Reasoning efforts");
+    expect(markdown).not.toContain("**Cache read:**");
   });
 });

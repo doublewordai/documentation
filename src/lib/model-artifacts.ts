@@ -38,6 +38,8 @@ export type ModelArtifact = {
   type: string;
   description?: string;
   capabilities: string[];
+  cacheReadPricePer1M?: string;
+  cacheReadMultiplier?: number;
   reasoningEfforts?: {
     chatCompletions: string[];
     responses: string[];
@@ -147,6 +149,12 @@ function buildPricing(model: Model): ModelArtifactPricingRow[] {
 }
 
 function toModelArtifact(model: Model): ModelArtifact {
+  const cacheReadMultiplier = model.cachePricing?.enabled
+    && model.cachePricing.readMultiplier !== null
+    && model.pricing.realtime
+      ? model.cachePricing.readMultiplier
+      : undefined;
+
   return {
     id: model.id,
     name: model.displayName,
@@ -157,6 +165,14 @@ function toModelArtifact(model: Model): ModelArtifact {
     type: model.type,
     description: model.description,
     capabilities: model.capabilities,
+    ...(cacheReadMultiplier !== undefined && model.pricing.realtime
+      ? {
+          cacheReadPricePer1M: formatPricePer1M(
+            model.pricing.realtime.input * cacheReadMultiplier,
+          ),
+          cacheReadMultiplier,
+        }
+      : {}),
     reasoningEfforts: supportsReasoning(model)
       ? model.supportedReasoningEfforts
       : undefined,
@@ -183,6 +199,11 @@ export async function getModelArtifact(slug: string): Promise<ModelArtifact | nu
 export async function getModelsIndexMarkdown(): Promise<string> {
   const artifacts = await getModelArtifacts();
 
+  return renderModelsIndexMarkdown(artifacts);
+}
+
+export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
+
   const formatTierCell = (artifact: ModelArtifact, priority: string): string => {
     const row = artifact.pricing.find((p) => p.priority === priority);
     if (!row) return "—";
@@ -190,10 +211,13 @@ export async function getModelsIndexMarkdown(): Promise<string> {
   };
 
   const overviewTable = [
-    "| Model | Provider | Type | Realtime | Async | Batch (24h) |",
-    "|-------|----------|------|----------|-------|-------------|",
+    "| Model | Provider | Type | Realtime | Async | Batch (24h) | Cache read |",
+    "|-------|----------|------|----------|-------|-------------|------------|",
     ...artifacts.map((artifact) => {
-      return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${renderProvider(artifact.providerName)} | ${artifact.type} | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} |`;
+      const cacheRead = artifact.cacheReadPricePer1M
+        ? `${artifact.cacheReadPricePer1M} / 1M`
+        : "—";
+      return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${renderProvider(artifact.providerName)} | ${artifact.type} | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} | ${cacheRead} |`;
     }),
   ].join("\n");
 
@@ -201,8 +225,8 @@ export async function getModelsIndexMarkdown(): Promise<string> {
 
 The table below outlines the models we have available and their pricing per 1M tokens. If you are interested in understanding pricing for a model not listed below or if you'd like to request a new model - please reach out to support@doubleword.ai.
 
-:::info{title="Info - Prompt Caching"}
-Prompt caching can cut input costs dramatically: cached input tokens are billed at ~10% of the standard input rate (a 90% discount), with a small one-time write premium (1.25× for the 5-minute cache, 2× for 1-hour). See the [Prompt caching guide](/inference-api/prompt-caching) to enable it.
+:::info{title="Prompt caching"}
+Prompt-caching availability and rates are model-specific. The **Cache read** column shows the current cache-read price for supported models. See the [prompt caching guide](/inference-api/prompt-caching) for setup, TTLs, and write pricing.
 :::
 
 ## Model Catalog
@@ -217,6 +241,10 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
     `- **Type:** ${artifact.type}`,
     capabilities.length > 0
       ? `- **Capabilities:** ${capabilities.map((capability) => `\`${capability}\``).join(", ")}`
+      : "",
+    artifact.cacheReadPricePer1M !== undefined
+      && artifact.cacheReadMultiplier !== undefined
+      ? `- **Cache read:** ${artifact.cacheReadPricePer1M} per 1M input tokens (${artifact.cacheReadMultiplier}× standard input price). See [prompt caching](/inference-api/prompt-caching).`
       : "",
   ]
     .filter(Boolean)
