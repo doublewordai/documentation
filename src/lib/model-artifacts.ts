@@ -211,12 +211,12 @@ export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
   };
 
   const overviewTable = [
-    "| Model | Provider | Type | Realtime | Async | Batch (24h) | Cache read |",
-    "|-------|----------|------|----------|-------|-------------|------------|",
+    "| Model | Provider | Type | Realtime | Async | Batch (24h) | Cache&nbsp;read |",
+    "|-------|----------|------|----------|-------|-------------|:----------:|",
     ...artifacts.map((artifact) => {
-      const cacheRead = artifact.cacheReadPricePer1M
-        ? `${artifact.cacheReadPricePer1M} / 1M`
-        : "—";
+      const cacheRead = artifact.cacheReadMultiplier !== undefined
+        ? `${artifact.cacheReadMultiplier}×`
+        : "❌";
       return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${renderProvider(artifact.providerName)} | ${artifact.type} | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} | ${cacheRead} |`;
     }),
   ].join("\n");
@@ -226,7 +226,7 @@ export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
 The table below outlines the models we have available and their pricing per 1M tokens. If you are interested in understanding pricing for a model not listed below or if you'd like to request a new model - please reach out to support@doubleword.ai.
 
 :::info{title="Prompt caching"}
-Prompt-caching availability and rates are model-specific. The **Cache read** column shows the current cache-read price for supported models. See the [prompt caching guide](/inference-api/prompt-caching) for setup, TTLs, and write pricing.
+Prompt-caching availability and rates are model-specific. The **Cache read** column shows the current multiplier on the model's standard input price. See the [prompt caching guide](/inference-api/prompt-caching) for setup, TTLs, and write pricing.
 :::
 
 ## Model Catalog
