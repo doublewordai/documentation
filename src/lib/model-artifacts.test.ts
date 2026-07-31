@@ -4,11 +4,12 @@ let renderModelArtifactMarkdown: typeof import("./model-artifacts").renderModelA
 let renderReasoningCapabilitiesMatrix: typeof import("./model-artifacts").renderReasoningCapabilitiesMatrix;
 let buildModelArtifacts: typeof import("./model-artifacts").buildModelArtifacts;
 let renderModelsIndexMarkdown: typeof import("./model-artifacts").renderModelsIndexMarkdown;
+let renderModelsIndexIntroMarkdown: typeof import("./model-artifacts").renderModelsIndexIntroMarkdown;
 
 beforeAll(async () => {
   process.env.NEXT_PUBLIC_SANITY_PROJECT_ID = "g1zo7y59";
   process.env.NEXT_PUBLIC_SANITY_DATASET = "production";
-  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderModelsIndexMarkdown, renderReasoningCapabilitiesMatrix } = await import("./model-artifacts"));
+  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderModelsIndexIntroMarkdown, renderModelsIndexMarkdown, renderReasoningCapabilitiesMatrix } = await import("./model-artifacts"));
 });
 
 describe("renderReasoningCapabilitiesMatrix", () => {
@@ -171,12 +172,21 @@ describe("renderModelsIndexMarkdown", () => {
       { name: "Unsupported", slug: "unsupported", id: "unsupported", rawName: "Unsupported", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/unsupported", pricing: [] },
     ]);
 
-    expect(markdown).toContain("| Model | Realtime | Cache&nbsp;read | Async | Cache&nbsp;read | Batch (24h) | Cache&nbsp;read |");
+    expect(markdown).toContain("| Model | Realtime | Async | Batch (24h) |");
     expect(markdown).not.toContain("| Provider |");
-    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | \\$1.00 in / \\$2.00 out | \\$0.10<br><small>0.1× input</small> | \\$0.50 in / \\$1.00 out | \\$0.05<br><small>0.1× input</small> | — | - |");
-    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | - | — | - | — | - |");
+    expect(markdown).not.toContain("Cache&nbsp;read");
+    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | \\$1.00 in → \\$0.10 cached / \\$2.00 out | \\$0.50 in → \\$0.05 cached / \\$1.00 out | — |");
+    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | — | — |");
     expect(markdown).not.toContain("❌ Prompt caching is not supported for this model.");
     expect(markdown).not.toContain("90% discount");
+  });
+
+  it("renders the web intro without a duplicate static catalog", () => {
+    const markdown = renderModelsIndexIntroMarkdown();
+
+    expect(markdown).toContain("Prompt-caching availability and rates are model-specific");
+    expect(markdown).not.toContain("| Model |");
+    expect(markdown).not.toContain("## Model Catalog");
   });
 });
 
