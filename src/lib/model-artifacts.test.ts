@@ -150,15 +150,17 @@ describe("buildModelArtifacts", () => {
 });
 
 describe("renderModelsIndexMarkdown", () => {
-  it("shows model-specific cache-read prices and unsupported fallbacks", () => {
+  it("shows model-specific cache-read multipliers and unsupported fallbacks", () => {
     const markdown = renderModelsIndexMarkdown([
       { name: "Enabled", slug: "enabled", id: "enabled", rawName: "Enabled", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/enabled", pricing: [], cacheReadPricePer1M: "\\$0.10", cacheReadMultiplier: 0.1 },
       { name: "Unsupported", slug: "unsupported", id: "unsupported", rawName: "Unsupported", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/unsupported", pricing: [] },
     ]);
 
-    expect(markdown).toContain("| Model | Provider | Type | Realtime | Async | Batch (24h) | Cache read |");
-    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | — | Generation | — | — | — | \\$0.10 / 1M |");
-    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | Generation | — | — | — | — |");
+    expect(markdown).toContain("| Model | Provider | Realtime | Cache&nbsp;read | Async | Batch (24h) |");
+    expect(markdown).toContain("|-------|----------|----------|:----------:|-------|-------------|");
+    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | — | — | 0.1× | — | — |");
+    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | — | ○ | — | — |");
+    expect(markdown).not.toContain("❌ Prompt caching is not supported for this model.");
     expect(markdown).not.toContain("90% discount");
   });
 });
