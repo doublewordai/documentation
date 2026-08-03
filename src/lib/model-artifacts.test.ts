@@ -4,11 +4,12 @@ let renderModelArtifactMarkdown: typeof import("./model-artifacts").renderModelA
 let renderReasoningCapabilitiesMatrix: typeof import("./model-artifacts").renderReasoningCapabilitiesMatrix;
 let buildModelArtifacts: typeof import("./model-artifacts").buildModelArtifacts;
 let renderModelsIndexMarkdown: typeof import("./model-artifacts").renderModelsIndexMarkdown;
+let renderModelsIndexIntroMarkdown: typeof import("./model-artifacts").renderModelsIndexIntroMarkdown;
 
 beforeAll(async () => {
   process.env.NEXT_PUBLIC_SANITY_PROJECT_ID = "g1zo7y59";
   process.env.NEXT_PUBLIC_SANITY_DATASET = "production";
-  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderModelsIndexMarkdown, renderReasoningCapabilitiesMatrix } = await import("./model-artifacts"));
+  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderModelsIndexIntroMarkdown, renderModelsIndexMarkdown, renderReasoningCapabilitiesMatrix } = await import("./model-artifacts"));
 });
 
 describe("renderReasoningCapabilitiesMatrix", () => {
@@ -126,7 +127,11 @@ describe("buildModelArtifacts", () => {
       {
         id: "enabled", name: "Provider/Enabled", displayName: "Enabled",
         type: "Generation", capabilities: [],
-        pricing: { async: null, batch24h: null, realtime: { input: 0.000001, output: 0.000002 } },
+        pricing: {
+          realtime: { input: 0.000001, output: 0.000002 },
+          async: { input: 0.0000005, output: 0.000001 },
+          batch24h: { input: 0.0000003, output: 0.0000006 },
+        },
         cachePricing: { enabled: true, readMultiplier: 0.1, writeMultiplier5m: 1.25, writeMultiplier1h: 2, writeMultiplier24h: 3, minPrefixTokens: 1024, validFrom: null, validUntil: null },
       },
       {
@@ -144,6 +149,11 @@ describe("buildModelArtifacts", () => {
     ]);
 
     expect(enabled).toMatchObject({ cacheReadPricePer1M: "\\$0.10", cacheReadMultiplier: 0.1 });
+    expect(enabled.pricing).toEqual([
+      { priority: "Realtime", inputTokensPer1M: "\\$1.00", outputTokensPer1M: "\\$2.00", cacheReadPricePer1M: "\\$0.10" },
+      { priority: "Async", inputTokensPer1M: "\\$0.50", outputTokensPer1M: "\\$1.00", cacheReadPricePer1M: "\\$0.05" },
+      { priority: "Batch (24h)", inputTokensPer1M: "\\$0.30", outputTokensPer1M: "\\$0.60", cacheReadPricePer1M: "\\$0.03" },
+    ]);
     expect(disabled.cacheReadPricePer1M).toBeUndefined();
     expect(incomplete.cacheReadPricePer1M).toBeUndefined();
   });
@@ -152,16 +162,31 @@ describe("buildModelArtifacts", () => {
 describe("renderModelsIndexMarkdown", () => {
   it("shows model-specific cache-read multipliers and unsupported fallbacks", () => {
     const markdown = renderModelsIndexMarkdown([
-      { name: "Enabled", slug: "enabled", id: "enabled", rawName: "Enabled", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/enabled", pricing: [], cacheReadPricePer1M: "\\$0.10", cacheReadMultiplier: 0.1 },
+      {
+        name: "Enabled", slug: "enabled", id: "enabled", rawName: "Enabled", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/enabled", cacheReadPricePer1M: "\\$0.10", cacheReadMultiplier: 0.1,
+        pricing: [
+          { priority: "Realtime", inputTokensPer1M: "\\$1.00", outputTokensPer1M: "\\$2.00", cacheReadPricePer1M: "\\$0.10" },
+          { priority: "Async", inputTokensPer1M: "\\$0.50", outputTokensPer1M: "\\$1.00", cacheReadPricePer1M: "\\$0.05" },
+        ],
+      },
       { name: "Unsupported", slug: "unsupported", id: "unsupported", rawName: "Unsupported", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/unsupported", pricing: [] },
     ]);
 
-    expect(markdown).toContain("| Model | Provider | Type | Realtime | Async | Batch (24h) | Cache&nbsp;read |");
-    expect(markdown).toContain("|-------|----------|------|----------|-------|-------------|:----------:|");
-    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | — | Generation | — | — | — | 0.1× |");
-    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | Generation | — | — | — | ❌ |");
+    expect(markdown).toContain("| Model | Realtime | Async | Batch (24h) |");
+    expect(markdown).not.toContain("| Provider |");
+    expect(markdown).not.toContain("Cache&nbsp;read");
+    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | \\$1.00 in → \\$0.10 cached / \\$2.00 out | \\$0.50 in → \\$0.05 cached / \\$1.00 out | — |");
+    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | — | — |");
     expect(markdown).not.toContain("❌ Prompt caching is not supported for this model.");
     expect(markdown).not.toContain("90% discount");
+  });
+
+  it("renders the web intro without a duplicate static catalog", () => {
+    const markdown = renderModelsIndexIntroMarkdown();
+
+    expect(markdown).toContain("Prompt-caching availability and rates are model-specific");
+    expect(markdown).not.toContain("| Model |");
+    expect(markdown).not.toContain("## Model Catalog");
   });
 });
 
