@@ -169,14 +169,19 @@ describe("renderModelsIndexMarkdown", () => {
           { priority: "Async", inputTokensPer1M: "\\$0.50", outputTokensPer1M: "\\$1.00", cacheReadPricePer1M: "\\$0.05" },
         ],
       },
-      { name: "Unsupported", slug: "unsupported", id: "unsupported", rawName: "Unsupported", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/unsupported", pricing: [] },
+      {
+        name: "Unsupported", slug: "unsupported", id: "unsupported", rawName: "Unsupported", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/unsupported",
+        pricing: [
+          { priority: "Realtime", inputTokensPer1M: "\\$0.80", outputTokensPer1M: "\\$1.60" },
+        ],
+      },
     ]);
 
     expect(markdown).toContain("| Model | Realtime | Async | Batch (24h) |");
     expect(markdown).not.toContain("| Provider |");
     expect(markdown).not.toContain("Cache&nbsp;read");
-    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | \\$1.00 in → \\$0.10 cached / \\$2.00 out | \\$0.50 in → \\$0.05 cached / \\$1.00 out | — |");
-    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | — | — |");
+    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | \\$1.00 / \\$0.10 / \\$2.00 | \\$0.50 / \\$0.05 / \\$1.00 | — |");
+    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | \\$0.80 / \\$0.80 / \\$1.60 | — | — |");
     expect(markdown).not.toContain("❌ Prompt caching is not supported for this model.");
     expect(markdown).not.toContain("90% discount");
   });
@@ -212,6 +217,7 @@ describe("renderModelArtifactMarkdown", () => {
         {
           priority: "Async",
           inputTokensPer1M: "$0.05",
+          cacheReadPricePer1M: "$0.01",
           outputTokensPer1M: "$0.08",
         },
       ],
@@ -221,7 +227,8 @@ describe("renderModelArtifactMarkdown", () => {
     expect(markdown).not.toContain("[Back to inference docs](/inference-api)");
     expect(markdown).toContain("![Qwen Test icon](https://example.com/icon.png)");
     expect(markdown).toContain("Open this model in the [Playground](https://example.com/playground).");
-    expect(markdown).toContain("| Async | $0.05 | $0.08 |");
+    expect(markdown).toContain("| Priority | Input Tokens (per 1M) | Cache Read Tokens (per 1M) | Output Tokens (per 1M) |");
+    expect(markdown).toContain("| Async | $0.05 | $0.01 | $0.08 |");
     expect(markdown).not.toContain("**Model ID:** `Qwen/Test`");
     expect(markdown).toContain("**Type:** chat");
     expect(markdown).toContain("**Cache read:** \\$0.10 per 1M input tokens (0.1× standard input price)");
@@ -248,5 +255,24 @@ describe("renderModelArtifactMarkdown", () => {
 
     expect(markdown).not.toContain("## Reasoning efforts");
     expect(markdown).not.toContain("**Cache read:**");
+  });
+
+  it("repeats the input price when cache reads are unsupported", () => {
+    const markdown = renderModelArtifactMarkdown({
+      name: "Standard Model",
+      slug: "standard-model",
+      id: "standard-model",
+      rawName: "standard-model",
+      type: "Generation",
+      capabilities: [],
+      playgroundUrl: "https://example.com/playground",
+      pricing: [{
+        priority: "Async",
+        inputTokensPer1M: "$0.50",
+        outputTokensPer1M: "$1.00",
+      }],
+    });
+
+    expect(markdown).toContain("| Async | $0.50 | $0.50 | $1.00 |");
   });
 });

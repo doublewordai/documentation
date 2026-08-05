@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import ModelCatalogTable from "./ModelCatalogTable";
 import type { ModelArtifact } from "@/lib/model-artifacts";
@@ -47,42 +47,22 @@ const artifacts: ModelArtifact[] = [
 ];
 
 describe("ModelCatalogTable", () => {
-  it("shows standard pricing by default", () => {
+  it("shows input, cache-read, and output prices for every modality", () => {
     render(<ModelCatalogTable artifacts={artifacts} />);
 
-    expect(screen.getByRole("button", { name: "Standard" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "Cache read" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-    expect(screen.queryByText("$0.10 in")).not.toBeInTheDocument();
-    expect(screen.getAllByText("$1.00 in")).toHaveLength(1);
-  });
-
-  it("replaces supported input prices without changing output prices", () => {
-    render(<ModelCatalogTable artifacts={artifacts} />);
-    fireEvent.click(screen.getByRole("button", { name: "Cache read" }));
-
-    expect(screen.getByRole("button", { name: "Cache read" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.queryByRole("button", { name: "Standard" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cache read" })).not.toBeInTheDocument();
+    expect(screen.getByText("Input / cache read / output per 1M tokens")).toBeInTheDocument();
 
     const cachedRow = screen.getByRole("row", { name: /Cached model/ });
-    expect(within(cachedRow).getByText("$1.00 in")).toHaveClass("line-through");
-    expect(within(cachedRow).getByText("$0.10 in")).toBeInTheDocument();
-    expect(within(cachedRow).getByText("$2.00 out")).toBeInTheDocument();
+    expect(within(cachedRow).getByText("$1.00 / $0.10 / $2.00")).toBeInTheDocument();
+    expect(within(cachedRow).getByText("$0.50 / $0.05 / $1.00")).toBeInTheDocument();
   });
 
-  it("keeps standard input prices for models without cache support", () => {
+  it("repeats the input price when cache reads are unsupported", () => {
     render(<ModelCatalogTable artifacts={artifacts} />);
-    fireEvent.click(screen.getByRole("button", { name: "Cache read" }));
 
     const standardRow = screen.getByRole("row", { name: /Standard model/ });
-    expect(within(standardRow).getByText("$0.80 in")).not.toHaveClass("line-through");
-    expect(within(standardRow).getByText("$1.60 out")).toBeInTheDocument();
+    expect(within(standardRow).getByText("$0.80 / $0.80 / $1.60")).toBeInTheDocument();
   });
 });
