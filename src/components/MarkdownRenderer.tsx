@@ -12,7 +12,7 @@ import remarkAdmonitions from "@/app/lib/remark-admonitions";
 import remarkCodeTabs from "@/app/lib/remark-code-tabs";
 import CopyButton from "./CopyButton";
 import { fetchModelsServer } from "@/lib/models";
-import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
+import { renderServerMarkdownTemplates } from "@/lib/server-markdown";
 import { StatusWidget } from './StatusWidget';
 import { rewriteExternalMarkdownLinks } from "@/lib/external-docs";
 import { coerceMarkdownContent } from "@/lib/portable-text";
@@ -91,11 +91,10 @@ export async function MarkdownRenderer({
 
   // Fetch models data for templating
   const modelsResponse = await fetchModelsServer();
-  const templateContext = buildTemplateContext(modelsResponse);
 
   // Template the content with Handlebars (server-side)
   // Client-side placeholders like {{apiKey}} and {{selectedModel.*}} are preserved
-  let processedContent = templateMarkdown(markdownContent, templateContext);
+  let processedContent = await renderServerMarkdownTemplates(markdownContent, modelsResponse);
 
   // Convert sidenote syntax [>id] to footnote syntax [^id] before parsing
   processedContent = convertSidenotesToFootnotes(processedContent);

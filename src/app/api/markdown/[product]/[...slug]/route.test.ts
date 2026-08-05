@@ -22,8 +22,17 @@ vi.mock("@/lib/model-artifacts", () => ({
   renderModelArtifactMarkdown: vi.fn(() => ""),
 }));
 
+vi.mock("@/lib/server-markdown", () => ({
+  renderServerMarkdownTemplates: vi.fn(async (content: string) =>
+    content.replace(
+      "{{reasoningCapabilitiesMatrix}}",
+      "| Model | `none` | `minimal` | `low` | `medium` | `high` | `xhigh` | `max` |\n|---|---|---|---|---|---|---|---|",
+    )),
+}));
+
 import { GET } from "./route";
 import { sanityFetch } from "@/sanity/lib/client";
+import { renderServerMarkdownTemplates } from "@/lib/server-markdown";
 
 const sanityFetchMock = vi.mocked(sanityFetch);
 
@@ -143,6 +152,22 @@ describe("GET /api/markdown/[product]/[...slug]", () => {
     );
     // No externalSource and no template placeholders: nothing fetched
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("expands the live reasoning capability matrix in raw markdown", async () => {
+    sanityFetchMock.mockResolvedValueOnce({
+      title: "Reasoning effort",
+      body: "## Model support\n\n{{reasoningCapabilitiesMatrix}}",
+    });
+
+    const response = await getMarkdown("inference-api", ["reasoning-controls.md"]);
+    const text = await response.text();
+
+    expect(text).toContain(
+      "| Model | `none` | `minimal` | `low` | `medium` | `high` | `xhigh` | `max` |",
+    );
+    expect(text).not.toContain("{{reasoningCapabilitiesMatrix}}");
+    expect(renderServerMarkdownTemplates).toHaveBeenCalledOnce();
   });
 
   it("still serves content fetched from a linkedPost externalSource", async () => {

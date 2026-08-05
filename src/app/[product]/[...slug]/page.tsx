@@ -12,6 +12,7 @@ import ApiKeyIndicator from "@/components/ApiKeyIndicator";
 import ModelSelector from "@/components/ModelSelector";
 import ExpandableSearch from "@/components/ExpandableSearch";
 import ModelIdentifier from "@/components/ModelIdentifier";
+import ModelCatalogTable from "@/components/ModelCatalogTable";
 import {
   findExternalDocBySlug,
   getExternalDocStaticParams,
@@ -19,8 +20,8 @@ import {
 import {
   getModelArtifact,
   getModelArtifacts,
-  getModelsIndexMarkdown,
   renderModelArtifactMarkdown,
+  renderModelsIndexIntroMarkdown,
 } from "@/lib/model-artifacts";
 
 const SITE_URL = "https://docs.doubleword.ai";
@@ -199,6 +200,10 @@ export default async function DocPage({ params }: Props) {
     ? docSlug.slice("models/".length)
     : null;
   const modelArtifact = modelSlug ? await getModelArtifact(modelSlug) : null;
+  const isModelsOverview = productSlug === "inference-api" && docSlug === "models";
+  const modelsOverviewArtifacts = isModelsOverview
+    ? await getModelArtifacts()
+    : null;
   const resolvedDoc =
     doc ||
     externalDocMatch?.doc ||
@@ -241,8 +246,8 @@ export default async function DocPage({ params }: Props) {
   } else {
     content = resolvedDoc.body;
   }
-  if (productSlug === "inference-api" && docSlug === "models") {
-    content = await getModelsIndexMarkdown();
+  if (isModelsOverview) {
+    content = renderModelsIndexIntroMarkdown();
   }
   if (productSlug === "inference-api" && modelArtifact) {
     content = renderModelArtifactMarkdown(modelArtifact);
@@ -378,6 +383,12 @@ export default async function DocPage({ params }: Props) {
                     externalDocSourcePath={externalDocMatch?.sourcePath}
                     disableHeadingLinks={!!modelArtifact}
                   />
+                )}
+                {modelsOverviewArtifacts && (
+                  <>
+                    <h2>Model Catalog</h2>
+                    <ModelCatalogTable artifacts={modelsOverviewArtifacts} />
+                  </>
                 )}
               </div>
 

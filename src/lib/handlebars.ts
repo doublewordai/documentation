@@ -9,6 +9,7 @@ export interface TemplateContext {
   models: Model[]
   selectedModel?: Model | null
   apiKey?: string
+  reasoningCapabilitiesMatrix?: string
   // Add more context fields as needed
 }
 

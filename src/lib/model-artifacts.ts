@@ -4,6 +4,15 @@ import type { DocSearchIndexItem } from "@/sanity/types";
 
 const MODELS_PRODUCT_SLUG = "inference-api";
 const MODELS_OVERVIEW_SLUG = "models";
+const REASONING_EFFORTS = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const;
 
 export function getModelsOverviewPath() {
   return `/${MODELS_PRODUCT_SLUG}/${MODELS_OVERVIEW_SLUG}`;
@@ -18,6 +27,7 @@ export type ModelArtifactPricingRow = {
   inputTokensPer1M: string;
   cacheReadTokensPer1M?: string;
   outputTokensPer1M: string;
+  cacheReadPricePer1M?: string;
 };
 
 export type ModelArtifact = {
@@ -30,6 +40,12 @@ export type ModelArtifact = {
   type: string;
   description?: string;
   capabilities: string[];
+  cacheReadPricePer1M?: string;
+  cacheReadMultiplier?: number;
+  reasoningEfforts?: {
+    chatCompletions: string[];
+    responses: string[];
+  };
   playgroundUrl: string;
   pricing: ModelArtifactPricingRow[];
 };
@@ -41,34 +57,68 @@ function slugifyModelName(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function escapeMarkdownTableCell(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+}
+
+function formatReasoningEfforts(efforts: string[]): string {
+  if (efforts.length === 0) return "—";
+  return efforts.map((effort) => `\`${escapeMarkdownTableCell(effort)}\``).join(", ");
+}
+
+function flattenReasoningEfforts(efforts: {
+  chatCompletions: string[];
+  responses: string[];
+}): string[] {
+  const supported = new Set([
+    ...efforts.chatCompletions,
+    ...efforts.responses,
+  ]);
+
+  return REASONING_EFFORTS.filter((effort) => supported.has(effort));
+}
+
+function supportsReasoning(model: Model): boolean {
+  return model.capabilities.includes("reasoning");
+}
+
+export function renderReasoningCapabilitiesMatrix(
+  models: Model[],
+): string {
+  const rows = models.flatMap((model) => {
+    const efforts = model.supportedReasoningEfforts;
+    if (!supportsReasoning(model) || !efforts) return [];
+
+    const displayName = escapeMarkdownTableCell(model.displayName);
+    const modelCell = `[${displayName}](${getModelArtifactPath(slugifyModelName(model.name))})`;
+    const supported = new Set(flattenReasoningEfforts(efforts));
+    const cells = REASONING_EFFORTS.map((effort) =>
+      supported.has(effort) ? "✅" : ""
+    );
+
+    return [`| ${modelCell} | ${cells.join(" | ")} |`];
+  });
+  if (rows.length === 0) {
+    return "Reasoning capability data is not currently available.";
+  }
+
+  return [
+    `| Model | ${REASONING_EFFORTS.map((effort) => `\`${effort}\``).join(" | ")} |`,
+    `|-------|${REASONING_EFFORTS.map(() => ":---:").join("|")}|`,
+    ...rows,
+    "",
+    "Models not listed do not currently advertise reasoning effort controls.",
+  ].join("\n");
+}
+
 function formatPricePer1M(pricePerToken: number): string {
   return `\\$${(pricePerToken * 1_000_000).toFixed(2)}`;
 }
 
-function renderProvider(providerName?: string): string {
-  if (!providerName) return "—";
-  return providerName || "—";
-}
-
-function getActiveCacheReadMultiplier(model: Model): number | undefined {
-  const cachePricing = model.cachePricing;
-  if (!cachePricing?.enabled || cachePricing.readMultiplier === null) {
-    return undefined;
-  }
-
-  const now = Date.now();
-  const validFrom = cachePricing.validFrom ? Date.parse(cachePricing.validFrom) : null;
-  const validUntil = cachePricing.validUntil ? Date.parse(cachePricing.validUntil) : null;
-  if (validFrom !== null && (!Number.isFinite(validFrom) || validFrom > now)) {
-    return undefined;
-  }
-  if (validUntil !== null && (!Number.isFinite(validUntil) || validUntil <= now)) {
-    return undefined;
-  }
-  return cachePricing.readMultiplier;
-}
-
-function buildPricing(model: Model): ModelArtifactPricingRow[] {
+function buildPricing(
+  model: Model,
+  cacheReadMultiplier?: number,
+): ModelArtifactPricingRow[] {
   const rows: ModelArtifactPricingRow[] = [];
   const cacheReadMultiplier = getActiveCacheReadMultiplier(model);
   const buildRow = (
@@ -81,6 +131,22 @@ function buildPricing(model: Model): ModelArtifactPricingRow[] {
       ? { cacheReadTokensPer1M: formatPricePer1M(pricing.input * cacheReadMultiplier) }
       : {}),
     outputTokensPer1M: formatPricePer1M(pricing.output),
+  });
+
+  const buildRow = (
+    priority: string,
+    pricing: { input: number; output: number },
+  ): ModelArtifactPricingRow => ({
+    priority,
+    inputTokensPer1M: formatPricePer1M(pricing.input),
+    outputTokensPer1M: formatPricePer1M(pricing.output),
+    ...(cacheReadMultiplier !== undefined
+      ? {
+          cacheReadPricePer1M: formatPricePer1M(
+            pricing.input * cacheReadMultiplier,
+          ),
+        }
+      : {}),
   });
 
   if (model.pricing.realtime) {
@@ -103,6 +169,11 @@ export function buildModelArtifacts(models: Model[]): ModelArtifact[] {
 }
 
 function toModelArtifact(model: Model): ModelArtifact {
+  const cacheReadMultiplier = model.cachePricing?.enabled
+    && model.cachePricing.readMultiplier !== null
+      ? model.cachePricing.readMultiplier
+      : undefined;
+
   return {
     id: model.id,
     name: model.displayName,
@@ -113,9 +184,24 @@ function toModelArtifact(model: Model): ModelArtifact {
     type: model.type,
     description: model.description,
     capabilities: model.capabilities,
+    ...(cacheReadMultiplier !== undefined && model.pricing.realtime
+      ? {
+          cacheReadPricePer1M: formatPricePer1M(
+            model.pricing.realtime.input * cacheReadMultiplier,
+          ),
+          cacheReadMultiplier,
+        }
+      : {}),
+    reasoningEfforts: supportsReasoning(model)
+      ? model.supportedReasoningEfforts
+      : undefined,
     playgroundUrl: `https://app.doubleword.ai/playground?model=${encodeURIComponent(model.id)}&from=%2Fmodels`,
-    pricing: buildPricing(model),
+    pricing: buildPricing(model, cacheReadMultiplier),
   };
+}
+
+export function buildModelArtifacts(models: Model[]): ModelArtifact[] {
+  return models.map(toModelArtifact);
 }
 
 export const getModelArtifacts = cache(async (): Promise<ModelArtifact[]> => {
@@ -135,26 +221,37 @@ export async function getModelsIndexMarkdown(): Promise<string> {
   return renderModelsIndexMarkdown(artifacts);
 }
 
+export function renderModelsIndexIntroMarkdown(): string {
+  return `Doubleword Batch API is priced per model based on token usage. Costs are calculated separately for input tokens (the content you send) and output tokens (the content generated by the model).
+
+The table below outlines the models we have available and their pricing per 1M tokens. Prices are shown as input / cache read / output. If you are interested in understanding pricing for a model not listed below or if you'd like to request a new model - please reach out to support@doubleword.ai.
+
+:::info{title="Prompt caching"}
+Prompt-caching availability and rates are model-specific. Use **Cache read** to compare each supported model's reduced cached-input price with its standard input price. See the [prompt caching guide](/inference-api/prompt-caching) for setup, TTLs, and write pricing.
+:::
+`;
+}
+
 export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
 
   const formatTierCell = (artifact: ModelArtifact, priority: string): string => {
     const row = artifact.pricing.find((p) => p.priority === priority);
     if (!row) return "—";
-    return `${row.inputTokensPer1M} / ${row.cacheReadTokensPer1M || "—"} / ${row.outputTokensPer1M}`;
+    const inputPrice = row.cacheReadPricePer1M
+      ? `${row.inputTokensPer1M} in → ${row.cacheReadPricePer1M} cached`
+      : `${row.inputTokensPer1M} in`;
+    return `${inputPrice} / ${row.outputTokensPer1M} out`;
   };
 
   const overviewTable = [
-    "| Model | Provider | Type | Realtime | Async | Batch (24h) |",
-    "|-------|----------|------|----------|-------|-------------|",
+    "| Model | Realtime | Async | Batch (24h) |",
+    "|-------|----------|-------|-------------|",
     ...artifacts.map((artifact) => {
-      return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${renderProvider(artifact.providerName)} | ${artifact.type} | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} |`;
+      return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} |`;
     }),
   ].join("\n");
 
-  return `Doubleword Batch API is priced per model based on token usage. Costs are calculated separately for input tokens (the content you send) and output tokens (the content generated by the model).
-
-The table below outlines the models we have available and their pricing per 1M tokens. Prices are shown as input / cache read / output. If you are interested in understanding pricing for a model not listed below or if you'd like to request a new model - please reach out to support@doubleword.ai.
-
+  return `${renderModelsIndexIntroMarkdown()}
 ## Model Catalog
 
 ${overviewTable}
@@ -167,6 +264,10 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
     `- **Type:** ${artifact.type}`,
     capabilities.length > 0
       ? `- **Capabilities:** ${capabilities.map((capability) => `\`${capability}\``).join(", ")}`
+      : "",
+    artifact.cacheReadPricePer1M !== undefined
+      && artifact.cacheReadMultiplier !== undefined
+      ? `- **Cache read:** ${artifact.cacheReadPricePer1M} per 1M input tokens (${artifact.cacheReadMultiplier}× standard input price). See [prompt caching](/inference-api/prompt-caching).`
       : "",
   ]
     .filter(Boolean)
@@ -201,6 +302,17 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
     ? `## Overview\n\n${artifact.description}\n\n`
     : "";
 
+  const reasoningEfforts = artifact.reasoningEfforts;
+  const flattenedReasoningEfforts = reasoningEfforts
+    ? flattenReasoningEfforts(reasoningEfforts)
+    : [];
+  const reasoningRows = flattenedReasoningEfforts.length > 0
+    ? [`- **Supported:** ${formatReasoningEfforts(flattenedReasoningEfforts)}`]
+    : [];
+  const reasoning = reasoningRows.length > 0
+    ? `## Reasoning efforts\n\n${reasoningRows.join("\n")}\n\nSee the [reasoning effort guide](/inference-api/reasoning-controls) for request examples.\n\n`
+    : "";
+
   const icon = artifact.iconUrl
     ? `![${artifact.name} icon](${artifact.iconUrl})\n\n`
     : "";
@@ -209,7 +321,7 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
 
 ${icon}${metadata}
 
-${description}${pricingTable}## Playground
+${description}${reasoning}${pricingTable}## Playground
 
 Open this model in the [Playground](${artifact.playgroundUrl}).
 `;

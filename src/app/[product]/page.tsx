@@ -2,10 +2,7 @@ import {redirect, notFound} from 'next/navigation'
 import {sanityFetch} from '@/sanity/lib/client'
 import {PRODUCT_SLUGS_QUERY, FIRST_DOC_QUERY} from '@/sanity/lib/queries'
 import {getExternalDocStaticParams, getFirstExternalDocSlug} from '@/lib/external-docs'
-
-const PRODUCT_ROOT_REDIRECTS: Record<string, string> = {
-  'inference-api': 'intro-to-doubleword-inference',
-}
+import {PRODUCT_ROOT_REDIRECTS} from '@/lib/product-nav'
 
 /**
  * Generate static params for all products

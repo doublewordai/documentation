@@ -146,7 +146,7 @@ export default function MobileSidebar({
       <aside
         className={`
           w-64 fixed z-40 transition-transform duration-300
-          top-14 bottom-0 xl:top-0 xl:h-screen
+          top-[6.5rem] bottom-0 xl:top-12 xl:h-[calc(100vh-3rem)]
           xl:translate-x-0
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
@@ -160,33 +160,6 @@ export default function MobileSidebar({
             className="flex-1 overflow-y-auto p-6"
             style={{ overscrollBehavior: 'contain' }}
           >
-            <div className="hidden xl:flex items-center justify-between mb-8">
-              <Link
-                href="/"
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Image
-                  src="/logo-full-black.png"
-                  alt="Doubleword"
-                  width={140}
-                  height={32}
-                  priority
-                  className="logo-light"
-                  style={{ height: 'auto' }}
-                />
-                <Image
-                  src="/logo-full-white.png"
-                  alt="Doubleword"
-                  width={140}
-                  height={32}
-                  priority
-                  className="logo-dark"
-                  style={{ height: 'auto' }}
-                />
-              </Link>
-              <ThemeToggle />
-            </div>
-
             <SidebarNav
               productSlug={productSlug}
               groupedDocs={mainGroupedDocs}

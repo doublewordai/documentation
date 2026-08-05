@@ -3,6 +3,7 @@ import {sanityFetch} from '@/sanity/lib/client'
 import {PRODUCT_QUERY, DOCS_BY_PRODUCT_QUERY} from '@/sanity/lib/queries'
 import type {Product, DocPageForNav} from '@/sanity/types'
 import MobileSidebar from '@/components/MobileSidebar'
+import ProductTabs from '@/components/ProductTabs'
 import {getExternalDocsGroups, getExternalProduct} from '@/lib/external-docs'
 import {organizeInferenceApiSidebar} from '@/lib/inference-api-sidebar'
 
@@ -70,13 +71,15 @@ export default async function ProductLayout({
 
   return (
     <div className="min-h-screen" style={{background: 'var(--background)'}}>
+      <ProductTabs activeProductSlug={productSlug} />
       <MobileSidebar
         productName={resolvedProduct.name}
         productSlug={productSlug}
         groupedDocs={groupedDocs}
         hideCategoryHeadings={!PRODUCTS_WITH_VISIBLE_CATEGORY_HEADINGS.has(productSlug)}
       />
-      <main className="pt-14 xl:pt-0 xl:ml-64">{children}</main>
+      {/* pt clears mobile header (56px) + tab strip (48px); desktop clears tab strip (48px) */}
+      <main className="pt-[6.5rem] xl:pt-12 xl:ml-64">{children}</main>
     </div>
   )
 }
