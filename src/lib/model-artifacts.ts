@@ -25,7 +25,6 @@ export function getModelArtifactPath(slug: string) {
 export type ModelArtifactPricingRow = {
   priority: string;
   inputTokensPer1M: string;
-  cacheReadTokensPer1M?: string;
   outputTokensPer1M: string;
   cacheReadPricePer1M?: string;
 };
@@ -120,18 +119,6 @@ function buildPricing(
   cacheReadMultiplier?: number,
 ): ModelArtifactPricingRow[] {
   const rows: ModelArtifactPricingRow[] = [];
-  const cacheReadMultiplier = getActiveCacheReadMultiplier(model);
-  const buildRow = (
-    priority: string,
-    pricing: NonNullable<Model["pricing"]["realtime"]>,
-  ): ModelArtifactPricingRow => ({
-    priority,
-    inputTokensPer1M: formatPricePer1M(pricing.input),
-    ...(cacheReadMultiplier !== undefined
-      ? { cacheReadTokensPer1M: formatPricePer1M(pricing.input * cacheReadMultiplier) }
-      : {}),
-    outputTokensPer1M: formatPricePer1M(pricing.output),
-  });
 
   const buildRow = (
     priority: string,
@@ -162,10 +149,6 @@ function buildPricing(
   }
 
   return rows;
-}
-
-export function buildModelArtifacts(models: Model[]): ModelArtifact[] {
-  return models.map(toModelArtifact);
 }
 
 function toModelArtifact(model: Model): ModelArtifact {
@@ -227,7 +210,7 @@ export function renderModelsIndexIntroMarkdown(): string {
 The table below outlines the models we have available and their pricing per 1M tokens. Prices are shown as input / cache read / output. If you are interested in understanding pricing for a model not listed below or if you'd like to request a new model - please reach out to support@doubleword.ai.
 
 :::info{title="Prompt caching"}
-Prompt-caching availability and rates are model-specific. Use **Cache read** to compare each supported model's reduced cached-input price with its standard input price. See the [prompt caching guide](/inference-api/prompt-caching) for setup, TTLs, and write pricing.
+Prompt-caching availability and rates are model-specific. Prices are shown as **input / cache read / output** for each priority. See the [prompt caching guide](/inference-api/prompt-caching) for setup, TTLs, and write pricing.
 :::
 `;
 }
@@ -237,10 +220,7 @@ export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
   const formatTierCell = (artifact: ModelArtifact, priority: string): string => {
     const row = artifact.pricing.find((p) => p.priority === priority);
     if (!row) return "—";
-    const inputPrice = row.cacheReadPricePer1M
-      ? `${row.inputTokensPer1M} in → ${row.cacheReadPricePer1M} cached`
-      : `${row.inputTokensPer1M} in`;
-    return `${inputPrice} / ${row.outputTokensPer1M} out`;
+    return `${row.inputTokensPer1M} / ${row.cacheReadPricePer1M || "—"} / ${row.outputTokensPer1M}`;
   };
 
   const overviewTable = [
@@ -287,7 +267,7 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
                   ? 'Realtime[^realtime-availability]'
                   : row.priority;
 
-              return `| ${priority} | ${row.inputTokensPer1M} | ${row.cacheReadTokensPer1M || "—"} | ${row.outputTokensPer1M} |`;
+              return `| ${priority} | ${row.inputTokensPer1M} | ${row.cacheReadPricePer1M || "—"} | ${row.outputTokensPer1M} |`;
             },
           ),
           "",

@@ -169,14 +169,19 @@ describe("renderModelsIndexMarkdown", () => {
           { priority: "Async", inputTokensPer1M: "\\$0.50", outputTokensPer1M: "\\$1.00", cacheReadPricePer1M: "\\$0.05" },
         ],
       },
-      { name: "Unsupported", slug: "unsupported", id: "unsupported", rawName: "Unsupported", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/unsupported", pricing: [] },
+      {
+        name: "Unsupported", slug: "unsupported", id: "unsupported", rawName: "Unsupported", type: "Generation", capabilities: [], playgroundUrl: "https://example.com/unsupported",
+        pricing: [
+          { priority: "Realtime", inputTokensPer1M: "\\$0.80", outputTokensPer1M: "\\$1.60" },
+        ],
+      },
     ]);
 
     expect(markdown).toContain("| Model | Realtime | Async | Batch (24h) |");
     expect(markdown).not.toContain("| Provider |");
     expect(markdown).not.toContain("Cache&nbsp;read");
-    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | \\$1.00 in → \\$0.10 cached / \\$2.00 out | \\$0.50 in → \\$0.05 cached / \\$1.00 out | — |");
-    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | — | — | — |");
+    expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | \\$1.00 / \\$0.10 / \\$2.00 | \\$0.50 / \\$0.05 / \\$1.00 | — |");
+    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | \\$0.80 / — / \\$1.60 | — | — |");
     expect(markdown).not.toContain("❌ Prompt caching is not supported for this model.");
     expect(markdown).not.toContain("90% discount");
   });
@@ -212,7 +217,7 @@ describe("renderModelArtifactMarkdown", () => {
         {
           priority: "Async",
           inputTokensPer1M: "$0.05",
-          cacheReadTokensPer1M: "$0.01",
+          cacheReadPricePer1M: "$0.01",
           outputTokensPer1M: "$0.08",
         },
       ],

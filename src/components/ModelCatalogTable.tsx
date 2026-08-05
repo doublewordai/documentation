@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
   getModelArtifactPath,
@@ -14,33 +13,14 @@ function displayPrice(price: string): string {
   return price.replace(/^\\/, "");
 }
 
-function PricingCell({
-  row,
-  showCacheRead,
-}: {
-  row?: ModelArtifactPricingRow;
-  showCacheRead: boolean;
-}) {
+function PricingCell({ row }: { row?: ModelArtifactPricingRow }) {
   if (!row) return <span aria-label="Unavailable">—</span>;
 
-  const hasCacheRead = showCacheRead && row.cacheReadPricePer1M !== undefined;
-  const inputPrice = `${displayPrice(row.inputTokensPer1M)} in`;
-  const outputPrice = `${displayPrice(row.outputTokensPer1M)} out`;
-
   return (
-    <span className="inline-flex flex-wrap items-baseline gap-x-1 whitespace-nowrap">
-      <span
-        className={hasCacheRead ? "line-through opacity-45" : undefined}
-      >
-        {inputPrice}
-      </span>
-      {hasCacheRead && (
-        <span className="font-semibold" style={{ color: "#16a34a" }}>
-          {displayPrice(row.cacheReadPricePer1M!)} in
-        </span>
-      )}
-      <span aria-hidden="true">/</span>
-      <span>{outputPrice}</span>
+    <span className="whitespace-nowrap tabular-nums">
+      {displayPrice(row.inputTokensPer1M)} / {row.cacheReadPricePer1M
+        ? displayPrice(row.cacheReadPricePer1M)
+        : "—"} / {displayPrice(row.outputTokensPer1M)}
     </span>
   );
 }
@@ -50,48 +30,11 @@ export default function ModelCatalogTable({
 }: {
   artifacts: ModelArtifact[];
 }) {
-  const [showCacheRead, setShowCacheRead] = useState(false);
-
   return (
     <div className="not-prose mt-6">
-      <div className="mb-3 flex justify-end">
-        <div
-          aria-label="Input pricing mode"
-          className="inline-flex rounded-lg border p-0.5"
-          role="group"
-          style={{
-            background: "var(--sidebar-bg)",
-            borderColor: "var(--sidebar-border)",
-          }}
-        >
-          {[
-            { label: "Standard", cacheRead: false },
-            { label: "Cache read", cacheRead: true },
-          ].map(({ label, cacheRead }) => {
-            const selected = showCacheRead === cacheRead;
-            return (
-              <button
-                aria-pressed={selected}
-                className="rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-                key={label}
-                onClick={() => setShowCacheRead(cacheRead)}
-                style={{
-                  background: selected ? "var(--background)" : "transparent",
-                  boxShadow: selected ? "0 1px 2px rgb(0 0 0 / 0.12)" : "none",
-                  color: selected
-                    ? showCacheRead
-                      ? "#16a34a"
-                      : "var(--foreground)"
-                    : "var(--text-muted)",
-                }}
-                type="button"
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <p className="mb-3 text-right text-xs" style={{ color: "var(--text-muted)" }}>
+        Input / cache read / output per 1M tokens
+      </p>
 
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left text-sm">
@@ -122,12 +65,9 @@ export default function ModelCatalogTable({
                 </td>
                 {PRICING_TIERS.map((tier) => (
                   <td className="px-3 py-3" key={tier}>
-                    <PricingCell
-                      row={artifact.pricing.find(
-                        (pricing) => pricing.priority === tier,
-                      )}
-                      showCacheRead={showCacheRead}
-                    />
+                    <PricingCell row={artifact.pricing.find(
+                      (pricing) => pricing.priority === tier,
+                    )} />
                   </td>
                 ))}
               </tr>
