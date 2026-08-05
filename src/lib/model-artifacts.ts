@@ -220,7 +220,7 @@ export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
   const formatTierCell = (artifact: ModelArtifact, priority: string): string => {
     const row = artifact.pricing.find((p) => p.priority === priority);
     if (!row) return "—";
-    return `${row.inputTokensPer1M} / ${row.cacheReadPricePer1M || "—"} / ${row.outputTokensPer1M}`;
+    return `${row.inputTokensPer1M} / ${row.cacheReadPricePer1M || row.inputTokensPer1M} / ${row.outputTokensPer1M}`;
   };
 
   const overviewTable = [
@@ -267,7 +267,7 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
                   ? 'Realtime[^realtime-availability]'
                   : row.priority;
 
-              return `| ${priority} | ${row.inputTokensPer1M} | ${row.cacheReadPricePer1M || "—"} | ${row.outputTokensPer1M} |`;
+              return `| ${priority} | ${row.inputTokensPer1M} | ${row.cacheReadPricePer1M || row.inputTokensPer1M} | ${row.outputTokensPer1M} |`;
             },
           ),
           "",

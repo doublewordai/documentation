@@ -20,7 +20,7 @@ function PricingCell({ row }: { row?: ModelArtifactPricingRow }) {
     <span className="whitespace-nowrap tabular-nums">
       {displayPrice(row.inputTokensPer1M)} / {row.cacheReadPricePer1M
         ? displayPrice(row.cacheReadPricePer1M)
-        : "—"} / {displayPrice(row.outputTokensPer1M)}
+        : displayPrice(row.inputTokensPer1M)} / {displayPrice(row.outputTokensPer1M)}
     </span>
   );
 }

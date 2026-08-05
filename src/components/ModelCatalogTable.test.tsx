@@ -59,10 +59,10 @@ describe("ModelCatalogTable", () => {
     expect(within(cachedRow).getByText("$0.50 / $0.05 / $1.00")).toBeInTheDocument();
   });
 
-  it("uses a dash for unsupported cache-read prices", () => {
+  it("repeats the input price when cache reads are unsupported", () => {
     render(<ModelCatalogTable artifacts={artifacts} />);
 
     const standardRow = screen.getByRole("row", { name: /Standard model/ });
-    expect(within(standardRow).getByText("$0.80 / — / $1.60")).toBeInTheDocument();
+    expect(within(standardRow).getByText("$0.80 / $0.80 / $1.60")).toBeInTheDocument();
   });
 });

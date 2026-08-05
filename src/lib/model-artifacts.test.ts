@@ -181,7 +181,7 @@ describe("renderModelsIndexMarkdown", () => {
     expect(markdown).not.toContain("| Provider |");
     expect(markdown).not.toContain("Cache&nbsp;read");
     expect(markdown).toContain("| [Enabled](/inference-api/models/enabled) | \\$1.00 / \\$0.10 / \\$2.00 | \\$0.50 / \\$0.05 / \\$1.00 | — |");
-    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | \\$0.80 / — / \\$1.60 | — | — |");
+    expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | \\$0.80 / \\$0.80 / \\$1.60 | — | — |");
     expect(markdown).not.toContain("❌ Prompt caching is not supported for this model.");
     expect(markdown).not.toContain("90% discount");
   });
@@ -255,5 +255,24 @@ describe("renderModelArtifactMarkdown", () => {
 
     expect(markdown).not.toContain("## Reasoning efforts");
     expect(markdown).not.toContain("**Cache read:**");
+  });
+
+  it("repeats the input price when cache reads are unsupported", () => {
+    const markdown = renderModelArtifactMarkdown({
+      name: "Standard Model",
+      slug: "standard-model",
+      id: "standard-model",
+      rawName: "standard-model",
+      type: "Generation",
+      capabilities: [],
+      playgroundUrl: "https://example.com/playground",
+      pricing: [{
+        priority: "Async",
+        inputTokensPer1M: "$0.50",
+        outputTokensPer1M: "$1.00",
+      }],
+    });
+
+    expect(markdown).toContain("| Async | $0.50 | $0.50 | $1.00 |");
   });
 });
