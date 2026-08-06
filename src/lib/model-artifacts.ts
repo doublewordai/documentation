@@ -214,6 +214,13 @@ The table below outlines the models we have available and their pricing per 1M t
 :::info{title="Prompt caching"}
 Prompt-caching availability and rates are model-specific. Use **Cache read** to compare each supported model's reduced cached-input price with its standard input price. See the [prompt caching guide](/inference-api/prompt-caching) for setup, TTLs, and write pricing.
 :::
+
+:::warning{title="Async TTFT guarantees"}
+We target a Time to First Token (TTFT) of under one minute for individual model calls, with two exceptions:
+
+- **Tier availability:** the one-minute target does not apply to the flex tier for models that aren't also available on the realtime tier — currently mostly OCR models (as of Aug 2026), and subject to change as we expand the catalog.
+- **High-volume bursts:** during large concurrent bursts to the same model and tier, the target applies to the first call, not the whole batch; remaining start times scale with queue depth.
+:::
 `;
 }
 
