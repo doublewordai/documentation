@@ -207,6 +207,36 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: '/inference-api/models/qwen-qwen3-5-9b-dotjson',
+        destination: '/inference-api/models/qwen-qwen3-5-9b-dottxt',
+        permanent: true,
+      },
+      {
+        source: '/inference-api/models/qwen-qwen3-5-9b-dotjson.md',
+        destination: '/inference-api/models/qwen-qwen3-5-9b-dottxt.md',
+        permanent: true,
+      },
+      {
+        source: '/inference-api/models/qwen-qwen3-5-35b-a3b-fp8-dotjson',
+        destination: '/inference-api/models/qwen-qwen3-5-35b-a3b-fp8-dottxt',
+        permanent: true,
+      },
+      {
+        source: '/inference-api/models/qwen-qwen3-5-35b-a3b-fp8-dotjson.md',
+        destination: '/inference-api/models/qwen-qwen3-5-35b-a3b-fp8-dottxt.md',
+        permanent: true,
+      },
+      {
+        source: '/inference-api/models/qwen-qwen3-5-397b-a17b',
+        destination: '/inference-api/models/qwen-qwen3-5-397b-a17b-fp8',
+        permanent: true,
+      },
+      {
+        source: '/inference-api/models/qwen-qwen3-5-397b-a17b.md',
+        destination: '/inference-api/models/qwen-qwen3-5-397b-a17b-fp8.md',
+        permanent: true,
+      },
+      {
         source: '/inference-stack/deployment/first',
         destination: '/inference-stack/deployment/first-deployment',
         permanent: true,

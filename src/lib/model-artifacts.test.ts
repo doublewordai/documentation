@@ -17,7 +17,7 @@ describe("renderReasoningCapabilitiesMatrix", () => {
     const markdown = renderReasoningCapabilitiesMatrix(
       [
         {
-          id: "qwen-3",
+          id: "Qwen/Qwen3",
           name: "Qwen/Qwen3",
           displayName: "Qwen 3",
           type: "Generation",
@@ -84,9 +84,49 @@ describe("renderReasoningCapabilitiesMatrix", () => {
       "Reasoning capability data is not currently available.",
     );
   });
+
+  it("links reasoning rows by the customer-facing model alias", () => {
+    const markdown = renderReasoningCapabilitiesMatrix([
+      {
+        id: "Qwen/Qwen3.5-9B-dottxt",
+        name: "Qwen/Qwen3.5-9B-dotjson",
+        displayName: "Qwen3.5 9B dottxt",
+        type: "Generation",
+        capabilities: ["reasoning"],
+        supportedReasoningEfforts: {
+          chatCompletions: ["high"],
+          responses: [],
+        },
+        pricing: { async: null, batch24h: null, realtime: null },
+      },
+    ]);
+
+    expect(markdown).toContain(
+      "[Qwen3.5 9B dottxt](/inference-api/models/qwen-qwen3-5-9b-dottxt)",
+    );
+  });
 });
 
 describe("buildModelArtifacts", () => {
+  it("uses the customer-facing alias for the copyable identifier and page slug", () => {
+    const [artifact] = buildModelArtifacts([
+      {
+        id: "Qwen/Qwen3.5-9B-dottxt",
+        name: "Qwen/Qwen3.5-9B-dotjson",
+        displayName: "Qwen3.5 9B dottxt",
+        type: "Generation",
+        capabilities: ["structured-output"],
+        pricing: { async: null, batch24h: null, realtime: null },
+      },
+    ]);
+
+    expect(artifact.rawName).toBe("Qwen/Qwen3.5-9B-dottxt");
+    expect(artifact.slug).toBe("qwen-qwen3-5-9b-dottxt");
+    expect(artifact.playgroundUrl).toContain(
+      "model=Qwen%2FQwen3.5-9B-dottxt",
+    );
+  });
+
   it("carries reasoning efforts into generated model pages", () => {
     const artifacts = buildModelArtifacts([
       {

@@ -17,7 +17,7 @@ describe("renderServerMarkdownTemplates", () => {
       {
         fetchedAt: "2026-01-01T00:00:00.000Z",
         models: [{
-          id: "qwen-3",
+          id: "Qwen/Qwen3",
           name: "Qwen/Qwen3",
           displayName: "Qwen 3",
           type: "Generation",
