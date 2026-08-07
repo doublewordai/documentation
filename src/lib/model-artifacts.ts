@@ -89,7 +89,7 @@ export function renderReasoningCapabilitiesMatrix(
     if (!supportsReasoning(model) || !efforts) return [];
 
     const displayName = escapeMarkdownTableCell(model.displayName);
-    const modelCell = `[${displayName}](${getModelArtifactPath(slugifyModelName(model.name))})`;
+    const modelCell = `[${displayName}](${getModelArtifactPath(slugifyModelName(model.id))})`;
     const supported = new Set(flattenReasoningEfforts(efforts));
     const cells = REASONING_EFFORTS.map((effort) =>
       supported.has(effort) ? "✅" : ""
@@ -160,8 +160,8 @@ function toModelArtifact(model: Model): ModelArtifact {
   return {
     id: model.id,
     name: model.displayName,
-    rawName: model.name,
-    slug: slugifyModelName(model.name),
+    rawName: model.id,
+    slug: slugifyModelName(model.id),
     iconUrl: model.iconUrl,
     providerName: model.providerName,
     type: model.type,
