@@ -8,6 +8,10 @@ import {
 import { fetchModelsServer } from "@/lib/models";
 import { templateMarkdown, buildTemplateContext } from "@/lib/handlebars";
 import { getModelArtifact, renderModelArtifactMarkdown } from "@/lib/model-artifacts";
+import {
+  REGIONAL_ENDPOINTS_SLUG,
+  getRegionalEndpointsMarkdown,
+} from "@/lib/regional-endpoints";
 import { coerceMarkdownContent } from "@/lib/portable-text";
 
 const MARKDOWN_BY_SLUG_QUERY = defineQuery(`*[
@@ -61,6 +65,15 @@ export async function GET(
     }
 
     return new NextResponse(renderModelArtifactMarkdown(artifact), {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
+  }
+
+  // Synthesized in-repo page (see regional-endpoints.ts).
+  if (productSlug === "inference-api" && docSlug === REGIONAL_ENDPOINTS_SLUG) {
+    return new NextResponse(getRegionalEndpointsMarkdown(), {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
       },

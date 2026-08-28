@@ -22,6 +22,12 @@ import {
   getModelsIndexMarkdown,
   renderModelArtifactMarkdown,
 } from "@/lib/model-artifacts";
+import {
+  REGIONAL_ENDPOINTS_SLUG,
+  REGIONAL_ENDPOINTS_TITLE,
+  REGIONAL_ENDPOINTS_DESCRIPTION,
+  getRegionalEndpointsMarkdown,
+} from "@/lib/regional-endpoints";
 
 const SITE_URL = "https://docs.doubleword.ai";
 const INFERENCE_API_PARENT_REDIRECTS: Record<string, string> = {
@@ -94,6 +100,7 @@ export async function generateStaticParams() {
     })),
     ...externalPaths,
     { product: "inference-api", slug: ["models"] },
+    { product: "inference-api", slug: [REGIONAL_ENDPOINTS_SLUG] },
     ...modelPaths.map((artifact) => ({
       product: "inference-api",
       slug: ["models", artifact.slug],
@@ -141,7 +148,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             description: modelArtifact.description,
             product: { _id: "inference-api", name: "Doubleword Inference API", slug: { current: "inference-api" } },
           }
-        : null);
+        : productSlug === "inference-api" && docSlug === REGIONAL_ENDPOINTS_SLUG
+          ? {
+              title: REGIONAL_ENDPOINTS_TITLE,
+              description: REGIONAL_ENDPOINTS_DESCRIPTION,
+              product: { _id: "inference-api", name: "Doubleword Inference API", slug: { current: "inference-api" } },
+            }
+          : null);
   if (!resolvedDoc || !resolvedDoc.product) {
     return {
       title: "Not Found",
@@ -213,7 +226,13 @@ export default async function DocPage({ params }: Props) {
             description: modelArtifact.description,
             product: { _id: "inference-api", name: "Doubleword Inference API", slug: { current: "inference-api" } },
           }
-        : null);
+        : productSlug === "inference-api" && docSlug === REGIONAL_ENDPOINTS_SLUG
+          ? {
+              title: REGIONAL_ENDPOINTS_TITLE,
+              description: REGIONAL_ENDPOINTS_DESCRIPTION,
+              product: { _id: "inference-api", name: "Doubleword Inference API", slug: { current: "inference-api" } },
+            }
+          : null);
 
   if (!resolvedDoc || !resolvedDoc.product) {
     notFound();
@@ -246,6 +265,11 @@ export default async function DocPage({ params }: Props) {
   }
   if (productSlug === "inference-api" && modelArtifact) {
     content = renderModelArtifactMarkdown(modelArtifact);
+  }
+  // Synthesized in-repo page; a Sanity page with the same slug wins if one
+  // is ever created (see regional-endpoints.ts).
+  if (!doc && productSlug === "inference-api" && docSlug === REGIONAL_ENDPOINTS_SLUG) {
+    content = getRegionalEndpointsMarkdown();
   }
   const images = resolvedDoc.linkedPost?.images || resolvedDoc.images;
   const videoUrl = resolvedDoc.linkedPost?.videoUrl;
