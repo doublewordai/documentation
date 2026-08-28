@@ -71,5 +71,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   ]
 
-  return [...staticRoutes, ...productRoutes, ...docRoutes, ...modelRoutes]
+  // Synthesized in-repo pages (see src/lib/regional-endpoints.ts)
+  const syntheticRoutes: MetadataRoute.Sitemap = [
+    {
+      url: `${SITE_URL}/inference-api/regional-endpoints`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.8,
+    },
+  ]
+
+  return [...staticRoutes, ...productRoutes, ...docRoutes, ...modelRoutes, ...syntheticRoutes]
 }

@@ -1,5 +1,9 @@
 import type { DocPageForNav } from "@/sanity/types";
 import { getModelArtifacts, getModelArtifactPath } from "@/lib/model-artifacts";
+import {
+  REGIONAL_ENDPOINTS_SLUG,
+  REGIONAL_ENDPOINTS_TITLE,
+} from "@/lib/regional-endpoints";
 
 type GroupedDocs = Record<
   string,
@@ -12,6 +16,7 @@ type GroupedDocs = Record<
 const FOOTER_SLUGS = new Set(["api-reference", "skill", "get-support"]);
 const IGNORED_CATEGORY_SLUGS = new Set(["archive"]);
 const MODELS_ROOT_SLUG = "models";
+const REGIONAL_ENDPOINTS_ANCHOR_SLUG = "creating-an-api-key";
 
 function buildBottomCategory(): DocPageForNav["category"] {
   return {
@@ -72,6 +77,31 @@ export async function organizeInferenceApiSidebar(docs: DocPageForNav[]): Promis
         .filter((doc) => !existingModelSlugs.has(doc.slug.current));
 
       categoryGroup.docs = [...categoryGroup.docs, ...modelDocs].sort(
+        (a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER),
+      );
+    }
+  }
+
+  // Regional endpoints is a synthesized in-repo page (see regional-endpoints.ts),
+  // anchored beside "Creating an API Key" so it sits with the key-management
+  // docs. A Sanity page with the same slug takes over if one is ever created.
+  const regionalAnchorDoc = mainDocs.find((doc) => doc.slug.current === REGIONAL_ENDPOINTS_ANCHOR_SLUG);
+  const sanityHasRegionalPage = mainDocs.some((doc) => doc.slug.current === REGIONAL_ENDPOINTS_SLUG);
+  if (regionalAnchorDoc?.category && !sanityHasRegionalPage) {
+    const categoryGroup = groupedDocs[regionalAnchorDoc.category._id];
+    if (categoryGroup) {
+      const regionalDoc: DocPageForNav = {
+        _id: `synthetic:${REGIONAL_ENDPOINTS_SLUG}`,
+        title: REGIONAL_ENDPOINTS_TITLE,
+        sidebarLabel: REGIONAL_ENDPOINTS_TITLE,
+        slug: { current: REGIONAL_ENDPOINTS_SLUG },
+        order: (regionalAnchorDoc.order ?? 0) + 0.5,
+        categorySlug: categoryGroup.category.slug.current,
+        categoryName: categoryGroup.category.name,
+        category: categoryGroup.category,
+        parentSlug: regionalAnchorDoc.parentSlug ?? null,
+      };
+      categoryGroup.docs = [...categoryGroup.docs, regionalDoc].sort(
         (a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER),
       );
     }
