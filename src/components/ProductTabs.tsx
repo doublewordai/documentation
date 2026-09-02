@@ -5,13 +5,14 @@ import Image from "next/image";
 import {usePathname} from "next/navigation";
 import {PRODUCT_TABS} from "@/lib/product-nav";
 import ThemeToggle from "./ThemeToggle";
+import GetStartedButton from "./GetStartedButton";
 
 type ProductTabsProps = {
   activeProductSlug: string;
 };
 
 // Fixed header strip. Height is h-12 (48px); it sits below the 56px mobile
-// header bar (top-14) and at the very top on desktop (xl:top-0). These offsets
+// header bar (top-14) and at the very top on desktop (lg:top-0). These offsets
 // are kept in lockstep with the <main> padding in [product]/layout.tsx and the
 // sidebar <aside> offsets in MobileSidebar.tsx — change all three together.
 export default function ProductTabs({activeProductSlug}: ProductTabsProps) {
@@ -22,7 +23,7 @@ export default function ProductTabs({activeProductSlug}: ProductTabsProps) {
 
   return (
     <nav
-      className="fixed left-0 right-0 z-50 h-12 top-14 xl:top-0 flex items-center gap-1 px-3 sm:px-4"
+      className="fixed left-0 right-0 z-50 h-12 top-14 lg:top-0 flex items-center gap-1 px-3 sm:px-4"
       style={{
         backgroundColor: "var(--sidebar-bg)",
         borderBottom: "1px solid var(--sidebar-border)",
@@ -32,7 +33,7 @@ export default function ProductTabs({activeProductSlug}: ProductTabsProps) {
       {/* Global logo — desktop only (mobile keeps it in its own top bar) */}
       <Link
         href="/"
-        className="hidden xl:flex items-center shrink-0 mr-4 hover:opacity-80 transition-opacity"
+        className="hidden lg:flex items-center shrink-0 mr-4 hover:opacity-80 transition-opacity"
       >
         <Image
           src="/logo-full-black.png"
@@ -77,8 +78,9 @@ export default function ProductTabs({activeProductSlug}: ProductTabsProps) {
         })}
       </div>
 
-      {/* Global theme toggle — desktop only */}
-      <div className="hidden xl:flex items-center ml-auto pl-4 shrink-0">
+      {/* Global actions (CTA + theme) — desktop only; mobile keeps them in its own top bar */}
+      <div className="hidden lg:flex items-center ml-auto pl-4 gap-3 shrink-0">
+        <GetStartedButton source="docs_header_desktop" className="px-4 py-1.5 shadow-sm hover:shadow-md" />
         <ThemeToggle />
       </div>
     </nav>

@@ -52,6 +52,24 @@ export default async function RootLayout({
             `,
           }}
         />
+        {/* Google Analytics (gtag.js) — CON-70. Nonce required by the strict CSP;
+            allowed hosts are added in middleware.ts. */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-6ZH94Q0N57"
+          nonce={nonce}
+        />
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-6ZH94Q0N57');
+            `,
+          }}
+        />
       </head>
       <body className="antialiased">
         <ThemeProvider>

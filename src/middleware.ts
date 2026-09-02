@@ -37,11 +37,14 @@ function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
     "base-uri 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    // Google Analytics (gtag.js) host is listed for CSP2 browsers that ignore
+    // 'strict-dynamic'; on CSP3 the nonce'd loader covers it. Its beacons/config
+    // fetches need google-analytics + analytics.google.com in connect/img-src.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://cdn.sanity.io",
+    "img-src 'self' data: blob: https://cdn.sanity.io https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com",
     "font-src 'self' data:",
-    "connect-src 'self' https://app.doubleword.ai https://api.doubleword.ai https://status.doubleword.ai",
+    "connect-src 'self' https://app.doubleword.ai https://api.doubleword.ai https://status.doubleword.ai https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com",
     'frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com',
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",

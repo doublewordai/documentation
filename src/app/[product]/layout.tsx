@@ -79,7 +79,7 @@ export default async function ProductLayout({
         hideCategoryHeadings={!PRODUCTS_WITH_VISIBLE_CATEGORY_HEADINGS.has(productSlug)}
       />
       {/* pt clears mobile header (56px) + tab strip (48px); desktop clears tab strip (48px) */}
-      <main className="pt-[6.5rem] xl:pt-12 xl:ml-64">{children}</main>
+      <main className="pt-[6.5rem] lg:pt-12 lg:ml-64">{children}</main>
     </div>
   )
 }
