@@ -6,6 +6,7 @@ import Image from "next/image";
 import SidebarNav from "./SidebarNav";
 import ThemeToggle from "./ThemeToggle";
 import ExpandableSearch from "./ExpandableSearch";
+import GetStartedButton from "./GetStartedButton";
 import type {DocPageForNav} from '@/sanity/types';
 import type {ExternalDocsGroup} from "@/lib/external-docs";
 
@@ -70,7 +71,7 @@ export default function MobileSidebar({
     <>
       {/* Mobile header bar */}
       <header
-        className="xl:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
+        className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
         style={{ backgroundColor: 'var(--sidebar-bg)', borderBottom: '1px solid var(--sidebar-border)' }}
       >
         <button
@@ -133,10 +134,18 @@ export default function MobileSidebar({
         </div>
       </header>
 
+      {/* Floating "Get started" CTA — shown on mobile / slim widths only
+          (desktop shows it in the header). Fixed bottom-right; sits under the
+          mobile menu overlay (z-40) when the menu is open. */}
+      <GetStartedButton
+        source="docs_fab_mobile"
+        className="lg:hidden fixed bottom-5 right-5 z-30 px-5 py-2.5 shadow-lg"
+      />
+
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (
         <div
-          className="xl:hidden fixed inset-0 z-40"
+          className="lg:hidden fixed inset-0 z-40"
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
           onClick={() => setIsMobileMenuOpen(false)}
         />
@@ -146,8 +155,8 @@ export default function MobileSidebar({
       <aside
         className={`
           w-64 fixed z-40 transition-transform duration-300
-          top-[6.5rem] bottom-0 xl:top-12 xl:h-[calc(100vh-3rem)]
-          xl:translate-x-0
+          top-[6.5rem] bottom-0 lg:top-12 lg:h-[calc(100vh-3rem)]
+          lg:translate-x-0
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
         style={{

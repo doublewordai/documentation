@@ -31,6 +31,11 @@
   --button-bg: #0070f3;
   --button-text: #ffffff;
 
+  /* CTA (coral pill) — CON-70. Same value in light + dark. */
+  --cta-bg: hsl(355 92% 66%);
+  --cta-bg-hover: hsl(355 92% 60%);
+  --cta-text: #ffffff;
+
   /* Typography */
   --font-family:
     "IBM Plex Sans Variable", -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -62,6 +67,15 @@ html[data-theme="dark"] {
   --color-foreground: var(--foreground);
   --font-sans: "IBM Plex Sans Variable", sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+}
+
+/* CTA "Get started" pill — CON-70 */
+.cta-button {
+  background-color: var(--cta-bg);
+  color: var(--cta-text);
+}
+.cta-button:hover {
+  background-color: var(--cta-bg-hover);
 }
 
 /* ============================================
