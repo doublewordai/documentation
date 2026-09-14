@@ -2,6 +2,7 @@
   "name": "docs-new",
   "version": "0.1.2",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "next dev",
     "build:search-index": "node scripts/build-search-index.mjs",
