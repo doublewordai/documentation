@@ -197,6 +197,51 @@ describe("buildModelArtifacts", () => {
     expect(disabled.cacheReadPricePer1M).toBeUndefined();
     expect(incomplete.cacheReadPricePer1M).toBeUndefined();
   });
+
+  it("floors sub-cent cached prices up to $0.01 (CON-86)", () => {
+    // DeepSeek V4.1-Flash-style: tiny KV cache -> ~0.02x read multiplier, so the
+    // cache-read price rounds to $0.00 at 2dp and must floor up to $0.01.
+    const [artifact] = buildModelArtifacts([
+      {
+        id: "deepseek-v4-1-flash", name: "deepseek-ai/DeepSeek-V4.1-Flash", displayName: "DeepSeek V4.1 Flash",
+        type: "Generation", capabilities: [],
+        pricing: {
+          realtime: { input: 0.0000002, output: 0.0000004 },
+          async: { input: 0.0000001, output: 0.0000002 },
+          batch24h: null,
+        },
+        cachePricing: { enabled: true, readMultiplier: 0.02, writeMultiplier5m: null, writeMultiplier1h: null, writeMultiplier24h: null, minPrefixTokens: null, validFrom: null, validUntil: null },
+      },
+    ]);
+
+    // realtime cache read = $0.20/1M x 0.02 = $0.004/1M -> would render $0.00, floored to $0.01
+    expect(artifact.cacheReadPricePer1M).toBe("\\$0.01");
+    const realtime = artifact.pricing.find((row) => row.priority === "Realtime")!;
+    expect(realtime.cacheReadPricePer1M).toBe("\\$0.01");
+    // input/output are not floored
+    expect(realtime.inputTokensPer1M).toBe("\\$0.20");
+    expect(realtime.outputTokensPer1M).toBe("\\$0.40");
+    // async cache read = $0.10/1M x 0.02 = $0.002/1M -> also floored to $0.01
+    const asyncRow = artifact.pricing.find((row) => row.priority === "Async")!;
+    expect(asyncRow.cacheReadPricePer1M).toBe("\\$0.01");
+  });
+
+  it("floors the cached price but leaves a genuinely sub-cent input as $0.00 (CON-86)", () => {
+    const [artifact] = buildModelArtifacts([
+      {
+        id: "tiny", name: "Provider/Tiny", displayName: "Tiny",
+        type: "Generation", capabilities: [],
+        pricing: { realtime: { input: 0.000000001, output: 0.000000002 }, async: null, batch24h: null },
+        cachePricing: { enabled: true, readMultiplier: 0.5, writeMultiplier5m: null, writeMultiplier1h: null, writeMultiplier24h: null, minPrefixTokens: null, validFrom: null, validUntil: null },
+      },
+    ]);
+
+    const realtime = artifact.pricing.find((row) => row.priority === "Realtime")!;
+    // input is not floored -> stays $0.00
+    expect(realtime.inputTokensPer1M).toBe("\\$0.00");
+    // cache read = $0.001/1M x 0.5 = $0.0005/1M -> floored to $0.01
+    expect(realtime.cacheReadPricePer1M).toBe("\\$0.01");
+  });
 });
 
 describe("renderModelsIndexMarkdown", () => {

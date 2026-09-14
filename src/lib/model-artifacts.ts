@@ -110,8 +110,19 @@ export function renderReasoningCapabilitiesMatrix(
   ].join("\n");
 }
 
-function formatPricePer1M(pricePerToken: number): string {
-  return `\\$${(pricePerToken * 1_000_000).toFixed(2)}`;
+function formatPricePer1M(
+  pricePerToken: number,
+  options?: { floorToMinDisplayable?: boolean },
+): string {
+  const perMillion = pricePerToken * 1_000_000;
+  const formatted = perMillion.toFixed(2);
+  // CON-86: very small cached prices round to $0.00 at 2 decimals. When asked,
+  // floor a positive-but-sub-cent price up to $0.01 so it never displays as
+  // free (which undersells the discount).
+  if (options?.floorToMinDisplayable && perMillion > 0 && formatted === "0.00") {
+    return "\\$0.01";
+  }
+  return `\\$${formatted}`;
 }
 
 function buildPricing(
@@ -131,6 +142,7 @@ function buildPricing(
       ? {
           cacheReadPricePer1M: formatPricePer1M(
             pricing.input * cacheReadMultiplier,
+            { floorToMinDisplayable: true },
           ),
         }
       : {}),
@@ -171,6 +183,7 @@ function toModelArtifact(model: Model): ModelArtifact {
       ? {
           cacheReadPricePer1M: formatPricePer1M(
             model.pricing.realtime.input * cacheReadMultiplier,
+            { floorToMinDisplayable: true },
           ),
           cacheReadMultiplier,
         }
