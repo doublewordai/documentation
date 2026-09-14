@@ -122,6 +122,6 @@
     "sanity": "^6.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.11"
   }
 }
