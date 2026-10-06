@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { draftMode, headers } from "next/headers";
+import Script from "next/script";
 import { VisualEditing } from "next-sanity/visual-editing";
 
 // Fonts via fontsource (self-hosted, full character sets)
@@ -35,8 +36,8 @@ export default async function RootLayout({
       <head>
         <script
           nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html: `
+        >
+          {`
               (function() {
                 function getTheme() {
                   const stored = localStorage.getItem('theme');
@@ -49,27 +50,27 @@ export default async function RootLayout({
                 // Also set .dark class for Tailwind utilities
                 document.documentElement.classList.toggle('dark', theme === 'dark');
               })();
-            `,
-          }}
-        />
+            `}
+        </script>
         {/* Google Analytics (gtag.js) — CON-70. Nonce required by the strict CSP;
             allowed hosts are added in middleware.ts. */}
-        <script
-          async
+        <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-6ZH94Q0N57"
           nonce={nonce}
+          strategy="afterInteractive"
         />
-        <script
+        <Script
+          id="google-analytics"
           nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html: `
+          strategy="afterInteractive"
+        >
+          {`
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
               gtag('config', 'G-6ZH94Q0N57');
-            `,
-          }}
-        />
+            `}
+        </Script>
       </head>
       <body className="antialiased">
         <ThemeProvider>
