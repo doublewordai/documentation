@@ -6,7 +6,7 @@ import {
   rewriteExternalMarkdownLinks,
 } from "@/lib/external-docs";
 import { fetchModelsServer } from "@/lib/models";
-import { getModelArtifact, renderModelArtifactMarkdown } from "@/lib/model-artifacts";
+import { getModelArtifact, getModelsIndexMarkdown, renderModelArtifactMarkdown } from "@/lib/model-artifacts";
 import { coerceMarkdownContent } from "@/lib/portable-text";
 import { renderServerMarkdownTemplates } from "@/lib/server-markdown";
 
@@ -78,6 +78,14 @@ export async function GET(
     linkedPost?: { body: unknown; externalSource?: string };
     images?: { filename: string; asset: { _id: string; url: string } }[];
   } | null;
+
+  if (productSlug === "inference-api" && docSlug === "models") {
+    const content = await getModelsIndexMarkdown(doc?.body);
+    const modelsResponse = await fetchModelsServer();
+    return new NextResponse(await renderServerMarkdownTemplates(content, modelsResponse), {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
 
   if (!doc) {
     const externalDocMatch = await findExternalDocBySlug(productSlug, docSlug);

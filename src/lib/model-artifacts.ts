@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { fetchModelsFromApiRoute, type Model } from "@/lib/models";
 import type { DocSearchIndexItem } from "@/sanity/types";
+import { coerceMarkdownContent } from "@/lib/portable-text";
 
 const MODELS_PRODUCT_SLUG = "inference-api";
 const MODELS_OVERVIEW_SLUG = "models";
@@ -211,10 +212,10 @@ export async function getModelArtifact(slug: string): Promise<ModelArtifact | nu
   return artifacts.find((artifact) => artifact.slug === slug) || null;
 }
 
-export async function getModelsIndexMarkdown(): Promise<string> {
+export async function getModelsIndexMarkdown(body?: unknown): Promise<string> {
   const artifacts = await getModelArtifacts();
 
-  return renderModelsIndexMarkdown(artifacts);
+  return renderModelsIndexMarkdown(artifacts, body);
 }
 
 export function renderModelsIndexIntroMarkdown(): string {
@@ -228,7 +229,24 @@ Prompt-caching availability and rates are model-specific. Prices are shown as **
 `;
 }
 
-export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
+/** Sanity copy surrounds the live catalog at this marker; legacy bodies keep the generated intro. */
+export function getModelsIndexSections(body?: unknown) {
+  const markdown = coerceMarkdownContent(body);
+  const marker = "<!-- model-catalog -->";
+  const position = markdown.indexOf(marker);
+
+  if (position === -1) {
+    return { beforeCatalog: renderModelsIndexIntroMarkdown(), afterCatalog: "" };
+  }
+
+  return {
+    beforeCatalog: markdown.slice(0, position).trim(),
+    afterCatalog: markdown.slice(position + marker.length).trim(),
+  };
+}
+
+export function renderModelsIndexMarkdown(artifacts: ModelArtifact[], body?: unknown): string {
+  const { beforeCatalog, afterCatalog } = getModelsIndexSections(body);
 
   const formatTierCell = (artifact: ModelArtifact, priority: string): string => {
     const row = artifact.pricing.find((p) => p.priority === priority);
@@ -244,10 +262,12 @@ export function renderModelsIndexMarkdown(artifacts: ModelArtifact[]): string {
     }),
   ].join("\n");
 
-  return `${renderModelsIndexIntroMarkdown()}
+  return `${beforeCatalog}
 ## Model Catalog
 
 ${overviewTable}
+
+${afterCatalog}
 `;
 }
 
