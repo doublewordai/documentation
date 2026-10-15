@@ -2,6 +2,12 @@ import { cache } from "react";
 import { fetchModelsFromApiRoute, type Model } from "@/lib/models";
 import type { DocSearchIndexItem } from "@/sanity/types";
 import { coerceMarkdownContent } from "@/lib/portable-text";
+import {
+  MODEL_DEPRECATIONS,
+  MODEL_MIGRATION_MARKDOWN,
+  type ModelDeprecation,
+  type ReplacementSegment,
+} from "@/lib/model-deprecations";
 
 const MODELS_PRODUCT_SLUG = "inference-api";
 const MODELS_OVERVIEW_SLUG = "models";
@@ -215,7 +221,7 @@ export async function getModelArtifact(slug: string): Promise<ModelArtifact | nu
 export async function getModelsIndexMarkdown(body?: unknown): Promise<string> {
   const artifacts = await getModelArtifacts();
 
-  return renderModelsIndexMarkdown(artifacts, body);
+  return renderModelsIndexMarkdown(artifacts, MODEL_DEPRECATIONS, body);
 }
 
 export function renderModelsIndexIntroMarkdown(): string {
@@ -245,27 +251,66 @@ export function getModelsIndexSections(body?: unknown) {
   };
 }
 
-export function renderModelsIndexMarkdown(artifacts: ModelArtifact[], body?: unknown): string {
-  const { beforeCatalog, afterCatalog } = getModelsIndexSections(body);
-
+function renderPricingTableMarkdown(artifacts: ModelArtifact[]): string {
   const formatTierCell = (artifact: ModelArtifact, priority: string): string => {
     const row = artifact.pricing.find((p) => p.priority === priority);
     if (!row) return "—";
     return `${row.inputTokensPer1M} / ${row.cacheReadPricePer1M || row.inputTokensPer1M} / ${row.outputTokensPer1M}`;
   };
 
-  const overviewTable = [
+  return [
     "| Model | Realtime | Async | Batch (24h) |",
     "|-------|----------|-------|-------------|",
     ...artifacts.map((artifact) => {
       return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} |`;
     }),
   ].join("\n");
+}
+
+function renderDeprecationTableMarkdown(
+  deprecations: ModelDeprecation[],
+  artifacts: ModelArtifact[],
+): string {
+  const liveArtifacts = new Map(artifacts.map((artifact) => [artifact.id, artifact]));
+  const renderSegment = (segment: ReplacementSegment): string => {
+    if (typeof segment === "string") return segment;
+    const artifact = liveArtifacts.get(segment.id);
+    return artifact ? `[${segment.name}](${getModelArtifactPath(artifact.slug)})` : segment.name;
+  };
+
+  return [
+    "| Model | Recommended Replacement |",
+    "|-------|-------------------------|",
+    ...deprecations.map((deprecation) =>
+      `| ${deprecation.name} | ${deprecation.replacement.map(renderSegment).join("")} |`
+    ),
+  ].join("\n");
+}
+
+export function renderModelsIndexMarkdown(
+  artifacts: ModelArtifact[],
+  deprecations: ModelDeprecation[],
+  body?: unknown,
+): string {
+  const { beforeCatalog, afterCatalog } = getModelsIndexSections(body);
+  const deprecatedIds = new Set(deprecations.map((deprecation) => deprecation.id));
+
+  const catalog = deprecations.length === 0
+    ? renderPricingTableMarkdown(artifacts)
+    : `### Active Models
+
+${renderPricingTableMarkdown(artifacts.filter((artifact) => !deprecatedIds.has(artifact.id)))}
+
+### Scheduled for Deprecation
+
+${renderDeprecationTableMarkdown(deprecations, artifacts)}
+
+${MODEL_MIGRATION_MARKDOWN}`;
 
   return `${beforeCatalog}
 ## Model Catalog
 
-${overviewTable}
+${catalog}
 
 ${afterCatalog}
 `;

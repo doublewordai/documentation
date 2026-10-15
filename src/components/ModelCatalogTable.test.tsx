@@ -1,7 +1,8 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import ModelCatalogTable from "./ModelCatalogTable";
 import type { ModelArtifact } from "@/lib/model-artifacts";
+import type { ModelDeprecation } from "@/lib/model-deprecations";
 
 const artifacts: ModelArtifact[] = [
   {
@@ -46,9 +47,36 @@ const artifacts: ModelArtifact[] = [
   },
 ];
 
+const deprecations: ModelDeprecation[] = [
+  {
+    id: "standard-model",
+    name: "Standard model",
+    replacement: [{ id: "cached-model", name: "Cached model" }, " if you need caching"],
+  },
+  {
+    id: "retired-model",
+    name: "Retired model",
+    replacement: [{ id: "unlisted-model", name: "Unlisted model" }],
+  },
+];
+
+function renderWithDeprecations() {
+  render(
+    <ModelCatalogTable
+      artifacts={artifacts}
+      deprecations={deprecations}
+      migrationGuide={<p>Migration guide</p>}
+    />,
+  );
+}
+
+afterEach(() => {
+  window.history.replaceState(null, "", "/");
+});
+
 describe("ModelCatalogTable", () => {
   it("shows input, cache-read, and output prices for every modality", () => {
-    render(<ModelCatalogTable artifacts={artifacts} />);
+    render(<ModelCatalogTable artifacts={artifacts} deprecations={[]} migrationGuide={null} />);
 
     expect(screen.queryByRole("button", { name: "Standard" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cache read" })).not.toBeInTheDocument();
@@ -60,9 +88,52 @@ describe("ModelCatalogTable", () => {
   });
 
   it("repeats the input price when cache reads are unsupported", () => {
-    render(<ModelCatalogTable artifacts={artifacts} />);
+    render(<ModelCatalogTable artifacts={artifacts} deprecations={[]} migrationGuide={null} />);
 
     const standardRow = screen.getByRole("row", { name: /Standard model/ });
     expect(within(standardRow).getByText("$0.80 / $0.80 / $1.60")).toBeInTheDocument();
+  });
+
+  it("shows no tabs when no models are scheduled for deprecation", () => {
+    render(<ModelCatalogTable artifacts={artifacts} deprecations={[]} migrationGuide={null} />);
+
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /Standard model/ })).toBeInTheDocument();
+  });
+
+  it("keeps scheduled models out of the default Active Models tab", () => {
+    renderWithDeprecations();
+
+    expect(screen.getByRole("tab", { name: "Active Models" })).toHaveAttribute("aria-selected", "true");
+    const active = screen.getByRole("tabpanel", { name: "Active Models" });
+    expect(within(active).getByRole("row", { name: /Cached model/ })).toBeInTheDocument();
+    expect(within(active).queryByRole("row", { name: /Standard model/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Migration guide")).not.toBeVisible();
+  });
+
+  it("lists replacements in the Scheduled for Deprecation tab", () => {
+    renderWithDeprecations();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Scheduled for Deprecation" }));
+
+    expect(window.location.hash).toBe("#scheduled-for-deprecation");
+    const scheduled = screen.getByRole("tabpanel", { name: "Scheduled for Deprecation" });
+    expect(within(scheduled).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Model", "Recommended Replacement"]);
+    const standardRow = within(scheduled).getByRole("row", { name: /Standard model/ });
+    expect(within(standardRow).queryByRole("link", { name: "Standard model" })).not.toBeInTheDocument();
+    expect(within(standardRow).getByRole("link", { name: "Cached model" })).toHaveAttribute("href", "/inference-api/models/cached-model");
+    expect(standardRow).toHaveTextContent("Cached model if you need caching");
+    const retiredRow = within(scheduled).getByRole("row", { name: /Retired model/ });
+    expect(within(retiredRow).queryByRole("link")).not.toBeInTheDocument();
+    expect(retiredRow).toHaveTextContent("Unlisted model");
+    expect(screen.getByText("Migration guide")).toBeVisible();
+  });
+
+  it("opens the Scheduled for Deprecation tab from its anchor", () => {
+    window.history.replaceState(null, "", "/#scheduled-for-deprecation");
+
+    renderWithDeprecations();
+
+    expect(screen.getByRole("tab", { name: "Scheduled for Deprecation" })).toHaveAttribute("aria-selected", "true");
   });
 });
