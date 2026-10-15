@@ -21,7 +21,7 @@ import {
   getModelArtifact,
   getModelArtifacts,
   renderModelArtifactMarkdown,
-  renderModelsIndexIntroMarkdown,
+  getModelsIndexSections,
 } from "@/lib/model-artifacts";
 
 const SITE_URL = "https://docs.doubleword.ai";
@@ -246,8 +246,9 @@ export default async function DocPage({ params }: Props) {
   } else {
     content = resolvedDoc.body;
   }
-  if (isModelsOverview) {
-    content = renderModelsIndexIntroMarkdown();
+  const modelsIndexSections = isModelsOverview ? getModelsIndexSections(content) : null;
+  if (modelsIndexSections) {
+    content = modelsIndexSections.beforeCatalog;
   }
   if (productSlug === "inference-api" && modelArtifact) {
     content = renderModelArtifactMarkdown(modelArtifact);
@@ -386,8 +387,15 @@ export default async function DocPage({ params }: Props) {
                 )}
                 {modelsOverviewArtifacts && (
                   <>
-                    <h2>Model Catalog</h2>
+                    <h2 id="model-catalog">Model Catalog</h2>
                     <ModelCatalogTable artifacts={modelsOverviewArtifacts} />
+                    {modelsIndexSections?.afterCatalog && (
+                      <MarkdownRenderer
+                        content={modelsIndexSections.afterCatalog}
+                        images={images}
+                        productSlug={productSlug}
+                      />
+                    )}
                   </>
                 )}
               </div>

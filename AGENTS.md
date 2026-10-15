@@ -69,6 +69,8 @@ Nothing to do. Model pages at `/inference-api/models/<slug>` are synthesized by 
 
 To actually add a model, publish it in the Doubleword platform; it shows up within the ISR window (5 min).
 
+The **Models & Pricing overview** (`/inference-api/models`) supports Sanity copy around the live catalog. Add `<!-- model-catalog -->` on its own line in the `infdoc-models` body. Copy before the marker appears above the fetched table; copy after it appears below. HTML and `.md` use the same order. Without the marker, the overview keeps its generated introduction and catalog. Individual model pages remain fully generated. Leave announcements as Sanity drafts until approved for publication.
+
 ### Update `dw-cli` docs
 
 1. Edit `docs/src/<page>.md` in the [dw CLI repo](https://github.com/doublewordai/dw).

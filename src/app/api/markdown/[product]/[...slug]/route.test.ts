@@ -19,6 +19,7 @@ vi.mock("@/lib/models", () => ({
 
 vi.mock("@/lib/model-artifacts", () => ({
   getModelArtifact: vi.fn(async () => null),
+  getModelsIndexMarkdown: vi.fn(async () => "Generated model catalog"),
   renderModelArtifactMarkdown: vi.fn(() => ""),
 }));
 
@@ -33,6 +34,7 @@ vi.mock("@/lib/server-markdown", () => ({
 import { GET } from "./route";
 import { sanityFetch } from "@/sanity/lib/client";
 import { renderServerMarkdownTemplates } from "@/lib/server-markdown";
+import { getModelsIndexMarkdown } from "@/lib/model-artifacts";
 
 const sanityFetchMock = vi.mocked(sanityFetch);
 
@@ -197,5 +199,26 @@ describe("GET /api/markdown/[product]/[...slug]", () => {
     const response = await getMarkdown("inference-api", ["does-not-exist.md"]);
 
     expect(response.status).toBe(404);
+  });
+
+  it("composes the models markdown with the Sanity body and generated catalog", async () => {
+    const body = "Notice\n\n<!-- model-catalog -->\n\n## Model deprecations";
+    sanityFetchMock.mockResolvedValueOnce({ title: "Models & Pricing", body });
+    vi.mocked(getModelsIndexMarkdown).mockResolvedValueOnce("Notice\n\nLive catalog\n\n## Model deprecations");
+
+    const response = await getMarkdown("inference-api", ["models.md"]);
+
+    expect(getModelsIndexMarkdown).toHaveBeenCalledWith(body);
+    expect(await response.text()).toBe("Notice\n\nLive catalog\n\n## Model deprecations");
+  });
+
+  it("serves the generated models catalog even without a Sanity document", async () => {
+    sanityFetchMock.mockResolvedValueOnce(null);
+
+    const response = await getMarkdown("inference-api", ["models.md"]);
+
+    expect(response.status).toBe(200);
+    expect(getModelsIndexMarkdown).toHaveBeenCalledWith(undefined);
+    expect(await response.text()).toBe("Generated model catalog");
   });
 });
