@@ -255,7 +255,7 @@ describe("renderModelsIndexMarkdown", () => {
       beforeCatalog: notice,
       afterCatalog: guidance,
     });
-    const markdown = renderModelsIndexMarkdown([], body);
+    const markdown = renderModelsIndexMarkdown([], [], body);
     expect(markdown.indexOf(notice)).toBeLessThan(markdown.indexOf("## Model Catalog"));
     expect(markdown.indexOf("| Model |")).toBeLessThan(markdown.indexOf(guidance));
     expect(markdown).not.toContain("<!-- model-catalog -->");
@@ -294,7 +294,7 @@ describe("renderModelsIndexMarkdown", () => {
           { priority: "Realtime", inputTokensPer1M: "\\$0.80", outputTokensPer1M: "\\$1.60" },
         ],
       },
-    ]);
+    ], []);
 
     expect(markdown).toContain("| Model | Realtime | Async | Batch (24h) |");
     expect(markdown).not.toContain("| Provider |");
@@ -303,6 +303,28 @@ describe("renderModelsIndexMarkdown", () => {
     expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | \\$0.80 / \\$0.80 / \\$1.60 | — | — |");
     expect(markdown).not.toContain("❌ Prompt caching is not supported for this model.");
     expect(markdown).not.toContain("90% discount");
+  });
+
+  it("separates scheduled deprecations from active models", () => {
+    const artifact = (id: string, name: string) => ({
+      name, slug: id, id, rawName: id, type: "Generation", capabilities: [], playgroundUrl: `https://example.com/${id}`,
+      pricing: [{ priority: "Realtime", inputTokensPer1M: "\\$1.00", outputTokensPer1M: "\\$2.00" }],
+    });
+    const markdown = renderModelsIndexMarkdown(
+      [artifact("old", "Old"), artifact("new", "New"), artifact("upgrade", "Upgrade")],
+      [
+        { id: "old", name: "Old", replacement: [{ id: "new", name: "New" }, ", or ", { id: "upgrade", name: "Upgrade" }, " for more capability"] },
+        { id: "retired", name: "Retired", replacement: [{ id: "unlisted", name: "Unlisted" }] },
+      ],
+    );
+
+    const active = markdown.slice(markdown.indexOf("### Active Models"), markdown.indexOf("### Scheduled for Deprecation"));
+    expect(active).toContain("| [New](/inference-api/models/new) |");
+    expect(active).not.toContain("[Old]");
+    expect(markdown).toContain("| Model | Recommended Replacement |\n");
+    expect(markdown).toContain("| Old | [New](/inference-api/models/new), or [Upgrade](/inference-api/models/upgrade) for more capability |");
+    expect(markdown).toContain("| Retired | Unlisted |");
+    expect(markdown.indexOf("| Retired |")).toBeLessThan(markdown.indexOf("#### Migrating to a Replacement Model"));
   });
 
   it("renders the web intro without a duplicate static catalog", () => {
