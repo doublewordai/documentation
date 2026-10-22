@@ -4,7 +4,6 @@ import type { DocSearchIndexItem } from "@/sanity/types";
 import { coerceMarkdownContent } from "@/lib/portable-text";
 import {
   MODEL_DEPRECATIONS,
-  MODEL_MIGRATION_MARKDOWN,
   type ModelDeprecation,
   type ReplacementSegment,
 } from "@/lib/model-deprecations";
@@ -301,11 +300,9 @@ export function renderModelsIndexMarkdown(
 
 ${renderPricingTableMarkdown(artifacts.filter((artifact) => !deprecatedIds.has(artifact.id)))}
 
-### Scheduled for Deprecation
+### Scheduled for Shutdown
 
-${renderDeprecationTableMarkdown(deprecations, artifacts)}
-
-${MODEL_MIGRATION_MARKDOWN}`;
+${renderDeprecationTableMarkdown(deprecations, artifacts)}`;
 
   return `${beforeCatalog}
 ## Model Catalog

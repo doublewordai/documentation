@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   getModelArtifactPath,
@@ -17,7 +17,7 @@ const PRICING_TIERS = ["Realtime", "Async", "Batch (24h)"] as const;
 
 const CATALOG_TABS = [
   { id: "active-models", label: "Active Models" },
-  { id: SCHEDULED_FOR_DEPRECATION_ANCHOR, label: "Scheduled for Deprecation" },
+  { id: SCHEDULED_FOR_DEPRECATION_ANCHOR, label: "Scheduled for Shutdown" },
 ] as const;
 
 type CatalogTab = (typeof CATALOG_TABS)[number]["id"];
@@ -172,11 +172,9 @@ function useCatalogTab() {
 export default function ModelCatalogTable({
   artifacts,
   deprecations,
-  migrationGuide,
 }: {
   artifacts: ModelArtifact[];
   deprecations: ModelDeprecation[];
-  migrationGuide: ReactNode;
 }) {
   const [tab, selectTab] = useCatalogTab();
 
@@ -241,7 +239,6 @@ export default function ModelCatalogTable({
         className="pt-4"
       >
         <DeprecationTable deprecations={deprecations} liveArtifacts={liveArtifacts} />
-        {migrationGuide}
       </div>
     </div>
   );

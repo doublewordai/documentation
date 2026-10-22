@@ -318,13 +318,13 @@ describe("renderModelsIndexMarkdown", () => {
       ],
     );
 
-    const active = markdown.slice(markdown.indexOf("### Active Models"), markdown.indexOf("### Scheduled for Deprecation"));
+    const active = markdown.slice(markdown.indexOf("### Active Models"), markdown.indexOf("### Scheduled for Shutdown"));
     expect(active).toContain("| [New](/inference-api/models/new) |");
     expect(active).not.toContain("[Old]");
     expect(markdown).toContain("| Model | Recommended Replacement |\n");
     expect(markdown).toContain("| Old | [New](/inference-api/models/new), or [Upgrade](/inference-api/models/upgrade) for more capability |");
     expect(markdown).toContain("| Retired | Unlisted |");
-    expect(markdown.indexOf("| Retired |")).toBeLessThan(markdown.indexOf("#### Migrating to a Replacement Model"));
+    expect(markdown).not.toContain("Migrating to a Replacement Model");
   });
 
   it("renders the web intro without a duplicate static catalog", () => {

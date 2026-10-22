@@ -54,12 +54,3 @@ export const MODEL_DEPRECATIONS: ModelDeprecation[] = [
   { id: "Qwen/Qwen3.5-9B-dottxt", name: "Qwen3.5 9B dottxt", replacement: [QWEN3_5_35B_DOTTXT] },
   { id: "Qwen/Qwen3.5-397B-A17B-FP8-dottxt", name: "Qwen3.5 397B A17B dottxt", replacement: [QWEN3_5_35B_DOTTXT] },
 ];
-
-export const MODEL_MIGRATION_MARKDOWN = `#### Migrating to a Replacement Model
-
-Models scheduled for deprecation will no longer accept API requests after 30 October 2026.
-
-To avoid disruption, update the model ID in your API requests to the recommended replacement before this date.
-
-If you would like to retain access to a specific model, evaluate an alternative, or discuss a dedicated deployment, contact [support@doubleword.ai](mailto:support@doubleword.ai).
-`;
