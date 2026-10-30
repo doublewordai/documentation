@@ -6,11 +6,12 @@ let buildModelArtifacts: typeof import("./model-artifacts").buildModelArtifacts;
 let renderModelsIndexMarkdown: typeof import("./model-artifacts").renderModelsIndexMarkdown;
 let renderModelsIndexIntroMarkdown: typeof import("./model-artifacts").renderModelsIndexIntroMarkdown;
 let getModelsIndexSections: typeof import("./model-artifacts").getModelsIndexSections;
+let getModelArtifact: typeof import("./model-artifacts").getModelArtifact;
 
 beforeAll(async () => {
   process.env.NEXT_PUBLIC_SANITY_PROJECT_ID = "g1zo7y59";
   process.env.NEXT_PUBLIC_SANITY_DATASET = "production";
-  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderModelsIndexIntroMarkdown, renderModelsIndexMarkdown, renderReasoningCapabilitiesMatrix, getModelsIndexSections } = await import("./model-artifacts"));
+  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderModelsIndexIntroMarkdown, renderModelsIndexMarkdown, renderReasoningCapabilitiesMatrix, getModelsIndexSections, getModelArtifact } = await import("./model-artifacts"));
 });
 
 describe("renderReasoningCapabilitiesMatrix", () => {
@@ -318,7 +319,7 @@ describe("renderModelsIndexMarkdown", () => {
       ],
     );
 
-    const active = markdown.slice(markdown.indexOf("### Active Models"), markdown.indexOf("### Scheduled for Shutdown"));
+    const active = markdown.slice(markdown.indexOf("### Active Models"), markdown.indexOf("### Shut Down"));
     expect(active).toContain("| [New](/inference-api/models/new) |");
     expect(active).not.toContain("[Old]");
     expect(markdown).toContain("| Model | Recommended Replacement |\n");
@@ -415,5 +416,30 @@ describe("renderModelArtifactMarkdown", () => {
     });
 
     expect(markdown).toContain("| Async | $0.50 | $0.50 | $1.00 |");
+  });
+});
+
+describe("shut-down model pages", () => {
+  it("keeps a page for every shut-down model", async () => {
+    const { MODEL_DEPRECATIONS } = await import("./model-deprecations");
+    for (const deprecation of MODEL_DEPRECATIONS) {
+      const slug = deprecation.id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      const artifact = await getModelArtifact(slug);
+      expect(artifact?.id, deprecation.id).toBe(deprecation.id);
+      expect(artifact?.replacement, deprecation.id).toEqual(deprecation.replacement);
+    }
+  });
+
+  it("opens with a shut-down notice naming the replacement and drops pricing and the playground", async () => {
+    const artifact = await getModelArtifact("moonshotai-kimi-k2-6");
+    const markdown = renderModelArtifactMarkdown(artifact!);
+
+    expect(markdown).toContain(':::note{title="Shut down"}');
+    expect(markdown).toContain("This model was shut down on 30 October 2026 and no longer accepts API requests.");
+    expect(markdown).toContain("Its recommended replacement is [GLM 5.3](/inference-api/models/zai-org-glm-5-3). [Kimi K3](/inference-api/models/moonshotai-kimi-k3) is the upgrade option within the Kimi family. See");
+    expect(markdown).toContain("[models that have been shut down](/inference-api/models#scheduled-for-deprecation)");
+    expect(markdown).toContain("## Overview");
+    expect(markdown).not.toContain("## Pricing");
+    expect(markdown).not.toContain("## Playground");
   });
 });

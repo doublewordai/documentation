@@ -1,9 +1,11 @@
 import { cache } from "react";
 import { fetchModelsFromApiRoute, type Model } from "@/lib/models";
+import shutDownModels from "@/lib/shut-down-models.json";
 import type { DocSearchIndexItem } from "@/sanity/types";
 import { coerceMarkdownContent } from "@/lib/portable-text";
 import {
   MODEL_DEPRECATIONS,
+  SCHEDULED_FOR_DEPRECATION_ANCHOR,
   type ModelDeprecation,
   type ReplacementSegment,
 } from "@/lib/model-deprecations";
@@ -53,6 +55,7 @@ export type ModelArtifact = {
   };
   playgroundUrl: string;
   pricing: ModelArtifactPricingRow[];
+  replacement?: ReplacementSegment[];
 };
 
 function slugifyModelName(name: string): string {
@@ -206,6 +209,11 @@ export function buildModelArtifacts(models: Model[]): ModelArtifact[] {
   return models.map(toModelArtifact);
 }
 
+const SHUT_DOWN_ARTIFACTS: ModelArtifact[] = MODEL_DEPRECATIONS.flatMap((deprecation) => {
+  const model = (shutDownModels as Model[]).find((candidate) => candidate.id === deprecation.id);
+  return model ? [{ ...toModelArtifact(model), replacement: deprecation.replacement }] : [];
+});
+
 export const getModelArtifacts = cache(async (): Promise<ModelArtifact[]> => {
   const { models } = await fetchModelsFromApiRoute();
 
@@ -213,6 +221,9 @@ export const getModelArtifacts = cache(async (): Promise<ModelArtifact[]> => {
 });
 
 export async function getModelArtifact(slug: string): Promise<ModelArtifact | null> {
+  const shutDown = SHUT_DOWN_ARTIFACTS.find((artifact) => artifact.slug === slug);
+  if (shutDown) return shutDown;
+
   const artifacts = await getModelArtifacts();
   return artifacts.find((artifact) => artifact.slug === slug) || null;
 }
@@ -300,7 +311,7 @@ export function renderModelsIndexMarkdown(
 
 ${renderPricingTableMarkdown(artifacts.filter((artifact) => !deprecatedIds.has(artifact.id)))}
 
-### Scheduled for Shutdown
+### Shut Down
 
 ${renderDeprecationTableMarkdown(deprecations, artifacts)}`;
 
@@ -372,6 +383,19 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
     ? `![${artifact.name} icon](${artifact.iconUrl})\n\n`
     : "";
 
+  if (artifact.replacement) {
+    const replacement = renderReplacementMarkdown(artifact.replacement);
+    return `# ${artifact.name}
+
+:::note{title="Shut down"}
+This model was shut down on 30 October 2026 and no longer accepts API requests. Its recommended replacement is ${replacement.endsWith(".") ? replacement : `${replacement}.`} See [models that have been shut down](${getModelsOverviewPath()}#${SCHEDULED_FOR_DEPRECATION_ANCHOR}) for every replacement.
+:::
+
+${icon}${metadata}
+
+${description}`;
+  }
+
   return `# ${artifact.name}
 
 ${icon}${metadata}
@@ -380,6 +404,16 @@ ${description}${reasoning}${pricingTable}## Playground
 
 Open this model in the [Playground](${artifact.playgroundUrl}).
 `;
+}
+
+function renderReplacementMarkdown(replacement: ReplacementSegment[]): string {
+  return replacement
+    .map((segment) =>
+      typeof segment === "string"
+        ? segment
+        : `[${segment.name}](${getModelArtifactPath(slugifyModelName(segment.id))})`
+    )
+    .join("");
 }
 
 export async function getModelArtifactSearchItems(): Promise<DocSearchIndexItem[]> {

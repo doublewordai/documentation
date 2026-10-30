@@ -1,0 +1,331 @@
+[
+  {
+    "id": "deepseek-ai/DeepSeek-V4-Flash",
+    "name": "deepseek-ai/DeepSeek-V4-Flash",
+    "displayName": "DeepSeek V4 Flash",
+    "providerName": "deepseek",
+    "description": "DeepSeek V4-Flash is a general-purpose open MoE model built for reasoning, tool use, and long-context work. With 284B total parameters, 13B active parameters, and a 1M-token context window, it brings the core strengths of the V4 family into a more compact package. It’s a strong fit for chat, structured generation, document-scale analysis, and agentic workflows that need broad capability across everyday tasks.",
+    "type": "Generation",
+    "capabilities": [
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-V4-Pro",
+    "name": "deepseek-ai/DeepSeek-V4-Pro",
+    "displayName": "DeepSeek V4 Pro",
+    "providerName": "deepseek",
+    "description": "DeepSeek V4-Pro is DeepSeek’s flagship open MoE model for advanced reasoning, coding, and agentic work. With 1.6T total parameters, 49B active parameters, and a 1M-token context window, it is designed for the hardest tasks in the V4 lineup: complex problem solving, knowledge-intensive workflows, and high-stakes coding or research use cases.\n",
+    "type": "Generation",
+    "capabilities": [
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-OCR-2",
+    "name": "deepseek-ai/DeepSeek-OCR-2",
+    "displayName": "DeepSeek OCR 2",
+    "providerName": "DeepSeek",
+    "description": "Meet DeepSeek-OCR-2 - Deepseek's latest OCR model. This model expands on Deepseek-OCR with a novel causal vision encoder that captures reading order to enhance structured extraction of text.\n\n---\n\n**Usage Tips**\n\nUse `Free OCR.` for plain text extraction when you want only the text content from the image, without preserving layout or structure.\n```\nmessages = [{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Free OCR.\"}, {\"type\": \"image_url\", \"image_url\": {\"url\": image_url}}]}]\n```\n\nUse `<|grounding|>Convert the document to markdown.` for structured markdown extraction when you want to preserve headings, paragraphs, lists, and tables.\n```\nmessages = [{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"<|grounding|>Convert the document to markdown.\"}, {\"type\": \"image_url\", \"image_url\": {\"url\": image_url}}]}]\n```\n",
+    "type": "OCR",
+    "capabilities": [
+      "vision"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "google/gemma-4-26B-A4B-it",
+    "name": "google/gemma-4-26B-A4B-it",
+    "displayName": "Gemma 4 26B A4B",
+    "providerName": "google",
+    "description": "Gemma 4 26B-A4B is one of Google DeepMind’s most capable open models, built for advanced reasoning, coding, and multimodal understanding. It uses an MoE architecture for more efficient inference. It sits in the same general tier as Claude 4.5 Haiku, with native function calling and structured JSON output for agentic workflows; strong image and video understanding for tasks like OCR and chart analysis; 256K context for long documents and repositories; and support for 140+ languages.\n\n",
+    "type": "Generation",
+    "capabilities": [
+      "vision",
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "zai-org/GLM-5.1-FP8",
+    "name": "zai-org/GLM-5.1-FP8",
+    "displayName": "GLM 5.1",
+    "providerName": "zai",
+    "description": "Meet **GLM-5.1-FP8** - Z.ai's next-generation flagship model for agentic engineering, with significantly stronger coding capabilities than GLM-5. It achieves state-of-the-art performance on SWE-Bench Pro and leads GLM-5 by a wide margin on NL2Repo and Terminal-Bench 2.0, making it especially strong for real-world coding, repository generation, terminal tasks, and long-horizon agentic workflows. GLM-5.1 is designed to stay productive over extended sessions, breaking down ambiguous problems, running experiments, reading results, identifying blockers, and improving through repeated iteration.\n\nBest for:\n* Agentic engineering and complex coding tasks\n* Long-running tool-use workflows\n* Repository generation and terminal-based development\n* Ambiguous problems requiring judgment, experimentation, and sustained reasoning\n\n\n**Max Total Tokens:** 202752\n\n**Sampling Parameters:**\n\nWe have set the default sampling parameters using the recommended values from the GLM-5.1 generation configuration:\n\n---\n\n_Temperature=1.0 and TopP=0.95._\n\n---\n\nYou can adjust these on a per-request basis by setting the sampling parameters in the request body.\n\n---\n\n**Thinking Mode:**\n\nThis model reasons step-by-step before responding by default.\n\nThis model is built for long-horizon agentic work and can sustain useful reasoning over extended sessions involving planning, tool use, experiments, and iterative debugging.",
+    "type": "Generation",
+    "capabilities": [
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "openai/gpt-oss-20b",
+    "name": "openai/gpt-oss-20b",
+    "displayName": "GPT OSS 20B",
+    "providerName": "OpenAI",
+    "description": "Meet **gpt-oss-20b** — for lower latency, and local or specialized use cases (21B parameters with 3.6B active parameters)",
+    "type": "Generation",
+    "capabilities": [
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "openai/gpt-oss-120b",
+    "name": "openai/gpt-oss-120b",
+    "displayName": "GPT OSS 120B",
+    "providerName": "openai",
+    "description": "Meet **gpt-oss-120b** — OpenAI’s larger open-weight MoE model, with 117B total parameters, 5.1B active parameters, and a 128k-token context window. ",
+    "type": "Generation",
+    "capabilities": [
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "tencent/Hy3-FP8",
+    "name": "tencent/Hy3-FP8",
+    "displayName": "Hy3",
+    "providerName": "tencent",
+    "description": "Hy3 is a 295B-parameter Mixture-of-Experts (MoE) model with 21B active parameters, developed by the Tencent Hy Team. Hy3 outperforms similar-size models and rivals flagship open-source models with 2-5x fewer parameters.",
+    "type": "Generation",
+    "capabilities": [
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "thinkingmachines/Inkling-NVFP4",
+    "name": "thinkingmachines/Inkling-NVFP4",
+    "displayName": "Inkling",
+    "providerName": "thinkingmachines",
+    "description": "Inkling is the first model released by Thinking Machines - a large Mixture of Experts model with 975B parameters, 41B active, trained on over 45T tokens of text, image, and audio data. It supports up to a 1M context length and offers strong performance across the board for agentic and reasoning heavy tasks.",
+    "type": "Generation",
+    "capabilities": [
+      "vision",
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "moonshotai/Kimi-K2.6",
+    "name": "moonshotai/Kimi-K2.6",
+    "displayName": "Kimi K2.6",
+    "providerName": "moonshot",
+    "description": "Kimi K2.6 is an open-source, native multimodal agentic model that advances practical capabilities in long-horizon coding, coding-driven design, proactive autonomous execution, and swarm-based task orchestration. Built on the same MoE multimodal architecture as K2.5 with a 256K context window, K2.6 combines strong reasoning, visual understanding, and agentic tool use across instant and thinking modes.\n\nKey Features\nLong-Horizon Coding: K2.6 improves end-to-end coding performance across Rust, Go, Python, front-end, DevOps, and performance optimization workflows.\nCoding-Driven Design: K2.6 turns prompts and visual inputs into production-ready interfaces and lightweight full-stack workflows with structured layouts, interactive elements, and deliberate visual polish.\nElevated Agent Swarm: K2.6 can decompose complex tasks into parallel, domain-specialized subtasks, scaling to large coordinated agent runs for end-to-end outputs.\nProactive Orchestration: K2.6 is built for autonomous execution, supporting persistent background agents that manage schedules, execute code, and coordinate cross-platform operations with minimal oversight.",
+    "type": "Generation",
+    "capabilities": [
+      "reasoning",
+      "vision"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "XiaomiMiMo/MiMo-V2.5-Pro",
+    "name": "XiaomiMiMo/MiMo-V2.5-Pro",
+    "displayName": "MiMo V2.5 Pro",
+    "providerName": "xiaomi",
+    "description": "Xiaomi’s flagship 1.02T-parameter MoE reasoning model for agentic workflows, complex software engineering, long-horizon tool use, and long-context tasks.",
+    "type": "Generation",
+    "capabilities": [
+      "reasoning",
+      "enhanced_structured_generation"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+    "name": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+    "displayName": "Nemotron 3 Super 120B A12B",
+    "providerName": "NVIDIA",
+    "description": "NVIDIA Nemotron 3 Super 120B A12B NVFP4 is an open hybrid Mamba-Transformer LatentMoE model with 120 billion total parameters and 12 billion active parameters, built for agentic reasoning workloads such as coding, planning, tool use, and long-context tasks. It is designed for high-throughput inference.\n\n---\n\nIn line with NVIDIA's guidance, we use `temperature=1.0` and `top_p=0.95` across all tasks and serving backends, including reasoning, tool calling, and general chat.",
+    "type": "Generation",
+    "capabilities": [
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "allenai/olmOCR-2-7B-1025-FP8",
+    "name": "allenai/olmOCR-2-7B-1025-FP8",
+    "displayName": "olmOCR 2 7B 1025",
+    "providerName": "Ai2",
+    "description": "This is a release of the olmOCR model that's fine tuned from Qwen2.5-VL-7B-Instruct using the olmOCR-mix-1025 dataset. It has been additionally fine tuned using GRPO RL training to boost its performance at math equations, tables, and other tricky OCR cases.\n\n---\n**Usage Tips**\n\nThis model expects a prompt alongside the image. The default one used in the olmocr repo is this:\n\n```\nprompt = \"Attached is one page of a document that you must process. Just return the plain text representation of this document as if you were reading it naturally. Convert equations to LateX and tables to HTML.\\nIf there are any figures or charts, label them with the following markdown syntax ![Alt text describing the contents of the figure](page_startx_starty_width_height.png)\\nReturn your output as markdown, with a front matter section on top specifying values for the primary_language, is_rotation_valid, rotation_correction, is_table, and is_diagram parameters\"\n\nmessages = [\n            {\n                \"role\": \"user\",\n                \"content\": [\n                    {\"type\": \"text\", \"text\": prompt},\n                    {\"type\": \"image_url\", \"image_url\": {\"url\": f\"data:image/png;base64,{image_base64}\"}},\n                ],\n            }\n        ]\n\n```\n\n\n**Image Processing**\n\nThis model expects as input a single document image, rendered such that the longest dimension is 1288 pixels.",
+    "type": "OCR",
+    "capabilities": [
+      "vision"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "Qwen/Qwen3-14B-FP8",
+    "name": "Qwen/Qwen3-14B-FP8",
+    "displayName": "Qwen3 14B",
+    "providerName": "Alibaba",
+    "description": "Meet **Qwen3-14B** - a small text-only model from the Qwen3 release.   \n\nBest for:\n* High volume tasks\n* Tasks that do not require maximum performance, such as classification, extraction, or summarization\n\n\n**Max New Tokens:** 16384\n\n**Max Total Tokens:** 262144\n\n**Sampling Parameters:**\n\nWe have set the default sampling parameters using the recommended values set out by the Qwen team:\n\n---\n\n_We suggest using Temperature=0.7, TopP=0.8, TopK=20, and MinP=0._\n \n_For supported frameworks, you can adjust the presence_penalty parameter between 0 and 2 to reduce endless repetitions. However, using a higher value may occasionally result in language mixing and a slight decrease in model performance._\n\n---\n\n\n \nWe use a **default presence_penalty** of 1.5 to bias the model against endless repetitions, if you still notice this behaviour try increasing the presence_penalty.\n\nYou can adjust these on a per-request basis by setting the sampling parameters in the request body. \n",
+    "type": "Generation",
+    "capabilities": [],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8",
+    "name": "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8",
+    "displayName": "Qwen3 VL 30B A3B Instruct",
+    "providerName": "Alibaba",
+    "description": "Meet **Qwen3-VL-30B**, the smaller model of the Qwen3-VL family, delivering performance similar to GPT-4.1-mini and Claude Sonnet 4. This highly capable mid-size model is suited for tasks that are constrained or require high token volumes. Excels at reasoning, coding, and structured output generation. \n\nBest for:\n-  Production workloads requiring strong performance without frontier model costs\n- Complex reasoning tasks\n- Code generation",
+    "type": "Generation",
+    "capabilities": [
+      "vision"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "Qwen/Qwen3.5-4B",
+    "name": "Qwen/Qwen3.5-4B",
+    "displayName": "Qwen3.5 4B",
+    "providerName": "Alibaba",
+    "description": "Qwen3.5-4B is a compact open 4B model with a native 262K context window, designed to deliver strong reasoning, coding, and long-context performance in a very small footprint. Qwen reports that it outperforms GPT-OSS-20B across several key benchmarks, including MMLU-Pro, GPQA Diamond, AA-LCR, and LongBench v2, making it a standout small model for cost-sensitive workloads.\n\n---\n**Thinking Mode:** \n\nThis model reasons step-by-step before responding by default.\n\nSet `reasoning_effort` to `none` to disable thinking. Other supported effort values enable thinking; this model does not provide graduated thinking levels.",
+    "type": "Generation",
+    "capabilities": [
+      "vision",
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "Qwen/Qwen3.5-9B",
+    "name": "Qwen/Qwen3.5-9B",
+    "displayName": "Qwen3.5 9B",
+    "providerName": "Alibaba",
+    "description": "Qwen3.5-9B is a compact 9B parameter reasoning model with a 262K token native context length, designed for strong reasoning performance while remaining extremely cost-efficient. Despite its small size, it performs remarkably well on complex tasks and in Qwen's benchmarks outperformed the much larger GPT-OSS-120 model.\n\n---\n**Thinking Mode:** \n\nThis model reasons step-by-step before responding by default.\n\nSet `reasoning_effort` to `none` to disable thinking. Other supported effort values enable thinking; this model does not provide graduated thinking levels.",
+    "type": "Generation",
+    "capabilities": [
+      "vision",
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "Qwen/Qwen3.5-397B-A17B-FP8",
+    "name": "Qwen/Qwen3.5-397B-A17B-FP8",
+    "displayName": "Qwen3.5 397B A17B",
+    "providerName": "Alibaba",
+    "description": "Meet **Qwen3.5-397B-A17B** - released Feb 2026, it is Qwen's most powerful model, delivering performance similar to GPT-5.2 and Claude Opus 4.5 on challenging tasks including advanced reasoning, mathematics, and complex code generation. Offers frontier-level capabilities at a fraction of the cost.\nBest for:\n* Tasks requiring maximum intelligence\n* Complex analysis\n* Sophisticated coding projects\n* Scenarios where quality justifies the additional cost over smaller models\n\n\n**Max New Tokens:** 16384\n\n**Max Total Tokens:** 262144\n\n**Sampling Parameters:**\n\nWe have set the default sampling parameters using the recommended values set out by the Qwen team:\n\n---\n\n_We suggest using Temperature=0.7, TopP=0.8, TopK=20, and MinP=0._\n \n_For supported frameworks, you can adjust the presence_penalty parameter between 0 and 2 to reduce endless repetitions. However, using a higher value may occasionally result in language mixing and a slight decrease in model performance._\n\n---\n\n\n \nWe use a **default presence_penalty** of 1.5 to bias the model against endless repetitions, if you still notice this behaviour try increasing the presence_penalty.\n\nYou can adjust these on a per-request basis by setting the sampling parameters in the request body. \n",
+    "type": "Generation",
+    "capabilities": [
+      "vision",
+      "reasoning"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "Qwen/Qwen3.5-9B-dottxt",
+    "name": "Qwen/Qwen3.5-9B-dottxt",
+    "displayName": "Qwen3.5 9B dottxt",
+    "providerName": "alibaba",
+    "description": "Qwen3.5-9B is a compact 9B parameter reasoning model with a 131K token served context window, designed for strong reasoning performance while remaining extremely cost-efficient. Despite its small size, it performs remarkably well on complex tasks and in Qwen's benchmarks outperformed the much larger GPT-OSS-120 model.\n\n---\n**Thinking Mode:** \n\nThis model reasons step-by-step before responding by default.\n\nSet `reasoning_effort` to `none` to disable thinking. Other supported effort values enable thinking; this model does not provide graduated thinking levels.",
+    "type": "Generation",
+    "capabilities": [
+      "reasoning",
+      "enhanced_structured_generation",
+      "vision"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  },
+  {
+    "id": "Qwen/Qwen3.5-397B-A17B-FP8-dottxt",
+    "name": "Qwen/Qwen3.5-397B-A17B-FP8-dottxt",
+    "displayName": "Qwen3.5 397B A17B dottxt",
+    "providerName": "alibaba",
+    "description": "Meet **Qwen3.5-397B-A17B** - released Feb 2026, it is Qwen's most powerful model, delivering performance similar to GPT-5.2 and Claude Opus 4.5 on challenging tasks including advanced reasoning, mathematics, and complex code generation. Offers frontier-level capabilities at a fraction of the cost.\nBest for:\n* Tasks requiring maximum intelligence\n* Complex analysis\n* Sophisticated coding projects\n* Scenarios where quality justifies the additional cost over smaller models\n\n\n**Max New Tokens:** 16384\n\n**Max Total Tokens:** 262144\n\n**Sampling Parameters:**\n\nWe have set the default sampling parameters using the recommended values set out by the Qwen team:\n\n---\n\n_We suggest using Temperature=0.7, TopP=0.8, TopK=20, and MinP=0._\n \n_For supported frameworks, you can adjust the presence_penalty parameter between 0 and 2 to reduce endless repetitions. However, using a higher value may occasionally result in language mixing and a slight decrease in model performance._\n\n---\n\n\n \nWe use a **default presence_penalty** of 1.5 to bias the model against endless repetitions, if you still notice this behaviour try increasing the presence_penalty.\n\nYou can adjust these on a per-request basis by setting the sampling parameters in the request body. \n",
+    "type": "Generation",
+    "capabilities": [
+      "vision",
+      "reasoning",
+      "enhanced_structured_generation"
+    ],
+    "pricing": {
+      "async": null,
+      "batch24h": null,
+      "realtime": null
+    }
+  }
+]
