@@ -17,7 +17,7 @@ const PRICING_TIERS = ["Realtime", "Async", "Batch (24h)"] as const;
 
 const CATALOG_TABS = [
   { id: "active-models", label: "Active Models" },
-  { id: SCHEDULED_FOR_DEPRECATION_ANCHOR, label: "Scheduled for Shutdown" },
+  { id: SCHEDULED_FOR_DEPRECATION_ANCHOR, label: "Shut Down" },
 ] as const;
 
 type CatalogTab = (typeof CATALOG_TABS)[number]["id"];

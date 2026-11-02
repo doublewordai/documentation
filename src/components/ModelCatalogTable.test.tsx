@@ -109,13 +109,13 @@ describe("ModelCatalogTable", () => {
     expect(within(active).queryByRole("row", { name: /Standard model/ })).not.toBeInTheDocument();
   });
 
-  it("lists replacements in the Scheduled for Shutdown tab", () => {
+  it("lists replacements in the Shut Down tab", () => {
     renderWithDeprecations();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Scheduled for Shutdown" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Shut Down" }));
 
     expect(window.location.hash).toBe("#scheduled-for-deprecation");
-    const scheduled = screen.getByRole("tabpanel", { name: "Scheduled for Shutdown" });
+    const scheduled = screen.getByRole("tabpanel", { name: "Shut Down" });
     expect(within(scheduled).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Model", "Recommended Replacement"]);
     const standardRow = within(scheduled).getByRole("row", { name: /Standard model/ });
     expect(within(standardRow).queryByRole("link", { name: "Standard model" })).not.toBeInTheDocument();
@@ -126,11 +126,11 @@ describe("ModelCatalogTable", () => {
     expect(retiredRow).toHaveTextContent("Unlisted model");
   });
 
-  it("opens the Scheduled for Shutdown tab from its anchor", () => {
+  it("opens the Shut Down tab from its anchor", () => {
     window.history.replaceState(null, "", "/#scheduled-for-deprecation");
 
     renderWithDeprecations();
 
-    expect(screen.getByRole("tab", { name: "Scheduled for Shutdown" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Shut Down" })).toHaveAttribute("aria-selected", "true");
   });
 });
