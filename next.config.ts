@@ -72,6 +72,8 @@ const nextConfig: NextConfig = {
 
   // Allow images from Sanity CDN
   images: {
+    // Serve images as-is: Cloudflare challenges /_next/image, which broke the header logo
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
