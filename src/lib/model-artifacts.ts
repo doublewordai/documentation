@@ -1,14 +1,7 @@
 import { cache } from "react";
 import { fetchModelsFromApiRoute, type Model } from "@/lib/models";
-import shutDownModels from "@/lib/shut-down-models.json";
 import type { DocSearchIndexItem } from "@/sanity/types";
 import { coerceMarkdownContent } from "@/lib/portable-text";
-import {
-  MODEL_DEPRECATIONS,
-  SCHEDULED_FOR_DEPRECATION_ANCHOR,
-  type ModelDeprecation,
-  type ReplacementSegment,
-} from "@/lib/model-deprecations";
 
 const MODELS_PRODUCT_SLUG = "inference-api";
 const MODELS_OVERVIEW_SLUG = "models";
@@ -55,7 +48,6 @@ export type ModelArtifact = {
   };
   playgroundUrl: string;
   pricing: ModelArtifactPricingRow[];
-  replacement?: ReplacementSegment[];
 };
 
 function slugifyModelName(name: string): string {
@@ -209,11 +201,6 @@ export function buildModelArtifacts(models: Model[]): ModelArtifact[] {
   return models.map(toModelArtifact);
 }
 
-const SHUT_DOWN_ARTIFACTS: ModelArtifact[] = MODEL_DEPRECATIONS.flatMap((deprecation) => {
-  const model = (shutDownModels as Model[]).find((candidate) => candidate.id === deprecation.id);
-  return model ? [{ ...toModelArtifact(model), replacement: deprecation.replacement }] : [];
-});
-
 export const getModelArtifacts = cache(async (): Promise<ModelArtifact[]> => {
   const { models } = await fetchModelsFromApiRoute();
 
@@ -221,9 +208,6 @@ export const getModelArtifacts = cache(async (): Promise<ModelArtifact[]> => {
 });
 
 export async function getModelArtifact(slug: string): Promise<ModelArtifact | null> {
-  const shutDown = SHUT_DOWN_ARTIFACTS.find((artifact) => artifact.slug === slug);
-  if (shutDown) return shutDown;
-
   const artifacts = await getModelArtifacts();
   return artifacts.find((artifact) => artifact.slug === slug) || null;
 }
@@ -231,7 +215,7 @@ export async function getModelArtifact(slug: string): Promise<ModelArtifact | nu
 export async function getModelsIndexMarkdown(body?: unknown): Promise<string> {
   const artifacts = await getModelArtifacts();
 
-  return renderModelsIndexMarkdown(artifacts, MODEL_DEPRECATIONS, body);
+  return renderModelsIndexMarkdown(artifacts, body);
 }
 
 export function renderModelsIndexIntroMarkdown(): string {
@@ -261,64 +245,27 @@ export function getModelsIndexSections(body?: unknown) {
   };
 }
 
-function renderPricingTableMarkdown(artifacts: ModelArtifact[]): string {
+export function renderModelsIndexMarkdown(artifacts: ModelArtifact[], body?: unknown): string {
+  const { beforeCatalog, afterCatalog } = getModelsIndexSections(body);
+
   const formatTierCell = (artifact: ModelArtifact, priority: string): string => {
     const row = artifact.pricing.find((p) => p.priority === priority);
     if (!row) return "—";
     return `${row.inputTokensPer1M} / ${row.cacheReadPricePer1M || row.inputTokensPer1M} / ${row.outputTokensPer1M}`;
   };
 
-  return [
+  const overviewTable = [
     "| Model | Realtime | Async | Batch (24h) |",
     "|-------|----------|-------|-------------|",
     ...artifacts.map((artifact) => {
       return `| [${artifact.name}](${getModelArtifactPath(artifact.slug)}) | ${formatTierCell(artifact, "Realtime")} | ${formatTierCell(artifact, "Async")} | ${formatTierCell(artifact, "Batch (24h)")} |`;
     }),
   ].join("\n");
-}
-
-function renderDeprecationTableMarkdown(
-  deprecations: ModelDeprecation[],
-  artifacts: ModelArtifact[],
-): string {
-  const liveArtifacts = new Map(artifacts.map((artifact) => [artifact.id, artifact]));
-  const renderSegment = (segment: ReplacementSegment): string => {
-    if (typeof segment === "string") return segment;
-    const artifact = liveArtifacts.get(segment.id);
-    return artifact ? `[${segment.name}](${getModelArtifactPath(artifact.slug)})` : segment.name;
-  };
-
-  return [
-    "| Model | Recommended Replacement |",
-    "|-------|-------------------------|",
-    ...deprecations.map((deprecation) =>
-      `| ${deprecation.name} | ${deprecation.replacement.map(renderSegment).join("")} |`
-    ),
-  ].join("\n");
-}
-
-export function renderModelsIndexMarkdown(
-  artifacts: ModelArtifact[],
-  deprecations: ModelDeprecation[],
-  body?: unknown,
-): string {
-  const { beforeCatalog, afterCatalog } = getModelsIndexSections(body);
-  const deprecatedIds = new Set(deprecations.map((deprecation) => deprecation.id));
-
-  const catalog = deprecations.length === 0
-    ? renderPricingTableMarkdown(artifacts)
-    : `### Active Models
-
-${renderPricingTableMarkdown(artifacts.filter((artifact) => !deprecatedIds.has(artifact.id)))}
-
-### Shut Down
-
-${renderDeprecationTableMarkdown(deprecations, artifacts)}`;
 
   return `${beforeCatalog}
 ## Model Catalog
 
-${catalog}
+${overviewTable}
 
 ${afterCatalog}
 `;
@@ -383,19 +330,6 @@ export function renderModelArtifactMarkdown(artifact: ModelArtifact): string {
     ? `![${artifact.name} icon](${artifact.iconUrl})\n\n`
     : "";
 
-  if (artifact.replacement) {
-    const replacement = renderReplacementMarkdown(artifact.replacement);
-    return `# ${artifact.name}
-
-:::note{title="Shut down"}
-This model was shut down on 30 October 2026 and no longer accepts API requests. Its recommended replacement is ${replacement.endsWith(".") ? replacement : `${replacement}.`} See [models that have been shut down](${getModelsOverviewPath()}#${SCHEDULED_FOR_DEPRECATION_ANCHOR}) for every replacement.
-:::
-
-${icon}${metadata}
-
-${description}`;
-  }
-
   return `# ${artifact.name}
 
 ${icon}${metadata}
@@ -404,16 +338,6 @@ ${description}${reasoning}${pricingTable}## Playground
 
 Open this model in the [Playground](${artifact.playgroundUrl}).
 `;
-}
-
-function renderReplacementMarkdown(replacement: ReplacementSegment[]): string {
-  return replacement
-    .map((segment) =>
-      typeof segment === "string"
-        ? segment
-        : `[${segment.name}](${getModelArtifactPath(slugifyModelName(segment.id))})`
-    )
-    .join("");
 }
 
 export async function getModelArtifactSearchItems(): Promise<DocSearchIndexItem[]> {

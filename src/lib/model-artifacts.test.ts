@@ -6,12 +6,11 @@ let buildModelArtifacts: typeof import("./model-artifacts").buildModelArtifacts;
 let renderModelsIndexMarkdown: typeof import("./model-artifacts").renderModelsIndexMarkdown;
 let renderModelsIndexIntroMarkdown: typeof import("./model-artifacts").renderModelsIndexIntroMarkdown;
 let getModelsIndexSections: typeof import("./model-artifacts").getModelsIndexSections;
-let getModelArtifact: typeof import("./model-artifacts").getModelArtifact;
 
 beforeAll(async () => {
   process.env.NEXT_PUBLIC_SANITY_PROJECT_ID = "g1zo7y59";
   process.env.NEXT_PUBLIC_SANITY_DATASET = "production";
-  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderModelsIndexIntroMarkdown, renderModelsIndexMarkdown, renderReasoningCapabilitiesMatrix, getModelsIndexSections, getModelArtifact } = await import("./model-artifacts"));
+  ({ buildModelArtifacts, renderModelArtifactMarkdown, renderModelsIndexIntroMarkdown, renderModelsIndexMarkdown, renderReasoningCapabilitiesMatrix, getModelsIndexSections } = await import("./model-artifacts"));
 });
 
 describe("renderReasoningCapabilitiesMatrix", () => {
@@ -256,7 +255,7 @@ describe("renderModelsIndexMarkdown", () => {
       beforeCatalog: notice,
       afterCatalog: guidance,
     });
-    const markdown = renderModelsIndexMarkdown([], [], body);
+    const markdown = renderModelsIndexMarkdown([], body);
     expect(markdown.indexOf(notice)).toBeLessThan(markdown.indexOf("## Model Catalog"));
     expect(markdown.indexOf("| Model |")).toBeLessThan(markdown.indexOf(guidance));
     expect(markdown).not.toContain("<!-- model-catalog -->");
@@ -295,7 +294,7 @@ describe("renderModelsIndexMarkdown", () => {
           { priority: "Realtime", inputTokensPer1M: "\\$0.80", outputTokensPer1M: "\\$1.60" },
         ],
       },
-    ], []);
+    ]);
 
     expect(markdown).toContain("| Model | Realtime | Async | Batch (24h) |");
     expect(markdown).not.toContain("| Provider |");
@@ -304,28 +303,6 @@ describe("renderModelsIndexMarkdown", () => {
     expect(markdown).toContain("| [Unsupported](/inference-api/models/unsupported) | \\$0.80 / \\$0.80 / \\$1.60 | — | — |");
     expect(markdown).not.toContain("❌ Prompt caching is not supported for this model.");
     expect(markdown).not.toContain("90% discount");
-  });
-
-  it("separates scheduled deprecations from active models", () => {
-    const artifact = (id: string, name: string) => ({
-      name, slug: id, id, rawName: id, type: "Generation", capabilities: [], playgroundUrl: `https://example.com/${id}`,
-      pricing: [{ priority: "Realtime", inputTokensPer1M: "\\$1.00", outputTokensPer1M: "\\$2.00" }],
-    });
-    const markdown = renderModelsIndexMarkdown(
-      [artifact("old", "Old"), artifact("new", "New"), artifact("upgrade", "Upgrade")],
-      [
-        { id: "old", name: "Old", replacement: [{ id: "new", name: "New" }, ", or ", { id: "upgrade", name: "Upgrade" }, " for more capability"] },
-        { id: "retired", name: "Retired", replacement: [{ id: "unlisted", name: "Unlisted" }] },
-      ],
-    );
-
-    const active = markdown.slice(markdown.indexOf("### Active Models"), markdown.indexOf("### Shut Down"));
-    expect(active).toContain("| [New](/inference-api/models/new) |");
-    expect(active).not.toContain("[Old]");
-    expect(markdown).toContain("| Model | Recommended Replacement |\n");
-    expect(markdown).toContain("| Old | [New](/inference-api/models/new), or [Upgrade](/inference-api/models/upgrade) for more capability |");
-    expect(markdown).toContain("| Retired | Unlisted |");
-    expect(markdown).not.toContain("Migrating to a Replacement Model");
   });
 
   it("renders the web intro without a duplicate static catalog", () => {
@@ -416,30 +393,5 @@ describe("renderModelArtifactMarkdown", () => {
     });
 
     expect(markdown).toContain("| Async | $0.50 | $0.50 | $1.00 |");
-  });
-});
-
-describe("shut-down model pages", () => {
-  it("keeps a page for every shut-down model", async () => {
-    const { MODEL_DEPRECATIONS } = await import("./model-deprecations");
-    for (const deprecation of MODEL_DEPRECATIONS) {
-      const slug = deprecation.id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-      const artifact = await getModelArtifact(slug);
-      expect(artifact?.id, deprecation.id).toBe(deprecation.id);
-      expect(artifact?.replacement, deprecation.id).toEqual(deprecation.replacement);
-    }
-  });
-
-  it("opens with a shut-down notice naming the replacement and drops pricing and the playground", async () => {
-    const artifact = await getModelArtifact("moonshotai-kimi-k2-6");
-    const markdown = renderModelArtifactMarkdown(artifact!);
-
-    expect(markdown).toContain(':::note{title="Shut down"}');
-    expect(markdown).toContain("This model was shut down on 30 October 2026 and no longer accepts API requests.");
-    expect(markdown).toContain("Its recommended replacement is [GLM 5.3](/inference-api/models/zai-org-glm-5-3). [Kimi K3](/inference-api/models/moonshotai-kimi-k3) is the upgrade option within the Kimi family. See");
-    expect(markdown).toContain("[models that have been shut down](/inference-api/models#scheduled-for-deprecation)");
-    expect(markdown).toContain("## Overview");
-    expect(markdown).not.toContain("## Pricing");
-    expect(markdown).not.toContain("## Playground");
   });
 });
