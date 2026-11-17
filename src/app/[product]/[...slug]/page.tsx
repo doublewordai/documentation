@@ -23,7 +23,6 @@ import {
   renderModelArtifactMarkdown,
   getModelsIndexSections,
 } from "@/lib/model-artifacts";
-import { MODEL_DEPRECATIONS } from "@/lib/model-deprecations";
 
 const SITE_URL = "https://docs.doubleword.ai";
 const INFERENCE_API_PARENT_REDIRECTS: Record<string, string> = {
@@ -389,10 +388,7 @@ export default async function DocPage({ params }: Props) {
                 {modelsOverviewArtifacts && (
                   <>
                     <h2 id="model-catalog">Model Catalog</h2>
-                    <ModelCatalogTable
-                      artifacts={modelsOverviewArtifacts}
-                      deprecations={MODEL_DEPRECATIONS}
-                    />
+                    <ModelCatalogTable artifacts={modelsOverviewArtifacts} />
                     {modelsIndexSections?.afterCatalog && (
                       <MarkdownRenderer
                         content={modelsIndexSections.afterCatalog}
