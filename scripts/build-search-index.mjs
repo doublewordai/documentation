@@ -244,7 +244,8 @@ async function getModelArtifactSearchItems() {
       _id: `model:${slug}`,
       title: provider?.display_name || model.display_name || model.model_name,
       description: pricingRows.join("; ") || undefined,
-      body: model.description || undefined,
+      // The alias and model name are searchable but not shown; the description stays the snippet.
+      body: [...new Set([model.alias, model.model_name, model.description].filter(Boolean))].join("\n\n") || undefined,
       slug: `models/${slug}`,
       productSlug: "inference-api",
       productName: "Doubleword Inference API",
