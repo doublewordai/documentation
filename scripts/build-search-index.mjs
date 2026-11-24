@@ -184,6 +184,9 @@ async function getExternalDocsSearchItems() {
   return groups.flat();
 }
 
+// Same query as the model pages (src/lib/models.ts): public models only, one page of 100.
+const EVERYONE_GROUP_ID = "00000000-0000-0000-0000-000000000000";
+
 async function getModelArtifactSearchItems() {
   const apiKey = process.env.DOUBLEWORD_SYSTEM_API_KEY;
   if (!apiKey) return [];
@@ -194,7 +197,7 @@ async function getModelArtifactSearchItems() {
   // docs) is what matters. Swallow any error and skip these entries.
   let rawData;
   try {
-    const response = await fetch("https://app.doubleword.ai/admin/api/v1/models?include=pricing", {
+    const response = await fetch(`https://app.doubleword.ai/admin/api/v1/models?group=${EVERYONE_GROUP_ID}&include=pricing&sort=released_at&sort_direction=desc&limit=100`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         Accept: "application/json",
@@ -234,12 +237,16 @@ async function getModelArtifactSearchItems() {
       pricingRows.push(`Batch (24h): ${formatPricePer1M(batch24h.input_price_per_token)} input / ${formatPricePer1M(batch24h.output_price_per_token)} output`);
     }
 
+    // Slug and title as the model pages build them (transformModels, toModelArtifact).
+    const slug = slugify(model.alias || model.model_name);
+    const provider = model.provider && typeof model.provider === "object" ? model.provider : undefined;
     return {
-      _id: `model:${slugify(model.model_name)}`,
-      title: model.model_name,
+      _id: `model:${slug}`,
+      title: provider?.display_name || model.display_name || model.model_name,
       description: pricingRows.join("; ") || undefined,
-      body: model.description || undefined,
-      slug: `models/${slugify(model.model_name)}`,
+      // The alias and model name are searchable but not shown; the description stays the snippet.
+      body: [...new Set([model.alias, model.model_name, model.description].filter(Boolean))].join("\n\n") || undefined,
+      slug: `models/${slug}`,
       productSlug: "inference-api",
       productName: "Doubleword Inference API",
       categorySlug: "models",
