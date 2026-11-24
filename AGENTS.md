@@ -197,7 +197,7 @@ SANITY_REVALIDATE_SECRET=<shared secret>
 DOUBLEWORD_API_KEY=<api key for model data>
 ```
 
-Without `DOUBLEWORD_API_KEY`, model pages render empty. (`DOUBLEWORD_SYSTEM_API_KEY`, the old name, is still read as a fallback.)
+Without `DOUBLEWORD_API_KEY` or `DOUBLEWORD_SYSTEM_API_KEY` (the old name, still read as a fallback), model pages render empty.
 
 Optional: `SANITY_API_HOST` points the app at a stand-in Sanity API (e.g. `http://localhost:3210` serving canned GROQ results) for dev/verification in environments that can't reach `*.sanity.io`. Setting it disables per-project hostname routing; leave it unset normally.
 
