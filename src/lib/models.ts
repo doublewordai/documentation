@@ -3,6 +3,8 @@
  */
 import { cache } from "react"
 
+import { doublewordApiKey } from "./doubleword-api-key"
+
 export interface ModelPricing {
   input: number   // price per token
   output: number  // price per token
@@ -198,11 +200,11 @@ export function transformModels(
  * Used during SSR/SSG for templating
  */
 export const fetchModelsServer = cache(async (): Promise<ModelsResponse> => {
-  const apiKey = process.env.DOUBLEWORD_SYSTEM_API_KEY
+  const apiKey = doublewordApiKey()
 
   if (!apiKey) {
     // No API key configured - return empty (can't cache non-existent data)
-    console.warn('DOUBLEWORD_SYSTEM_API_KEY not set, returning empty models')
+    console.warn('DOUBLEWORD_API_KEY not set, returning empty models')
     return { models: [], fetchedAt: new Date().toISOString() }
   }
 
