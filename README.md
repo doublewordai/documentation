@@ -435,7 +435,7 @@ NEXT_PUBLIC_SANITY_DATASET=production
 SANITY_REVALIDATE_SECRET=your-webhook-secret
 
 # Doubleword API (for model data)
-DOUBLEWORD_SYSTEM_API_KEY=your-api-key
+DOUBLEWORD_API_KEY=your-api-key
 ```
 
 ### Setting Up Sanity Webhook

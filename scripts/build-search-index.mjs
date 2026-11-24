@@ -188,7 +188,8 @@ async function getExternalDocsSearchItems() {
 const EVERYONE_GROUP_ID = "00000000-0000-0000-0000-000000000000";
 
 async function getModelArtifactSearchItems() {
-  const apiKey = process.env.DOUBLEWORD_SYSTEM_API_KEY;
+  // DOUBLEWORD_SYSTEM_API_KEY is the old name (src/lib/doubleword-api-key.ts).
+  const apiKey = process.env.DOUBLEWORD_API_KEY || process.env.DOUBLEWORD_SYSTEM_API_KEY;
   if (!apiKey) return [];
 
   // Model pricing is optional enrichment. The Vercel build box can't always

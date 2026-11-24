@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-const SYSTEM_API_KEY = process.env.DOUBLEWORD_SYSTEM_API_KEY;
+import { doublewordApiKey } from "@/lib/doubleword-api-key";
+
 
 // Override these values in the OpenAPI spec
 const SPEC_OVERRIDES = {
@@ -28,13 +29,14 @@ Use the OpenAI-compatible API with the Autobatcher for drop-in async savings, or
 };
 
 export async function GET() {
-  if (!SYSTEM_API_KEY) {
-    throw new Error("DOUBLEWORD_SYSTEM_API_KEY is not set");
+  const apiKey = doublewordApiKey();
+  if (!apiKey) {
+    throw new Error("DOUBLEWORD_API_KEY is not set");
   }
 
   const response = await fetch("https://api.doubleword.ai/openapi.json", {
     headers: {
-      Authorization: `Bearer ${SYSTEM_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     next: { revalidate: 3600 }, // Cache for 1 hour, then refetch
   });
